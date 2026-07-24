@@ -3,7 +3,9 @@ import { config } from '../config.js';
 import { HttpError } from './error.js';
 
 export const authenticate = (req, res, next) => {
-  const header = req.headers.authorization || '';
+  // x-app-authorization lets a reverse proxy that owns the Authorization
+  // header (e.g. one adding its own basic auth) still forward the app's JWT.
+  const header = req.headers['x-app-authorization'] || req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return next(new HttpError(401, 'Authentication required'));
   try {

@@ -113,6 +113,8 @@ Managed in **Admin → Settings** and consumed by the customer site: restaurant 
 
 ## Deployment notes
 
+- Step-by-step hosting guide (Supabase + Render + Vercel): [DEPLOY.md](DEPLOY.md).
+- `STATIC_DIR` makes the API serve a built frontend from the same origin (single-host deploys).
 - Provide a production `DATABASE_URL`, run `npx prisma migrate deploy`, then `npm start` in `backend/`.
 - Build the frontend (`npm run build`) and serve `frontend/dist` from any static host; set `VITE_API_URL` to the deployed API and `CORS_ORIGINS` to the site origin.
 - Uploads live on local disk by default; mount a persistent volume or replace the storage driver in `backend/src/services/mediaService.js`.
