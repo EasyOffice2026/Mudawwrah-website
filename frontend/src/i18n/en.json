@@ -33,8 +33,8 @@
   "cart": {
     "title": "Your order",
     "empty": "Your cart is empty",
-    "items": "{{count}} item",
-    "items_plural": "{{count}} items",
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items",
     "subtotal": "Subtotal",
     "deliveryFee": "Delivery fee",
     "serviceCharge": "Service charge",

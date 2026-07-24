@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminLayout from './admin/AdminLayout.jsx';
+import AdminOnly from './admin/AdminOnly.jsx';
 import Banners from './admin/pages/Banners.jsx';
 import Dashboard from './admin/pages/Dashboard.jsx';
 import Login from './admin/pages/Login.jsx';
@@ -21,7 +22,14 @@ export default function App() {
         <Route path="orders" element={<Orders />} />
         <Route path="media" element={<MediaLibrary />} />
         <Route path="banners" element={<Banners />} />
-        <Route path="users" element={<Users />} />
+        <Route
+          path="users"
+          element={
+            <AdminOnly>
+              <Users />
+            </AdminOnly>
+          }
+        />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

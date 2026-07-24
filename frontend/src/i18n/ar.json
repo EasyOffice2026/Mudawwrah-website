@@ -33,8 +33,11 @@
   "cart": {
     "title": "طلبك",
     "empty": "سلتك فارغة",
-    "items": "{{count}} صنف",
-    "items_plural": "{{count}} أصناف",
+    "items_one": "{{count}} صنف",
+    "items_two": "{{count}} صنفان",
+    "items_few": "{{count}} أصناف",
+    "items_many": "{{count}} صنفًا",
+    "items_other": "{{count}} صنف",
     "subtotal": "المجموع",
     "deliveryFee": "رسوم التوصيل",
     "serviceCharge": "رسوم الخدمة",
