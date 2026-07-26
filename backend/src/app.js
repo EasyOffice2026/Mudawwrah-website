@@ -12,7 +12,16 @@ export const createApp = () => {
       origin: config.corsOrigins.includes('*') ? true : config.corsOrigins,
     }),
   );
-  app.use(express.json({ limit: '1mb' }));
+  app.use(
+    express.json({
+      limit: '1mb',
+      // Retained so the WhatsApp webhook can validate Meta's HMAC signature.
+      verify: (req, res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+  app.use(express.urlencoded({ extended: false }));
   app.use(morgan('dev'));
   app.use('/uploads', express.static(config.uploadDir));
   app.use('/api', routes);

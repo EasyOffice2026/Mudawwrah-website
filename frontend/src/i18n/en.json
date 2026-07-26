@@ -110,6 +110,11 @@
     "active": "Active",
     "restaurantInfo": "Restaurant info",
     "ordering": "Ordering",
-    "saved": "Saved successfully"
+    "saved": "Saved successfully",
+    "channel": "Channel",
+    "feedback": "Feedback",
+    "averageRating": "Average rating",
+    "rating": "Rating",
+    "comment": "Comment"
   }
 }

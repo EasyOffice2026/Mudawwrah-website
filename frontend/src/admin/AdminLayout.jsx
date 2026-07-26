@@ -9,6 +9,7 @@ const links = [
   { to: '/admin/orders', labelKey: 'admin.orders' },
   { to: '/admin/media', labelKey: 'admin.media' },
   { to: '/admin/banners', labelKey: 'admin.banners' },
+  { to: '/admin/feedback', labelKey: 'admin.feedback' },
   { to: '/admin/users', labelKey: 'admin.users', adminOnly: true },
   { to: '/admin/settings', labelKey: 'admin.settings' },
 ];

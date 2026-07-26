@@ -3,6 +3,7 @@ import AdminLayout from './admin/AdminLayout.jsx';
 import AdminOnly from './admin/AdminOnly.jsx';
 import Banners from './admin/pages/Banners.jsx';
 import Dashboard from './admin/pages/Dashboard.jsx';
+import Feedback from './admin/pages/Feedback.jsx';
 import Login from './admin/pages/Login.jsx';
 import MediaLibrary from './admin/pages/MediaLibrary.jsx';
 import MenuManager from './admin/pages/MenuManager.jsx';
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="orders" element={<Orders />} />
         <Route path="media" element={<MediaLibrary />} />
         <Route path="banners" element={<Banners />} />
+        <Route path="feedback" element={<Feedback />} />
         <Route
           path="users"
           element={

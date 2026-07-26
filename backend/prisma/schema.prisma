@@ -29,6 +29,24 @@ enum PaymentMethod {
   WHATSAPP
 }
 
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum OrderChannel {
+  WEB
+  WHATSAPP
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -103,7 +121,17 @@ model Order {
   address       String?
   notes         String?
   status        OrderStatus   @default(PENDING)
+  channel       OrderChannel  @default(WEB)
   paymentMethod PaymentMethod @default(CASH)
+  paymentStatus PaymentStatus @default(UNPAID)
+  paymentProvider String?
+  paymentRef      String?
+  paymentUrl      String?
+  paidAt          DateTime?
+  area          String?
+  block         String?
+  street        String?
+  building      String?
   subtotal      Decimal       @db.Decimal(10, 3)
   deliveryFee   Decimal       @default(0) @db.Decimal(10, 3)
   serviceCharge Decimal       @default(0) @db.Decimal(10, 3)
@@ -111,6 +139,57 @@ model Order {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   items         OrderItem[]
+  feedback      OrderFeedback?
+}
+
+model OrderFeedback {
+  id        String   @id @default(uuid())
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  phone     String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+model WhatsappSession {
+  id          String   @id @default(uuid())
+  phone       String   @unique
+  waName      String?
+  lang        String   @default("en")
+  state       String   @default("START")
+  cart        Json?
+  draft       Json?
+  lastOrderId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WhatsappMessage {
+  id          String           @id @default(uuid())
+  phone       String
+  direction   MessageDirection
+  waMessageId String?          @unique
+  body        String?
+  payload     Json?
+  createdAt   DateTime         @default(now())
+
+  @@index([phone, createdAt])
+}
+
+model CustomerAddress {
+  id        String   @id @default(uuid())
+  phone     String
+  area      String
+  block     String?
+  street    String?
+  building  String?
+  extra     String?
+  isDefault Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([phone])
 }
 
 model OrderItem {

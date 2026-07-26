@@ -3,7 +3,9 @@
 Full-stack, bilingual (EN/AR with RTL) Talabat-style ordering platform for the Kuwaiti restaurant **Mdawra**. Prices are always shown as `KWD 0.000`.
 
 - **Customer site** (`/`) — mobile-first menu with sticky category tabs, picks grid, item rows, customization modal, cart, checkout, and WhatsApp order handoff.
-- **Admin backend** (`/admin`) — dashboard, menu & inventory, orders, media library, banners, users, settings.
+- **WhatsApp ordering bot** — the whole journey inside WhatsApp: language, menu browsing, item
+  customization, cart, delivery address, online payment and after-sale feedback.
+- **Admin backend** (`/admin`) — dashboard, menu & inventory, orders, media library, banners, feedback, users, settings.
 - **API** — Node.js + Express + Prisma + PostgreSQL with JWT role-based auth (`ADMIN`, `STAFF`, `CUSTOMER`).
 
 All menu content, banners, and settings are served live from the API — nothing is hardcoded in the frontend.
@@ -21,12 +23,15 @@ All menu content, banners, and settings are served live from the API — nothing
 ```
 backend/
   prisma/schema.prisma   Prisma models (User, Category, MenuItem, CustomizationOption,
-                         Order, OrderItem, Banner, Media, Setting)
+                         Order, OrderItem, OrderFeedback, Banner, Media, Setting,
+                         WhatsappSession, WhatsappMessage, CustomerAddress)
   prisma/seed.js         Seed script: full Mdawra menu + default admin user
   src/routes             Route definitions (thin)
   src/controllers        Request/response + validation
   src/services           Business logic and database access
   src/middleware         auth, error handling, uploads
+  src/services/whatsapp  Cloud API client, bilingual copy, conversation state machine
+  src/services/payment   Pluggable payment gateway drivers
 frontend/
   src/customer           Customer ordering site
   src/admin              Admin panel (layout + pages)
@@ -70,6 +75,11 @@ Seeded menu items use clearly labeled placeholder images; upload real photos fro
 | `PUBLIC_URL` | Base URL used to build image URLs |
 | `MAX_UPLOAD_BYTES` | Upload size limit (default 5 MB) |
 | `CORS_ORIGINS` | Comma-separated allowed origins |
+| `WHATSAPP_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` | Meta WhatsApp Cloud API credentials |
+| `WHATSAPP_VERIFY_TOKEN` / `WHATSAPP_APP_SECRET` | Webhook verification token and HMAC signing secret |
+| `WHATSAPP_SESSION_TTL_MINUTES` | Idle time before a chat's cart/state resets (default 60) |
+| `PAYMENT_PROVIDER` | `manual`, `myfatoorah` or `mock` |
+| `MYFATOORAH_API_KEY` / `MYFATOORAH_BASE_URL` | MyFatoorah credentials (test host by default) |
 
 ## Frontend setup
 
@@ -98,7 +108,10 @@ Everything else requires `Authorization: Bearer <token>`; `STAFF` can manage the
 | Auth | `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me` |
 | Categories | `GET /api/categories`, `GET /api/categories/all`, `POST/PUT/DELETE /api/categories[/:id]`, `POST /api/categories/reorder` |
 | Items | `GET /api/items`, `GET /api/items/:id`, `POST/PUT/DELETE /api/items[/:id]`, `POST /api/items/reorder`, `POST /api/items/bulk-availability` |
-| Orders | `POST /api/orders`, `GET /api/orders`, `GET /api/orders/:id`, `PATCH /api/orders/:id/status` |
+| Orders | `POST /api/orders`, `GET /api/orders` (`?channel=WEB\|WHATSAPP`), `GET /api/orders/:id`, `PATCH /api/orders/:id/status` |
+| Feedback | `GET /api/feedback` (staff) |
+| WhatsApp | `GET/POST /api/whatsapp/webhook` (Meta Cloud API) |
+| Payments | `GET/POST /api/payments/:provider/callback` |
 | Banners | `GET /api/banners`, `GET /api/banners/all`, `POST/PUT/DELETE /api/banners[/:id]` |
 | Media | `GET /api/media`, `POST /api/media` (multipart `file`), `DELETE /api/media/:id` |
 | Users | `GET/POST /api/users`, `GET/PUT/DELETE /api/users/:id` |
@@ -106,6 +119,52 @@ Everything else requires `Authorization: Bearer <token>`; `STAFF` can manage the
 | Dashboard | `GET /api/dashboard/stats?range=daily\|weekly\|monthly` |
 
 Order totals are always recalculated server-side from live item prices and selected customization options, so client-side tampering cannot change what is charged. Orders also enforce the configured minimum order value and the open/closed toggle.
+
+## WhatsApp ordering
+
+Orders can be placed end-to-end in a WhatsApp chat — nothing else is needed from the customer:
+
+1. **Language** — first contact asks for English / العربية; every later reply uses that language.
+2. **Menu** — categories and items come from the same live menu as the website (interactive lists,
+   paginated 8 per page), so **Admin → Menu & inventory** is the single place menus are edited.
+3. **Ordering** — quantity prompt, one prompt per customization group, then a cart summary with
+   *Checkout / Add more / Clear cart* buttons. Totals are recalculated server-side.
+4. **Delivery address** — name, area, block, street, building, extra directions. The address is
+   saved per phone number and offered for reuse on the next order.
+5. **Payment** — *Pay online* creates a hosted payment link (KNET/card via the configured gateway);
+   *Cash on delivery* places the order immediately. The gateway callback is verified against the
+   provider before the order is marked `PAID` and confirmed.
+6. **After sale** — moving an order to `DELIVERED` in the admin panel sends a 1–5 star request and
+   an optional comment; results appear in **Admin → Feedback**.
+
+Status changes (`CONFIRMED`, `PREPARING`, `READY`, `DELIVERED`, `CANCELLED`) are pushed to the
+customer's chat automatically. Keywords `menu`, `cart`, `status`, `pay`, `cancel` (and Arabic
+equivalents) work at any point.
+
+### Meta setup
+
+1. Create a Meta app with the **WhatsApp** product and a business phone number.
+2. Set `WHATSAPP_TOKEN` (permanent system-user token), `WHATSAPP_PHONE_NUMBER_ID`,
+   `WHATSAPP_VERIFY_TOKEN` (any random string) and `WHATSAPP_APP_SECRET`.
+3. Point the webhook at `https://<api-host>/api/whatsapp/webhook`, use the same verify token and
+   subscribe to the `messages` field.
+4. Set `PUBLIC_URL` to the public API base URL — payment links and callbacks are built from it.
+
+Without WhatsApp credentials the bot still runs: outbound messages are logged to the
+`WhatsappMessage` table and skipped, which is how the flow is tested locally.
+
+### Payment gateway
+
+`PAYMENT_PROVIDER` selects the driver in `backend/src/services/payment/`:
+
+| Value | Behaviour |
+| ----- | --------- |
+| `manual` (default) | Online payment button hidden; cash on delivery only |
+| `myfatoorah` | KNET/cards via MyFatoorah `SendPayment`; needs `MYFATOORAH_API_KEY` (+ `MYFATOORAH_BASE_URL` for production) |
+| `mock` | Dev only — the payment link marks the order paid when opened |
+
+Add a new gateway by dropping a module exposing `name`, `isConfigured`, `createPaymentLink` and
+`getPaymentStatus` into that folder and registering it in `payment/index.js`.
 
 ## Settings
 

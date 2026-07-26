@@ -10,6 +10,7 @@ export const list = async (req, res) =>
   res.json(
     await service.list({
       status: req.query.status,
+      channel: req.query.channel,
       from: req.query.from,
       to: req.query.to,
       search: req.query.search,
