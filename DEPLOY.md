@@ -1,5 +1,21 @@
 # Deploying Mdawra (Supabase + Render + Vercel)
 
+**Live deployment**
+
+| Piece | URL |
+| --- | --- |
+| Customer site | https://mdawra.vercel.app |
+| Admin panel | https://mdawra.vercel.app/admin/login |
+| API | https://mdawra-api.onrender.com (`/api/health`) |
+| Database | Supabase project `svyywyoknpocdksdbheh` (ap-northeast-1) |
+
+The Render service auto-deploys on pushes to `devin/mdawra-platform`. Two free-tier limits apply:
+the API sleeps after ~15 minutes idle (first request then takes ~50s), and it has no persistent disk,
+so images uploaded through the admin panel are lost on redeploy — attach a Render disk (see below)
+or move `mediaService` to Supabase Storage.
+
+The steps below reproduce that setup from scratch.
+
 Three pieces: Postgres on **Supabase**, the Express API on **Render**, the React site on **Vercel**.
 Total time ~20 minutes. Everything below is copy/paste.
 

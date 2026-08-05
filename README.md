@@ -113,6 +113,7 @@ Managed in **Admin → Settings** and consumed by the customer site: restaurant 
 
 ## Deployment notes
 
+- Live: site https://mdawra.vercel.app, admin https://mdawra.vercel.app/admin/login, API https://mdawra-api.onrender.com.
 - Step-by-step hosting guide (Supabase + Render + Vercel): [DEPLOY.md](DEPLOY.md).
 - `STATIC_DIR` makes the API serve a built frontend from the same origin (single-host deploys).
 - Provide a production `DATABASE_URL`, run `npx prisma migrate deploy`, then `npm start` in `backend/`.
