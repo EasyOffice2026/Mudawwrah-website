@@ -3,15 +3,17 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
+      // Colours resolve through CSS variables so a restaurant's palette can be
+      // swapped at runtime without rebuilding or touching any component.
       colors: {
         brand: {
-          DEFAULT: '#B00020',
-          dark: '#8A0019',
-          light: '#F6E4E7',
+          DEFAULT: 'rgb(var(--brand) / <alpha-value>)',
+          dark: 'rgb(var(--brand-dark) / <alpha-value>)',
+          light: 'rgb(var(--brand-light) / <alpha-value>)',
         },
         accent: {
-          DEFAULT: '#FF6B00',
-          dark: '#E05F00',
+          DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
+          dark: 'rgb(var(--accent-dark) / <alpha-value>)',
         },
       },
       fontFamily: {

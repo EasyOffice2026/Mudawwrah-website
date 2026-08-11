@@ -6,6 +6,7 @@ import { prisma } from '../prisma.js';
 
 const publicUser = (user) => ({
   id: user.id,
+  tenantId: user.tenantId,
   email: user.email,
   name: user.name,
   phone: user.phone,
@@ -13,11 +14,20 @@ const publicUser = (user) => ({
   isActive: user.isActive,
 });
 
+// tenantId travels in the token so every request knows which restaurant this
+// operator belongs to. Null marks a platform operator with access to all.
 const sign = (user, expiresIn) =>
-  jwt.sign({ sub: user.id, email: user.email, role: user.role, name: user.name }, config.jwtSecret, { expiresIn });
+  jwt.sign(
+    { sub: user.id, email: user.email, role: user.role, name: user.name, tenantId: user.tenantId ?? null },
+    config.jwtSecret,
+    { expiresIn },
+  );
 
 export const login = async ({ email, password }) => {
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase() },
+    include: { tenant: { select: { slug: true, nameEn: true } } },
+  });
   if (!user || !(await bcrypt.compare(password, user.password))) {
     throw new HttpError(401, 'Invalid email or password');
   }
@@ -25,7 +35,7 @@ export const login = async ({ email, password }) => {
   return {
     token: sign(user, config.jwtExpiresIn),
     refreshToken: sign(user, config.refreshExpiresIn),
-    user: publicUser(user),
+    user: { ...publicUser(user), tenantSlug: user.tenant?.slug ?? null },
   };
 };
 
@@ -43,9 +53,12 @@ export const refresh = async (refreshToken) => {
 };
 
 export const me = async (userId) => {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { tenant: { select: { slug: true, nameEn: true } } },
+  });
   if (!user) throw new HttpError(404, 'User not found');
-  return publicUser(user);
+  return { ...publicUser(user), tenantSlug: user.tenant?.slug ?? null };
 };
 
 export { publicUser };

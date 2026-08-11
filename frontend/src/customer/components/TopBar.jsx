@@ -13,15 +13,18 @@ const IconButton = ({ children, onClick, label, active }) => (
   </button>
 );
 
-export default function TopBar({ title, favorite, onToggleFavorite, onShare, onSearch }) {
+export default function TopBar({ title, subtitle, favorite, onToggleFavorite, onBack, onShare, onSearch }) {
   const { t, i18n } = useTranslation();
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 py-2">
-      <div className="flex items-center gap-2">
-        <IconButton label="back" onClick={() => window.history.back()}>
+      <div className="flex min-w-0 items-center gap-2">
+        <IconButton label="back" onClick={onBack || (() => window.history.back())}>
           <span className="rtl:rotate-180">←</span>
         </IconButton>
-        <span className="text-lg font-bold">{title}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-lg font-bold leading-tight">{title}</span>
+          {subtitle ? <span className="block truncate text-xs text-gray-500">{subtitle}</span> : null}
+        </span>
       </div>
       <div className="flex items-center gap-2">
         <button

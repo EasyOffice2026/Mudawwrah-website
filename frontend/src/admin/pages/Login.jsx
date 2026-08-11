@@ -1,13 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-import { apiError } from '../../lib/api';
+import { useNavigate, useParams } from 'react-router-dom';
+import { api, apiError } from '../../lib/api';
+import { localized } from '../../lib/format';
+import { applyTheme } from '../../lib/theme';
 import { useAuth } from '../../store/auth';
 
 export default function Login() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [tenant, setTenant] = useState(null);
+
+  useEffect(() => {
+    api
+      .get('/tenants/current')
+      .then(({ data }) => {
+        setTenant(data);
+        applyTheme(data);
+      })
+      .catch(() => {});
+  }, [slug]);
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -18,7 +32,7 @@ export default function Login() {
     setError(null);
     try {
       await login(form.email, form.password);
-      navigate('/admin', { replace: true });
+      navigate(`/r/${slug}/admin`, { replace: true });
     } catch (err) {
       setError(apiError(err));
     } finally {
@@ -29,7 +43,12 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4">
-        <h1 className="text-xl font-extrabold text-brand">{t('admin.login')}</h1>
+        <div>
+          <h1 className="text-xl font-extrabold text-brand">
+            {tenant ? localized(tenant, 'name', i18n.language) : t('admin.login')}
+          </h1>
+          <p className="text-xs text-gray-500">{t('admin.login')}</p>
+        </div>
         <div>
           <label className="label">{t('admin.email')}</label>
           <input

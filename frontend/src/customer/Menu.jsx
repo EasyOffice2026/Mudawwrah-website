@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api, apiError } from '../lib/api';
 import { localized } from '../lib/format';
+import { applyTheme } from '../lib/theme';
 import { useCart } from '../store/cart';
 import BannerCarousel from './components/BannerCarousel.jsx';
 import CartBar from './components/CartBar.jsx';
@@ -15,7 +17,10 @@ import TopBar from './components/TopBar.jsx';
 
 export default function Menu() {
   const { t, i18n } = useTranslation();
+  const { slug } = useParams();
+  const navigate = useNavigate();
   const lang = i18n.language;
+  const [tenant, setTenant] = useState(null);
   const [categories, setCategories] = useState([]);
   const [banners, setBanners] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -29,16 +34,20 @@ export default function Menu() {
   const [query, setQuery] = useState('');
   const [favorite, setFavorite] = useState(localStorage.getItem('mdawra_favorite') === 'true');
   const sectionRefs = useRef({});
-  const { addLine, count, subtotal } = useCart();
+  const { addLine, count, subtotal, ensureTenant } = useCart();
 
   const load = async () => {
     setLoading(true);
     try {
-      const [categoriesRes, bannersRes, settingsRes] = await Promise.all([
+      const [tenantRes, categoriesRes, bannersRes, settingsRes] = await Promise.all([
+        api.get('/tenants/current'),
         api.get('/categories'),
         api.get('/banners'),
         api.get('/settings'),
       ]);
+      setTenant(tenantRes.data);
+      // Repaints the entire UI in this restaurant's palette.
+      applyTheme(tenantRes.data);
       setCategories(categoriesRes.data);
       setBanners(bannersRes.data);
       setSettings(settingsRes.data);
@@ -52,8 +61,10 @@ export default function Menu() {
   };
 
   useEffect(() => {
+    // Switching restaurants starts a fresh cart rather than carrying prices over.
+    ensureTenant(slug);
     load();
-  }, []);
+  }, [slug]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -107,14 +118,16 @@ export default function Menu() {
     });
   };
 
-  const restaurantName = settings ? localized(settings, 'restaurantName', lang) : t('brand');
+  const restaurantName = tenant ? localized(tenant, 'name', lang) : settings ? localized(settings, 'restaurantName', lang) : t('brand');
 
   return (
     <div className="mx-auto min-h-screen max-w-3xl pb-24">
       <TopBar
         title={restaurantName}
+        subtitle={tenant ? localized(tenant, 'cuisine', lang) : null}
         favorite={favorite}
         onToggleFavorite={toggleFavorite}
+        onBack={() => navigate('/')}
         onShare={share}
         onSearch={() => setSearchOpen((open) => !open)}
       />

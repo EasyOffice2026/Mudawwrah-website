@@ -1,9 +1,11 @@
 import bcrypt from 'bcryptjs';
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
+import { currentTenantId } from '../tenantContext.js';
 
 const select = {
   id: true,
+  tenantId: true,
   email: true,
   name: true,
   phone: true,
@@ -13,9 +15,14 @@ const select = {
   _count: { select: { orders: true } },
 };
 
+// User is deliberately outside the automatic scoping (login must find a user
+// before a tenant is known), so every query here filters explicitly.
+const scope = () => ({ tenantId: currentTenantId() });
+
 export const list = ({ role, search } = {}) =>
   prisma.user.findMany({
     where: {
+      ...scope(),
       ...(role ? { role } : {}),
       ...(search
         ? {
@@ -31,8 +38,8 @@ export const list = ({ role, search } = {}) =>
   });
 
 export const getById = async (id) => {
-  const user = await prisma.user.findUnique({
-    where: { id },
+  const user = await prisma.user.findFirst({
+    where: { id, ...scope() },
     select: { ...select, orders: { orderBy: { createdAt: 'desc' }, take: 20 } },
   });
   if (!user) throw new HttpError(404, 'User not found');
@@ -43,7 +50,12 @@ export const create = async ({ email, password, ...rest }) => {
   const exists = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
   if (exists) throw new HttpError(409, 'A user with this email already exists');
   return prisma.user.create({
-    data: { ...rest, email: email.toLowerCase(), password: await bcrypt.hash(password, 10) },
+    data: {
+      ...rest,
+      ...scope(),
+      email: email.toLowerCase(),
+      password: await bcrypt.hash(password, 10),
+    },
     select,
   });
 };

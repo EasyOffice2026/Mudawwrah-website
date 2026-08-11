@@ -1,10 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from '../../components/Modal.jsx';
 import { api, apiError } from '../../lib/api';
 import { dateTime, kwd } from '../../lib/format';
 
 const STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED'];
+const POLL_MS = 15000;
+
+/** Two-tone chime, synthesised so the build needs no audio asset. */
+const playChime = () => {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    [880, 1320].forEach((freq, index) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const start = ctx.currentTime + index * 0.18;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+      osc.start(start);
+      osc.stop(start + 0.18);
+    });
+    setTimeout(() => ctx.close().catch(() => {}), 800);
+  } catch {
+    /* audio is a nicety, never a failure */
+  }
+};
 
 export default function Orders() {
   const { t, i18n } = useTranslation();
@@ -13,12 +40,27 @@ export default function Orders() {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
+  const [live, setLive] = useState(true);
+  const [newIds, setNewIds] = useState(() => new Set());
+  const seenIds = useRef(null);
 
   const load = async () => {
     try {
       const params = { page, pageSize: 20 };
       for (const [key, value] of Object.entries(filters)) if (value) params[key] = value;
       const { data } = await api.get('/orders', { params });
+
+      // First load only establishes a baseline — no alert for existing orders.
+      const ids = new Set(data.data.map((order) => order.id));
+      if (seenIds.current) {
+        const fresh = data.data.filter((order) => !seenIds.current.has(order.id)).map((order) => order.id);
+        if (fresh.length) {
+          setNewIds((current) => new Set([...current, ...fresh]));
+          playChime();
+        }
+      }
+      seenIds.current = ids;
+
       setResult(data);
       setError(null);
     } catch (err) {
@@ -27,8 +69,17 @@ export default function Orders() {
   };
 
   useEffect(() => {
+    // Filter or page change invalidates the baseline.
+    seenIds.current = null;
+    setNewIds(new Set());
     load();
   }, [filters, page]);
+
+  useEffect(() => {
+    if (!live) return undefined;
+    const id = setInterval(load, POLL_MS);
+    return () => clearInterval(id);
+  }, [live, filters, page]);
 
   const setStatus = async (id, status) => {
     try {
@@ -44,7 +95,25 @@ export default function Orders() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-extrabold">{t('admin.orders')}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-extrabold">{t('admin.orders')}</h1>
+        <div className="flex items-center gap-3">
+          {newIds.size ? (
+            <button
+              type="button"
+              onClick={() => setNewIds(new Set())}
+              className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-white"
+            >
+              {newIds.size} new · {t('admin.markSeen')}
+            </button>
+          ) : null}
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-gray-600">
+            <span className={`h-2 w-2 rounded-full ${live ? 'animate-pulse bg-green-500' : 'bg-gray-300'}`} />
+            <input type="checkbox" className="sr-only" checked={live} onChange={() => setLive((v) => !v)} />
+            {live ? t('admin.liveOn') : t('admin.liveOff')}
+          </label>
+        </div>
+      </div>
 
       <div className="card grid gap-3 sm:grid-cols-4">
         <div>
@@ -88,8 +157,13 @@ export default function Orders() {
           </thead>
           <tbody>
             {result.data.map((order) => (
-              <tr key={order.id} className="border-t border-gray-100">
-                <td className="py-2 font-semibold">{order.orderNumber}</td>
+              <tr key={order.id} className={`border-t border-gray-100 ${newIds.has(order.id) ? 'bg-brand-light' : ''}`}>
+                <td className="py-2 font-semibold">
+                  {order.orderNumber}
+                  {newIds.has(order.id) ? (
+                    <span className="ms-2 rounded bg-accent px-1.5 py-0.5 text-[10px] font-bold text-white">NEW</span>
+                  ) : null}
+                </td>
                 <td className="py-2">
                   {order.customerName}
                   <span className="block text-xs text-gray-500">{order.customerPhone}</span>

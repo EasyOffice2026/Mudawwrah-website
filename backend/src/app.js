@@ -3,6 +3,7 @@ import express from 'express';
 import morgan from 'morgan';
 import { config } from './config.js';
 import { errorHandler, notFound } from './middleware/error.js';
+import { resolveTenant } from './middleware/tenant.js';
 import routes from './routes/index.js';
 
 export const createApp = () => {
@@ -10,6 +11,7 @@ export const createApp = () => {
   app.use(
     cors({
       origin: config.corsOrigins.includes('*') ? true : config.corsOrigins,
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant'],
     }),
   );
   app.use(express.json({ limit: '1mb' }));

@@ -1,14 +1,18 @@
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
+import { currentTenant } from '../tenantContext.js';
 import { getAll as getSettings } from './settingService.js';
 
 const include = { items: { include: { menuItem: true } }, user: { select: { id: true, name: true, email: true } } };
 
 const round3 = (value) => Number(Number(value).toFixed(3));
 
+// The count is already confined to the current tenant, so two restaurants can
+// each run their own MD20260811-0001 without colliding.
 const generateOrderNumber = async () => {
   const today = new Date();
-  const prefix = `MD${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+  const code = (currentTenant()?.slug || 'md').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || 'MD';
+  const prefix = `${code}${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
   const count = await prisma.order.count({ where: { orderNumber: { startsWith: prefix } } });
   return `${prefix}-${String(count + 1).padStart(4, '0')}`;
 };
@@ -52,7 +56,9 @@ export const create = async (payload) => {
   }
   const deliveryFee = round3(settings.deliveryFee);
   const serviceCharge = round3((subtotal * Number(settings.serviceChargePercent)) / 100);
-  const total = round3(subtotal + deliveryFee + serviceCharge);
+  // taxPercent was previously editable in admin but never applied to a total.
+  const tax = round3(((subtotal + serviceCharge) * Number(settings.taxPercent || 0)) / 100);
+  const total = round3(subtotal + deliveryFee + serviceCharge + tax);
 
   return prisma.order.create({
     data: {
@@ -66,6 +72,7 @@ export const create = async (payload) => {
       subtotal,
       deliveryFee,
       serviceCharge,
+      tax,
       total,
       items: { create: lines },
     },

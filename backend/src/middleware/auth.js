@@ -20,5 +20,27 @@ export const requireRole = (...roles) => (req, res, next) => {
   next();
 };
 
-export const requireStaff = [authenticate, requireRole('ADMIN', 'STAFF')];
-export const requireAdmin = [authenticate, requireRole('ADMIN')];
+/**
+ * Staff belong to one restaurant and may only administer that one. Users with
+ * no tenantId are platform operators (the reseller) and may administer any —
+ * which is how a restaurant can either self-manage or hand it over to us.
+ */
+export const requireTenantAccess = (req, res, next) => {
+  const userTenantId = req.user?.tenantId ?? null;
+  if (userTenantId === null) return next();
+  if (!req.tenant || req.tenant.id !== userTenantId) {
+    return next(new HttpError(403, 'You do not have access to this restaurant'));
+  }
+  next();
+};
+
+export const requirePlatformAdmin = (req, res, next) => {
+  if (!req.user) return next(new HttpError(401, 'Authentication required'));
+  if (req.user.tenantId != null || req.user.role !== 'ADMIN') {
+    return next(new HttpError(403, 'Platform administrator only'));
+  }
+  next();
+};
+
+export const requireStaff = [authenticate, requireRole('ADMIN', 'STAFF'), requireTenantAccess];
+export const requireAdmin = [authenticate, requireRole('ADMIN'), requireTenantAccess];
