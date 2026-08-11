@@ -1,9 +1,8 @@
 import bcrypt from 'bcryptjs';
-import fs from 'fs';
-import path from 'path';
+import sharp from 'sharp';
 import { PrismaClient } from '@prisma/client';
-import { config } from '../src/config.js';
 import { DEFAULT_SETTINGS } from '../src/services/settingService.js';
+import { put } from '../src/storage.js';
 
 const prisma = new PrismaClient();
 
@@ -27,30 +26,30 @@ const wrap = (text, perLine = 18) => {
 };
 
 // Clearly labeled placeholder artwork; real photos are uploaded later via the admin media library.
-const placeholder = async (label, slug) => {
-  const filename = `placeholder-${slug}.svg`;
+const placeholder = async (label, slug, { color = '#B00020', accent = '#FF6B00' } = {}) => {
+  const originalName = `placeholder-${slug}.png`;
+  const existing = await prisma.media.findFirst({ where: { originalName } });
+  if (existing) return existing;
   const lines = wrap(label);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
-  <rect width="600" height="600" fill="#B00020"/>
+  <rect width="600" height="600" fill="${color}"/>
   <rect x="24" y="24" width="552" height="552" rx="32" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="4"/>
   <text x="300" y="${300 - (lines.length - 1) * 26}" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="44" font-weight="700" fill="#ffffff">
     ${lines.map((l, i) => `<tspan x="300" dy="${i === 0 ? 0 : 52}">${escapeXml(l)}</tspan>`).join('')}
   </text>
-  <text x="300" y="540" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" fill="#FF6B00">PLACEHOLDER IMAGE</text>
+  <text x="300" y="540" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" fill="${accent}">PLACEHOLDER IMAGE</text>
 </svg>`;
-  fs.mkdirSync(config.uploadDir, { recursive: true });
-  fs.writeFileSync(path.join(config.uploadDir, filename), svg);
-  const url = `${config.publicUrl}/uploads/${filename}`;
-  const existing = await prisma.media.findFirst({ where: { filename } });
-  if (existing) return prisma.media.update({ where: { id: existing.id }, data: { url, thumbnailUrl: url } });
+  // Rendered to PNG because Cloudinary restricts SVG delivery on new accounts.
+  const buffer = await sharp(Buffer.from(svg)).png().toBuffer();
+  const stored = await put(buffer, { originalName, folder: 'mdawra/placeholders' });
   return prisma.media.create({
     data: {
-      filename,
-      originalName: filename,
-      mimeType: 'image/svg+xml',
-      size: Buffer.byteLength(svg),
-      url,
-      thumbnailUrl: url,
+      filename: stored.filename,
+      originalName,
+      mimeType: 'image/png',
+      size: buffer.length,
+      url: stored.url,
+      thumbnailUrl: stored.thumbnailUrl,
     },
   });
 };
