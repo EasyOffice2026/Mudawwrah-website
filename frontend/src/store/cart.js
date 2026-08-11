@@ -7,6 +7,13 @@ export const useCart = create(
   persist(
     (set, get) => ({
       lines: [],
+      tenantSlug: null,
+      /**
+       * Carts belong to one restaurant. Opening a different one starts a fresh
+       * cart rather than carrying items (and prices) across.
+       */
+      ensureTenant: (slug) =>
+        set((state) => (state.tenantSlug === slug ? state : { tenantSlug: slug, lines: [] })),
       addLine: (item, options = [], quantity = 1) =>
         set((state) => {
           const optionIds = options.map((o) => o.id);

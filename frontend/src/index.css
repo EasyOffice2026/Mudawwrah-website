@@ -3,6 +3,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Platform defaults; overwritten per restaurant at runtime by lib/theme.js. */
+:root {
+  --brand: 176 0 32;
+  --brand-dark: 138 0 25;
+  --brand-light: 246 228 231;
+  --accent: 255 107 0;
+  --accent-dark: 224 95 0;
+}
+
 html,
 body {
   @apply bg-white text-black antialiased;

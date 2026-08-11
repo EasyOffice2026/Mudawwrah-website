@@ -40,7 +40,8 @@ export const getById = async (id) => {
 
 export const create = async (data) => {
   const slug = data.slug ? slugify(data.slug) : slugify(data.nameEn);
-  const exists = await prisma.category.findUnique({ where: { slug } });
+  // findFirst, not findUnique: slug is only unique within a tenant now.
+  const exists = await prisma.category.findFirst({ where: { slug } });
   if (exists) throw new HttpError(409, `Category slug "${slug}" already exists`);
   return prisma.category.create({ data: { ...data, slug } });
 };

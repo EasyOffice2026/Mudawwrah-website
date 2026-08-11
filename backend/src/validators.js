@@ -103,3 +103,29 @@ export const userSchema = z.object({
 export const userUpdateSchema = userSchema.partial();
 
 export const settingsSchema = z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]));
+
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Expected a hex colour like #B00020');
+
+export const tenantSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/, 'Use lowercase letters, numbers and dashes'),
+  nameEn: z.string().trim().min(1),
+  nameAr: z.string().trim().min(1),
+  taglineEn: optionalString,
+  taglineAr: optionalString,
+  cuisineEn: optionalString,
+  cuisineAr: optionalString,
+  brandColor: hexColor.optional(),
+  brandDark: hexColor.optional(),
+  brandLight: hexColor.optional(),
+  accentColor: hexColor.optional(),
+  currency: z.string().trim().length(3).optional(),
+  country: z.string().trim().length(2).optional(),
+  customDomain: optionalString,
+  isActive: z.coerce.boolean().optional(),
+});
+
+export const tenantUpdateSchema = tenantSchema.partial();
