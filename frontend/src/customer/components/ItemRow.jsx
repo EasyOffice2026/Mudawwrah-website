@@ -16,7 +16,7 @@ export default function ItemRow({ item, lang, onAdd }) {
       </div>
       <div className="relative shrink-0">
         <img
-          src={item.image?.url || '/placeholder.svg'}
+          src={item.image?.thumbnailUrl || item.image?.url || '/placeholder.svg'}
           alt={localized(item, 'name', lang)}
           className="h-[110px] w-[110px] rounded-xl object-cover"
           loading="lazy"

@@ -44,6 +44,8 @@ model Tenant {
   taglineAr    String?
   cuisineEn    String?
   cuisineAr    String?
+  /// Hero shot shown on the platform landing page.
+  heroUrl      String?
   /// Hex colours, applied at runtime as CSS variables.
   brandColor   String  @default("#B00020")
   brandDark    String  @default("#8A0019")

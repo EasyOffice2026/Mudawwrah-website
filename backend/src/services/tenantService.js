@@ -10,6 +10,7 @@ const publicFields = {
   taglineAr: true,
   cuisineEn: true,
   cuisineAr: true,
+  heroUrl: true,
   brandColor: true,
   brandDark: true,
   brandLight: true,

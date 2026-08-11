@@ -9,7 +9,7 @@ export default function ItemCard({ item, lang, onAdd }) {
     <div className="flex flex-col">
       <div className="relative">
         <img
-          src={item.image?.url || '/placeholder.svg'}
+          src={item.image?.thumbnailUrl || item.image?.url || '/placeholder.svg'}
           alt={localized(item, 'name', lang)}
           className="aspect-square w-full rounded-xl object-cover"
           loading="lazy"
