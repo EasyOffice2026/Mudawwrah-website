@@ -10,11 +10,19 @@ const Card = ({ tenant, lang }) => (
     className="overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg"
     style={{ '--tile': tenant.brandColor }}
   >
-    <div
-      className="flex h-32 items-center justify-center px-4"
-      style={{ backgroundColor: tenant.brandColor }}
-    >
-      <span className="text-center text-2xl font-extrabold text-white">{localized(tenant, 'name', lang)}</span>
+    <div className="relative h-36" style={{ backgroundColor: tenant.brandColor }}>
+      {tenant.heroUrl ? (
+        <img src={tenant.heroUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+      ) : null}
+      {/* Brand-tinted scrim keeps each card recognisably that restaurant's. */}
+      <div
+        className="absolute inset-0 flex items-end p-4"
+        style={{ background: `linear-gradient(to top, ${tenant.brandColor}f2, ${tenant.brandColor}33 55%, transparent)` }}
+      >
+        <span className="text-2xl font-extrabold leading-tight text-white drop-shadow">
+          {localized(tenant, 'name', lang)}
+        </span>
+      </div>
     </div>
     <div className="space-y-3 p-4">
       <div>

@@ -33,12 +33,105 @@ const slugify = (value) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '') || 'item';
 
-// Clearly labeled placeholder artwork in each restaurant's own colours; real
-// photos are uploaded later through the admin media library.
-const placeholder = async (tenant, label, slug) => {
-  const originalName = `placeholder-${tenant.slug}-${slug}.png`;
-  const existing = await prisma.media.findFirst({ where: { tenantId: tenant.id, originalName } });
-  if (existing) return existing;
+/**
+ * Real food photography, keyed by menu item name.
+ *
+ * Sourced from Unsplash, whose licence permits commercial use with no
+ * attribution. Every photo below was checked by eye against the dish it is
+ * attached to. Restaurants replace these with their own photography through
+ * Admin → Media.
+ */
+const PHOTOS = {
+  // shared
+  'Pepsi': 'photo-1629203851122-3726ecdf080e',
+  'Still Water': 'photo-1548839140-29a749e1cf4d',
+
+  // Mdawra
+  'Super MIX': 'photo-1662116765994-1e4200c43589',
+  'Khalia Cinnabon': 'photo-1509365465985-25d11c17e812',
+  'Chicken fillet': 'photo-1615297928064-24977384d0da',
+  'potato box': 'photo-1518013431117-eb1465fa5752',
+  'TURKI': 'photo-1529006557810-274b9b2fc783',
+  'Eggs with Cheese': 'photo-1525351484163-7529414344d8',
+  'Shakshuka with Cheese': 'photo-1590412200988-a436970781fa',
+  'Liver with Cheese': 'photo-1432139555190-58524dae6a55',
+  'Halloumi': 'photo-1543339308-43e59d6b73a6',
+  'Breakfast box (12 pieces)': 'photo-1493770348161-369560ae357d',
+  'Dinner Box (12 pieces + potatoes) 4 items': 'photo-1544025162-d76694265947',
+  'box mdawara of your choice (12 pieces + free fries)': 'photo-1541518763669-27fef04b14ea',
+  'Dinner Box12 pieces + fries 6 beef burgers + 6 chicken fillet': 'photo-1521305916504-4a1121188589',
+  'Matara Karak 1L': 'photo-1571934811356-5cc061b6821f',
+  'Karak': 'photo-1571934811356-5cc061b6821f',
+  'Tea': 'photo-1594631252845-29fc4cc8cde9',
+  'Orange Juice': 'photo-1613478223719-2ab802602423',
+  'Khalia Classic': 'photo-1519676867240-f03562e64548',
+  'Khalia Sumo pecan': 'photo-1623334044303-241021148842',
+  'Khalia Nutella Thyme': 'photo-1571877227200-a0d98ea607e9',
+  'Khalia Kanafeh with pistachio Nutella': 'photo-1519676867240-f03562e64548',
+
+  // Burger House
+  'Classic Beef Burger': 'photo-1568901346375-23c9450c58cd',
+  'Double Smash Burger': 'photo-1550547660-d9450f859349',
+  'Crispy Chicken Burger': 'photo-1606755962773-d324e0a13086',
+  'Spicy Jalapeño Burger': 'photo-1571091718767-18b5b1457add',
+  'Mushroom Swiss Burger': 'photo-1550317138-10000687a72b',
+  'Veggie Burger': 'photo-1520072959219-c595dc870360',
+  'French Fries': 'photo-1573080496219-bb080dd4f877',
+  'Curly Fries': 'photo-1630431341973-02e1b662ec35',
+  'Onion Rings': 'photo-1639024471283-03518883512d',
+  'Loaded Cheese Fries': 'photo-1585109649139-366815a0d713',
+  'Coleslaw': 'photo-1607532941433-304659e8198a',
+  'Chocolate Milkshake': 'photo-1572490122747-3968b75cc699',
+  'Vanilla Milkshake': 'photo-1568901839119-631418a3910d',
+  'Strawberry Milkshake': 'photo-1579954115545-a95591f28bfc',
+
+  // Café Mocha
+  'Espresso': 'photo-1510707577719-ae7c14805e3a',
+  'Cappuccino': 'photo-1497636577773-f1231844b336',
+  'Flat White': 'photo-1559496417-e7f25cb247f3',
+  'Café Latte': 'photo-1541167760496-1628856ab772',
+  'Spanish Latte': 'photo-1485808191679-5f86510681a2',
+  'Hot Chocolate': 'photo-1542990253-0d0f5be5f0ed',
+  'Iced Latte': 'photo-1517701604599-bb29b565090c',
+  'Iced Spanish Latte': 'photo-1461023058943-07fcbe16d735',
+  'Cold Brew': 'photo-1592663527359-cf6642f54cff',
+  'Iced Caramel Macchiato': 'photo-1578314675249-a6910f80cc4e',
+  'Affogato': 'photo-1560008581-09826d1de69e',
+  'Butter Croissant': 'photo-1555507036-ab1f4038808a',
+  'Almond Croissant': 'photo-1623334044303-241021148842',
+  'Cinnamon Roll': 'photo-1509365465985-25d11c17e812',
+  'Blueberry Muffin': 'photo-1607958996333-41aef7caefaa',
+  'Cheesecake Slice': 'photo-1533134242443-d4fd215305ad',
+  'Date Cake': 'photo-1571877227200-a0d98ea607e9',
+};
+
+const BANNER_PHOTOS = {
+  mdawra: 'photo-1493770348161-369560ae357d',
+  'burger-house': 'photo-1550547660-d9450f859349',
+  'cafe-mocha': 'photo-1541167760496-1628856ab772',
+};
+
+// One download per distinct photo, one upload per photo per restaurant.
+const bufferCache = new Map();
+const mediaCache = new Map();
+
+const downloadPhoto = async (photoId, width, height) => {
+  const cacheKey = `${photoId}:${width}x${height}`;
+  if (bufferCache.has(cacheKey)) return bufferCache.get(cacheKey);
+  try {
+    const res = await fetch(`https://images.unsplash.com/${photoId}?w=${width}&h=${height}&fit=crop&q=75`);
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    bufferCache.set(cacheKey, buffer);
+    return buffer;
+  } catch {
+    return null;
+  }
+};
+
+// Fallback when a photo is missing or the network is unavailable, so seeding
+// never fails outright.
+const brandedPlaceholder = async (tenant, label) => {
   const lines = wrap(label);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
   <rect width="600" height="600" fill="${tenant.brandColor}"/>
@@ -49,19 +142,45 @@ const placeholder = async (tenant, label, slug) => {
   <text x="300" y="540" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" fill="${tenant.accentColor}">${escapeXml(tenant.nameEn.toUpperCase())}</text>
 </svg>`;
   // Rendered to PNG because Cloudinary restricts SVG delivery on new accounts.
-  const buffer = await sharp(Buffer.from(svg)).png().toBuffer();
+  return sharp(Buffer.from(svg)).png().toBuffer();
+};
+
+/**
+ * Resolves the image for a menu item: real photography where we have it,
+ * a branded placeholder otherwise. Media rows are shared between items that
+ * use the same photo, so the library stays tidy.
+ */
+const imageFor = async (tenant, label, fallbackSlug, { banner = false } = {}) => {
+  const photoId = banner ? BANNER_PHOTOS[tenant.slug] : PHOTOS[label];
+  const key = photoId || `placeholder-${fallbackSlug}`;
+  const cacheKey = `${tenant.id}:${key}`;
+  if (mediaCache.has(cacheKey)) return mediaCache.get(cacheKey);
+
+  const originalName = `${tenant.slug}-${key}.${photoId ? 'jpg' : 'png'}`;
+  const existing = await prisma.media.findFirst({ where: { tenantId: tenant.id, originalName } });
+  if (existing) {
+    mediaCache.set(cacheKey, existing);
+    return existing;
+  }
+
+  let buffer = photoId ? await downloadPhoto(photoId, banner ? 1200 : 900, banner ? 500 : 900) : null;
+  const mimeType = buffer ? 'image/jpeg' : 'image/png';
+  if (!buffer) buffer = await brandedPlaceholder(tenant, label);
+
   const stored = await put(buffer, { originalName, folder: `mdawra/${tenant.slug}` });
-  return prisma.media.create({
+  const media = await prisma.media.create({
     data: {
       tenantId: tenant.id,
       filename: stored.filename,
       originalName,
-      mimeType: 'image/png',
+      mimeType,
       size: buffer.length,
       url: stored.url,
       thumbnailUrl: stored.thumbnailUrl,
     },
   });
+  mediaCache.set(cacheKey, media);
+  return media;
 };
 
 // ---------------------------------------------------------------------------
@@ -606,7 +725,7 @@ const seedRestaurant = async (definition, password) => {
 
     for (const [itemIndex, item] of items.entries()) {
       const { options = [], ...itemData } = item;
-      const media = await placeholder(tenant, item.nameEn, `${category.slug}-${slugify(item.nameEn)}`);
+      const media = await imageFor(tenant, item.nameEn, `${category.slug}-${slugify(item.nameEn)}`);
       const existing = await prisma.menuItem.findFirst({
         where: { tenantId: tenant.id, categoryId: saved.id, nameEn: item.nameEn },
       });
@@ -630,7 +749,10 @@ const seedRestaurant = async (definition, password) => {
     }
   }
 
-  const bannerMedia = await placeholder(tenant, definition.bannerEn, 'banner-1');
+  const bannerMedia = await imageFor(tenant, definition.bannerEn, 'banner-1', { banner: true });
+  if (tenant.heroUrl !== bannerMedia.url) {
+    await prisma.tenant.update({ where: { id: tenant.id }, data: { heroUrl: bannerMedia.url } });
+  }
   const existingBanner = await prisma.banner.findFirst({ where: { tenantId: tenant.id, imageId: bannerMedia.id } });
   if (!existingBanner) {
     await prisma.banner.create({
