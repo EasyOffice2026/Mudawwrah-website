@@ -15,7 +15,9 @@ import CheckoutModal from './components/CheckoutModal.jsx';
 import CustomizeModal from './components/CustomizeModal.jsx';
 import ItemCard from './components/ItemCard.jsx';
 import ItemRow from './components/ItemRow.jsx';
+import NewCartDialog from './components/NewCartDialog.jsx';
 import OfferStrip from './components/OfferStrip.jsx';
+import PromoStrip from './components/PromoStrip.jsx';
 import SplashScreen, { splashAlreadyPlayed } from './components/SplashScreen.jsx';
 import StoreHeader from './components/StoreHeader.jsx';
 
@@ -53,6 +55,8 @@ export default function Menu() {
   const [sheetOpen, setSheetOpen] = useState(false);
   // True once the hero has scrolled away and the compact store bar takes over.
   const [collapsed, setCollapsed] = useState(false);
+  // Set when arriving with another restaurant's cart still held.
+  const [cartConflict, setCartConflict] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [favorite, setFavorite] = useState(localStorage.getItem('mdawra_favorite') === 'true');
@@ -60,7 +64,7 @@ export default function Menu() {
   // fight the smooth scroll and flicker through every category on the way.
   const scrollLock = useRef(false);
   const sectionRefs = useRef({});
-  const { addLine, count, subtotal, ensureTenant, promo, setPromo } = useCart();
+  const { addLine, count, subtotal, ensureTenant, switchTenant, promo, setPromo } = useCart();
 
   const [splashDone, setSplashDone] = useState(() => splashAlreadyPlayed(slug));
 
@@ -82,6 +86,7 @@ export default function Menu() {
       setSettings(settingsRes.data);
       setPromotions(promotionsRes.data);
       setActiveId(categoriesRes.data[0]?.id || null);
+      ensureTenant(slug, localized(tenantRes.data, "name", lang));
       setError(null);
     } catch (err) {
       setError(apiError(err));
@@ -91,8 +96,10 @@ export default function Menu() {
   };
 
   useEffect(() => {
-    // Switching restaurants starts a fresh cart rather than carrying prices over.
-    ensureTenant(slug);
+    // A cart holding another restaurant's items is not dropped silently — the
+    // customer is asked first, and the menu still loads behind the prompt.
+    const { conflict, previousName } = ensureTenant(slug);
+    if (conflict) setCartConflict({ previousName });
     load();
   }, [slug]);
 
@@ -296,6 +303,28 @@ export default function Menu() {
       ))}
 
       <CartBar count={count()} subtotal={subtotal()} onOpen={() => setCartOpen(true)} />
+
+      {/* Headline offer stays pinned to the floor, lifting above itself when a
+          cart bar appears so the two never overlap. */}
+      <PromoStrip
+        promotions={promotions}
+        raised={count() > 0}
+        onOpen={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      />
+
+      <NewCartDialog
+        open={Boolean(cartConflict)}
+        restaurantName={cartConflict?.previousName || t('brand')}
+        onCancel={() => {
+          setCartConflict(null);
+          // Leaving the cart intact means leaving this restaurant.
+          navigate('/');
+        }}
+        onConfirm={() => {
+          switchTenant(slug, tenant ? localized(tenant, 'name', lang) : null);
+          setCartConflict(null);
+        }}
+      />
 
       <CategorySheet
         open={sheetOpen}

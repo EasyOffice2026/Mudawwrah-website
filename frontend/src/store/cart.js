@@ -8,18 +8,36 @@ export const useCart = create(
     (set, get) => ({
       lines: [],
       tenantSlug: null,
+      /** Shown in the "Start a new cart?" prompt when switching restaurants. */
+      tenantName: null,
       /** Voucher preview returned by the API: { code, discount, freeDelivery }. */
       promo: null,
       cutlery: false,
       note: '',
       /**
-       * Carts belong to one restaurant. Opening a different one starts a fresh
-       * cart rather than carrying items (and prices) across.
+       * Carts belong to one restaurant, so opening a different one cannot carry
+       * items (or their prices) across.
+       *
+       * Claiming an empty cart for the new restaurant is free. A cart with
+       * items is NOT cleared here — the caller is told so it can ask first, via
+       * `switchTenant` once the customer confirms.
        */
-      ensureTenant: (slug) =>
-        set((state) =>
-          state.tenantSlug === slug ? state : { tenantSlug: slug, lines: [], promo: null, cutlery: false, note: '' },
-        ),
+      ensureTenant: (slug, name) => {
+        const state = get();
+        if (state.tenantSlug === slug) {
+          // Keep the display name fresh (e.g. after a language switch).
+          if (name && state.tenantName !== name) set({ tenantName: name });
+          return { conflict: false };
+        }
+        if (!state.lines.length) {
+          set({ tenantSlug: slug, tenantName: name ?? null, promo: null, cutlery: false, note: '' });
+          return { conflict: false };
+        }
+        return { conflict: true, previousName: state.tenantName, previousSlug: state.tenantSlug };
+      },
+      /** Confirmed "Start a new cart?" — drop the old order and adopt the new restaurant. */
+      switchTenant: (slug, name) =>
+        set({ tenantSlug: slug, tenantName: name ?? null, lines: [], promo: null, cutlery: false, note: '' }),
       addLine: (item, options = [], quantity = 1) =>
         set((state) => {
           const optionIds = options.map((o) => o.id);

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
 import { useCart } from '../../store/cart';
+import LocationPicker from './LocationPicker.jsx';
 import SheetShell from './SheetShell.jsx';
 
 const buildWhatsappMessage = ({ lines, order, settings, lang, t }) => {
@@ -35,6 +36,9 @@ const buildWhatsappMessage = ({ lines, order, settings, lang, t }) => {
     .filter(Boolean)
     .join('\n');
 };
+
+// Used by the location step when the map is unavailable.
+const KUWAIT_AREAS = ['Salmiya', 'Jabriya', 'Hawally', 'Kuwait City', 'Farwaniya', 'Mangaf', 'Fahaheel', 'Jahra'];
 
 const SegButton = ({ active, disabled, onClick, icon, label, hint }) => (
   <button
@@ -74,6 +78,8 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
     area: '',
     paymentMethod: 'CASH',
   });
+  // Delivery orders confirm a map location before filling in the address.
+  const [locationOpen, setLocationOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [placed, setPlaced] = useState(null);
@@ -234,7 +240,16 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         {!isPickup ? (
           <>
             <section className="mt-3 bg-white px-3 py-4">
-              <h3 className="text-[15px] font-extrabold">{t('checkout.address')}</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-[15px] font-extrabold">{t('checkout.address')}</h3>
+                <button
+                  type="button"
+                  onClick={() => setLocationOpen(true)}
+                  className="shrink-0 text-xs font-bold text-accent underline"
+                >
+                  {t('checkout.confirmLocation')}
+                </button>
+              </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="label">{t('checkout.area')}</label>
@@ -403,6 +418,16 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
           {t('cart.whatsapp')}
         </button>
       </div>
+
+      <LocationPicker
+        open={locationOpen}
+        areas={KUWAIT_AREAS}
+        onClose={() => setLocationOpen(false)}
+        onConfirm={({ area }) => {
+          if (area) setForm((current) => ({ ...current, area }));
+          setLocationOpen(false);
+        }}
+      />
     </SheetShell>
   );
 }

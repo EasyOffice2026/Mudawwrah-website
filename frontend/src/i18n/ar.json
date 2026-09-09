@@ -29,7 +29,7 @@
     "customizable": "قابل للتخصيص",
     "outOfStock": "غير متوفر",
     "closedNotice": "المطعم مغلق حالياً. يمكنك تصفح القائمة دون إتمام الطلب.",
-    "addToCart": "أضف إلى السلة",
+    "addToCart": "أضف الصنف",
     "extras": "إضافات",
     "required": "مطلوب",
     "categories": "الأقسام",
@@ -45,7 +45,9 @@
     "kcal": "سعرات",
     "protein": "بروتين",
     "fat": "دهون",
-    "carbs": "كربوهيدرات"
+    "carbs": "كربوهيدرات",
+    "flatOff": "خصم {{value}}٪",
+    "upTo": "خصم حتى {{amount}}"
   },
   "cart": {
     "title": "طلبك",
@@ -75,7 +77,10 @@
     "tax": "الضريبة",
     "savingBanner": "رائع! أنت توفّر {{amount}}",
     "remove": "إزالة",
-    "addItems": "إضافة أصناف"
+    "addItems": "إضافة أصناف",
+    "newCartTitle": "تبدأ سلة جديدة؟",
+    "newCartBody": "الطلب الجديد سيمسح سلتك مع \"{{restaurant}}\"",
+    "newCartStart": "ابدأ"
   },
   "checkout": {
     "title": "إتمام الطلب",
@@ -111,7 +116,15 @@
     "tipTitle": "اشكر السائق بإكرامية",
     "tipHint": "السائق يحصل على 100٪ من الإكرامية",
     "payWith": "طريقة الدفع",
-    "successPickup": "سيكون جاهزاً للاستلام خلال {{minutes}} دقيقة تقريباً."
+    "successPickup": "سيكون جاهزاً للاستلام خلال {{minutes}} دقيقة تقريباً.",
+    "confirmLocation": "تأكيد الموقع",
+    "deliverHere": "سيتم توصيل طلبك هنا",
+    "enterAddress": "أدخل العنوان بالكامل",
+    "useMyLocation": "استخدم موقعي الحالي",
+    "mapUnavailable": "معاينة الخريطة غير متاحة — اختر منطقتك أدناه.",
+    "selectArea": "اختر منطقتك",
+    "locating": "جارٍ تحديد موقعك…",
+    "locationDenied": "تم رفض إذن الموقع. اختر منطقتك بدلاً من ذلك."
   },
   "admin": {
     "login": "دخول الإدارة",

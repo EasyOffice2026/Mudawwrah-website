@@ -29,7 +29,7 @@
     "customizable": "Customizable",
     "outOfStock": "Out of stock",
     "closedNotice": "We are currently closed. You can browse the menu but not place orders.",
-    "addToCart": "Add to cart",
+    "addToCart": "Add item",
     "extras": "Extras",
     "required": "Required",
     "categories": "Categories",
@@ -41,7 +41,9 @@
     "kcal": "KCAL",
     "protein": "PROTEIN",
     "fat": "FAT",
-    "carbs": "CARBS"
+    "carbs": "CARBS",
+    "flatOff": "Flat {{value}}% off",
+    "upTo": "Up to {{amount}} off"
   },
   "cart": {
     "title": "Your order",
@@ -68,7 +70,10 @@
     "tax": "Tax",
     "savingBanner": "Great! You're saving {{amount}}",
     "remove": "Remove",
-    "addItems": "Add items"
+    "addItems": "Add items",
+    "newCartTitle": "Start a new cart?",
+    "newCartBody": "A new order will clear your cart with \"{{restaurant}}\"",
+    "newCartStart": "Start"
   },
   "checkout": {
     "title": "Checkout",
@@ -104,7 +109,15 @@
     "tipTitle": "Say thanks with a tip",
     "tipHint": "Your rider keeps 100% of the tip",
     "payWith": "Pay with",
-    "successPickup": "Ready for collection in about {{minutes}} minutes."
+    "successPickup": "Ready for collection in about {{minutes}} minutes.",
+    "confirmLocation": "Confirm location",
+    "deliverHere": "Your order will be delivered here",
+    "enterAddress": "Enter complete address",
+    "useMyLocation": "Use my current location",
+    "mapUnavailable": "Map preview unavailable — pick your area below.",
+    "selectArea": "Select your area",
+    "locating": "Finding you…",
+    "locationDenied": "Location permission denied. Pick your area instead."
   },
   "admin": {
     "login": "Admin login",
