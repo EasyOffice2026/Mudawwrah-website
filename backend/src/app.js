@@ -1,7 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import morgan from 'morgan';
-import { config } from './config.js';
+import { config, isOriginAllowed } from './config.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import { resolveTenant } from './middleware/tenant.js';
 import routes from './routes/index.js';
@@ -10,8 +10,12 @@ export const createApp = () => {
   const app = express();
   app.use(
     cors({
-      origin: config.corsOrigins.includes('*') ? true : config.corsOrigins,
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant'],
+      // A function rather than a list, so wildcard entries like
+      // "https://*.vercel.app" cover per-preview deployment subdomains.
+      origin: (origin, callback) => callback(null, isOriginAllowed(origin)),
+      // ngrok-skip-browser-warning is what stops ngrok's free tier serving its
+      // HTML interstitial to a browser instead of the JSON the app expects.
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant', 'ngrok-skip-browser-warning'],
     }),
   );
   app.use(

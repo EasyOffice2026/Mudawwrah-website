@@ -32,6 +32,24 @@ export const config = {
   },
 };
 
+/**
+ * Whether a browser origin is allowed to call the API.
+ *
+ * Entries in CORS_ORIGINS may use a leading wildcard — "https://*.vercel.app"
+ * — because Vercel gives every preview deployment its own subdomain, and
+ * listing them one by one is not practical.
+ */
+export const isOriginAllowed = (origin) => {
+  if (!origin) return true; // curl, server-to-server, same-origin
+  if (config.corsOrigins.includes('*')) return true;
+  return config.corsOrigins.some((allowed) => {
+    if (!allowed.includes('*')) return allowed === origin;
+    const [scheme, host] = allowed.split('://');
+    const suffix = host.replace(/^\*/, '');
+    return origin.startsWith(`${scheme}://`) && origin.endsWith(suffix);
+  });
+};
+
 export const isWhatsappConfigured = () =>
   Boolean(config.whatsapp.token && config.whatsapp.phoneNumberId && config.whatsapp.verifyToken);
 

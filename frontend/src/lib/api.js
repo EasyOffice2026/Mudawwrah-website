@@ -3,7 +3,15 @@ import { currentTenantSlug, storageKey } from './tenant';
 
 export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
-export const api = axios.create({ baseURL: API_BASE });
+export const api = axios.create({
+  baseURL: API_BASE,
+  headers: {
+    // ngrok's free tier answers browser requests with an HTML interstitial
+    // instead of the API response. This header opts out of it. Harmless on any
+    // other host, so it is sent unconditionally rather than sniffing the URL.
+    'ngrok-skip-browser-warning': 'true',
+  },
+});
 
 export const tokenKey = (slug) => storageKey('token', slug);
 export const refreshKey = (slug) => storageKey('refresh', slug);

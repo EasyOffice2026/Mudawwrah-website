@@ -11,3 +11,4 @@ backend/uploads/
 # band. docs/reference/README.md explains what belongs here.
 docs/reference/*
 !docs/reference/README.md
+.vercel/
