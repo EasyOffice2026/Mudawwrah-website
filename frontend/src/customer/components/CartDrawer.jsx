@@ -23,11 +23,13 @@ const Row = ({ label, value, tone }) => (
  * order: upsells, a cutlery opt-out, a special request, and the voucher field —
  * with a running "you're saving" total so the discount stays visible.
  */
-export default function CartDrawer({ open, onClose, settings, suggestions, lang, onCheckout, onAddSuggestion }) {
+export default function CartDrawer({ open, onClose, settings, suggestions, promotions, lang, onCheckout, onAddSuggestion }) {
   const { t } = useTranslation();
   const { lines, setQuantity, removeLine, subtotal, promo, setPromo, cutlery, setCutlery, note, setNote } = useCart();
   const [code, setCode] = useState('');
   const [checking, setChecking] = useState(false);
+  // Manual code entry is behind 'Add voucher'; the running offers show by default.
+  const [manualOpen, setManualOpen] = useState(false);
   const [promoError, setPromoError] = useState(null);
 
   if (!open) return null;
@@ -58,6 +60,7 @@ export default function CartDrawer({ open, onClose, settings, suggestions, lang,
       const { data } = await api.post('/promotions/preview', { code: value, subtotal: sub });
       setPromo(data);
       setCode('');
+      setManualOpen(false);
     } catch (err) {
       setPromoError(apiError(err));
       setPromo(null);
@@ -205,7 +208,70 @@ export default function CartDrawer({ open, onClose, settings, suggestions, lang,
             </section>
 
             <section className="mt-3 bg-white px-3 py-4">
-              <h3 className="text-[15px] font-extrabold">{t('cart.saveOnOrder')}</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-[15px] font-extrabold">{t('cart.saveOnOrder')}</h3>
+                {!promo ? (
+                  <button
+                    type="button"
+                    onClick={() => setManualOpen((open) => !open)}
+                    className="shrink-0 text-xs font-bold text-ink underline"
+                  >
+                    {t('cart.addVoucher')}
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Running offers, each showing whether this cart qualifies yet.
+                  Telling the customer how much more to add is what turns a
+                  rejected code into a bigger order. */}
+              {!promo && !manualOpen ? (
+                <ul className="mt-3 space-y-2">
+                  {promotions?.length ? (
+                    promotions.map((offer) => {
+                      const minOrder = Number(offer.minOrder || 0);
+                      const shortfall = Number((minOrder - sub).toFixed(3));
+                      const locked = shortfall > 0;
+                      return (
+                        <li
+                          key={offer.id}
+                          className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 ${
+                            locked ? 'border-hairline bg-surface' : 'border-hairline bg-white'
+                          }`}
+                        >
+                          <span className="flex min-w-0 items-center gap-2.5">
+                            <span className={locked ? 'opacity-45' : ''} aria-hidden>
+                              {locked ? '🔒' : '🏷️'}
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-bold">
+                                {localized(offer, 'title', lang)}
+                              </span>
+                              <span className="block truncate text-xs text-ink-soft">
+                                {locked
+                                  ? t('cart.addMoreToApply', { amount: kwd(shortfall) })
+                                  : localized(offer, 'subtitle', lang) || offer.code}
+                              </span>
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            disabled={locked || checking}
+                            onClick={() => applyCode(offer.code)}
+                            className="shrink-0 text-xs font-bold text-brand underline disabled:text-ink-soft/50 disabled:no-underline"
+                          >
+                            {t('offers.apply')}
+                          </button>
+                        </li>
+                      );
+                    })
+                  ) : (
+                    <li className="rounded-xl border border-hairline bg-surface px-3 py-3 text-xs text-ink-soft">
+                      {t('cart.noVouchers')}
+                    </li>
+                  )}
+                </ul>
+              ) : null}
+
               {promo ? (
                 <div className="mt-3 flex items-center justify-between rounded-xl border border-brand bg-brand-light px-3 py-3">
                   <span className="min-w-0">
@@ -222,9 +288,10 @@ export default function CartDrawer({ open, onClose, settings, suggestions, lang,
                     {t('cart.remove')}
                   </button>
                 </div>
-              ) : (
+              ) : manualOpen ? (
                 <div className="mt-3 flex gap-2">
                   <input
+                    autoFocus
                     className="input"
                     placeholder={t('cart.voucherPlaceholder')}
                     value={code}
@@ -235,7 +302,7 @@ export default function CartDrawer({ open, onClose, settings, suggestions, lang,
                     {checking ? t('common.saving') : t('offers.apply')}
                   </button>
                 </div>
-              )}
+              ) : null}
               {promoError ? <p className="mt-2 text-xs font-semibold text-brand">{promoError}</p> : null}
             </section>
 

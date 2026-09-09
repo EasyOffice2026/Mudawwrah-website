@@ -349,6 +349,7 @@ export default function Menu() {
         open={cartOpen}
         settings={settings}
         suggestions={suggestions}
+        promotions={promotions}
         lang={lang}
         onClose={() => setCartOpen(false)}
         onAddSuggestion={(item) => addLine(item, [], 1)}
