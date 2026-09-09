@@ -34,3 +34,36 @@ export const config = {
 
 export const isWhatsappConfigured = () =>
   Boolean(config.whatsapp.token && config.whatsapp.phoneNumberId && config.whatsapp.verifyToken);
+
+/**
+ * Refuses to start a production deployment on development defaults.
+ *
+ * The fallback JWT secret is committed to this repository, so anything signed
+ * with it can be forged by anyone who has read the source — including a token
+ * claiming to be the platform owner, who administers every restaurant. Serving
+ * a real origin with wide-open CORS is the same class of mistake. Failing
+ * loudly at boot is far kinder than finding out afterwards.
+ */
+export const assertProductionConfig = () => {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  const devSecrets = ['dev-secret-change-me', 'local-dev-secret', 'change-me-in-production'];
+  const problems = [];
+
+  if (!process.env.JWT_SECRET || devSecrets.includes(config.jwtSecret)) {
+    problems.push('JWT_SECRET is unset or still a development value — set a long random secret.');
+  }
+  if (config.corsOrigins.includes('*')) {
+    problems.push('CORS_ORIGINS is "*" — list the exact site origins instead.');
+  }
+  if (!process.env.DATABASE_URL) {
+    problems.push('DATABASE_URL is unset.');
+  }
+
+  if (problems.length) {
+    console.error('\nRefusing to start in production with unsafe configuration:');
+    for (const problem of problems) console.error(`  - ${problem}`);
+    console.error('');
+    process.exit(1);
+  }
+};
