@@ -127,7 +127,14 @@
     "mapUnavailable": "معاينة الخريطة غير متاحة — اختر منطقتك أدناه.",
     "selectArea": "اختر منطقتك",
     "locating": "جارٍ تحديد موقعك…",
-    "locationDenied": "تم رفض إذن الموقع. اختر منطقتك بدلاً من ذلك."
+    "locationDenied": "تم رفض إذن الموقع. اختر منطقتك بدلاً من ذلك.",
+    "trackTitle": "حالة الطلب",
+    "status_PENDING": "أُرسل إلى المطعم",
+    "status_CONFIRMED": "تم التأكيد",
+    "status_PREPARING": "قيد التحضير",
+    "status_READY": "جاهز",
+    "status_DELIVERED": "تم التوصيل",
+    "status_CANCELLED": "ملغى"
   },
   "admin": {
     "login": "دخول الإدارة",

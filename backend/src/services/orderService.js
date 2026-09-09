@@ -160,3 +160,28 @@ export const updateStatus = async (id, status) => {
   await notifyStatusChange(order);
   return order;
 };
+
+/**
+ * Public order tracking. The id is an unguessable uuid handed to the customer
+ * at checkout, which is what authorises the lookup — a web customer has no
+ * account yet, so there is nothing else to authenticate against.
+ *
+ * Deliberately narrow: enough to show progress, nothing that would matter if
+ * the link were forwarded. No phone, no address, no payment detail.
+ */
+export const track = async (id) => {
+  const order = await prisma.order.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      orderNumber: true,
+      status: true,
+      orderType: true,
+      total: true,
+      createdAt: true,
+      items: { select: { nameEn: true, nameAr: true, quantity: true } },
+    },
+  });
+  if (!order) throw new HttpError(404, 'Order not found');
+  return order;
+};

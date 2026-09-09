@@ -6,9 +6,18 @@ const sessionFor = (phone) => prisma.whatsappSession.findUnique({ where: { phone
 
 const langFor = async (phone) => (await sessionFor(phone))?.lang || 'en';
 
-/** Notifies a WhatsApp customer about an order status change and asks for feedback on delivery. */
+/**
+ * Notifies the customer about an order status change and asks for feedback on
+ * delivery.
+ *
+ * This used to return early unless the order came from the WhatsApp bot, so a
+ * customer who ordered on the website heard nothing after checkout — not even
+ * that the kitchen had confirmed it. Every order carries a phone number, so
+ * web orders are messaged on the same channel. Sending is a no-op until
+ * WhatsApp credentials are configured, which is handled inside the client.
+ */
 export const notifyStatusChange = async (order) => {
-  if (order.channel !== 'WHATSAPP') return;
+  if (!order.customerPhone) return;
   const lang = await langFor(order.customerPhone);
   const copy = t(lang);
   const message = copy.statusUpdate[order.status];

@@ -23,3 +23,6 @@ export const getById = async (req, res) => res.json(await service.getById(req.pa
 
 export const updateStatus = async (req, res) =>
   res.json(await service.updateStatus(req.params.id, orderStatusSchema.parse(req.body).status));
+
+/** Public status lookup for the tracking link handed out at checkout. */
+export const track = async (req, res) => res.json(await service.track(req.params.id));

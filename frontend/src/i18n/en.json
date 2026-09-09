@@ -120,7 +120,14 @@
     "mapUnavailable": "Map preview unavailable — pick your area below.",
     "selectArea": "Select your area",
     "locating": "Finding you…",
-    "locationDenied": "Location permission denied. Pick your area instead."
+    "locationDenied": "Location permission denied. Pick your area instead.",
+    "trackTitle": "Order status",
+    "status_PENDING": "Sent to the restaurant",
+    "status_CONFIRMED": "Confirmed",
+    "status_PREPARING": "Being prepared",
+    "status_READY": "Ready",
+    "status_DELIVERED": "Delivered",
+    "status_CANCELLED": "Cancelled"
   },
   "admin": {
     "login": "Admin login",

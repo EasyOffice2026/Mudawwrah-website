@@ -63,6 +63,8 @@ scoped.delete('/items/:id', requireAdmin, h(items.remove));
 
 // Orders
 scoped.post('/orders', h(orders.create));
+// Above /orders/:id and public: the uuid in the link is the credential.
+scoped.get('/orders/track/:id', h(orders.track));
 scoped.get('/orders', requireStaff, h(orders.list));
 scoped.get('/orders/:id', requireStaff, h(orders.getById));
 scoped.patch('/orders/:id/status', requireStaff, h(orders.updateStatus));

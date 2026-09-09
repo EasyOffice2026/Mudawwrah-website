@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
@@ -36,6 +36,9 @@ const buildWhatsappMessage = ({ lines, order, settings, lang, t }) => {
     .filter(Boolean)
     .join('\n');
 };
+
+// Order of progress, used to decide which steps on the tracker are done.
+const TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'];
 
 // Used by the location step when the map is unavailable.
 const KUWAIT_AREAS = ['Salmiya', 'Jabriya', 'Hawally', 'Kuwait City', 'Farwaniya', 'Mangaf', 'Fahaheel', 'Jahra'];
@@ -83,6 +86,27 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [placed, setPlaced] = useState(null);
+  // Live status for the order just placed, refreshed while the screen is open.
+  const [tracked, setTracked] = useState(null);
+
+  useEffect(() => {
+    if (!placed?.id) return undefined;
+    let alive = true;
+    const check = async () => {
+      try {
+        const { data } = await api.get(`/orders/track/${placed.id}`);
+        if (alive) setTracked(data);
+      } catch {
+        // Tracking is a nicety; never let it break the confirmation screen.
+      }
+    };
+    check();
+    const timer = setInterval(check, 20000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [placed?.id]);
 
   if (!open) return null;
 
@@ -164,6 +188,32 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
             : t('checkout.successBody', { phone: placed.customerPhone })}
         </p>
         <p className="mt-6 text-3xl font-extrabold">{kwd(placed.total)}</p>
+
+        {/* Progress the customer can watch without leaving the page. Before
+            this, a web order simply went quiet after checkout. */}
+        <div className="mt-8 w-full max-w-xs">
+          <p className="text-xs font-bold uppercase tracking-wide text-ink-soft">{t('checkout.trackTitle')}</p>
+          <ol className="mt-3 space-y-2.5">
+            {['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'].map((stage, index) => {
+              const reached = TRACK_STAGES.indexOf(tracked?.status || placed.status) >= index;
+              return (
+                <li key={stage} className="flex items-center gap-3 text-start">
+                  <span
+                    aria-hidden
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                      reached ? 'bg-discount text-white' : 'bg-hairline text-ink-soft'
+                    }`}
+                  >
+                    {reached ? '✓' : ''}
+                  </span>
+                  <span className={`text-sm ${reached ? 'font-semibold' : 'text-ink-soft'}`}>
+                    {t(`checkout.status_${stage}`)}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
         <button
           type="button"
           className="btn-primary mt-8 w-full max-w-xs py-3.5"

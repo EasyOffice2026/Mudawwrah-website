@@ -48,11 +48,20 @@ export const prisma = base.$extends({
         }
 
         if (operation === 'findUnique' || operation === 'findUniqueOrThrow') {
-          const found = await query(args);
+          // The check below reads tenantId off the row, so a `select` that
+          // leaves it out would compare against undefined and reject every
+          // record — a silent 404 for correctly-scoped data. Request the
+          // column when it is missing, then strip it back out so the caller
+          // gets exactly the shape it asked for.
+          const needsTenantId = Boolean(args.select) && !args.select.tenantId;
+          const found = await query(
+            needsTenantId ? { ...args, select: { ...args.select, tenantId: true } } : args,
+          );
           if (found && found.tenantId !== tenantId) {
             if (operation === 'findUniqueOrThrow') throw new Error(`${model} not found`);
             return null;
           }
+          if (found && needsTenantId) delete found.tenantId;
           return found;
         }
 
