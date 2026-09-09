@@ -14,6 +14,36 @@ export const authenticate = (req, res, next) => {
   }
 };
 
+/**
+ * Attaches req.user when a valid token is present and carries on regardless.
+ *
+ * Ordering is open to guests, but a signed-in customer's order has to be tied
+ * to them so it shows up in their history. The user id comes from the token
+ * here, never from the request body — otherwise anyone could file an order
+ * against someone else's account.
+ */
+export const optionalAuth = (req, res, next) => {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (token) {
+    try {
+      req.user = jwt.verify(token, config.jwtSecret);
+    } catch {
+      // An expired token should not stop a guest checkout.
+    }
+  }
+  next();
+};
+
+/** Signed-in customers, for their own order history. */
+export const requireCustomer = [
+  authenticate,
+  (req, res, next) => {
+    if (!req.user?.sub) return next(new HttpError(401, 'Authentication required'));
+    next();
+  },
+];
+
 export const requireRole = (...roles) => (req, res, next) => {
   if (!req.user) return next(new HttpError(401, 'Authentication required'));
   if (!roles.includes(req.user.role)) return next(new HttpError(403, 'Insufficient permissions'));

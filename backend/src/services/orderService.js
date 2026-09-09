@@ -185,3 +185,26 @@ export const track = async (id) => {
   if (!order) throw new HttpError(404, 'Order not found');
   return order;
 };
+
+/**
+ * A signed-in customer's own orders, newest first.
+ *
+ * Scoped by userId as well as tenant, so this can never return someone else's
+ * order even if the caller is authenticated. Includes the line detail the
+ * history screen needs to rebuild a basket for reordering.
+ */
+export const listMine = (userId, { page = 1, pageSize = 20 } = {}) =>
+  prisma.$transaction(async (tx) => {
+    const where = { userId };
+    const [total, data] = await Promise.all([
+      tx.order.count({ where }),
+      tx.order.findMany({
+        where,
+        include: { items: { include: { menuItem: { select: { id: true, isAvailable: true, isOutOfStock: true } } } } },
+        orderBy: { createdAt: 'desc' },
+        skip: (Number(page) - 1) * Number(pageSize),
+        take: Number(pageSize),
+      }),
+    ]);
+    return { data, total, page: Number(page), pageSize: Number(pageSize) };
+  });

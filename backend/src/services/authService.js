@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
+import { currentTenantId } from '../tenantContext.js';
 
 const publicUser = (user) => ({
   id: user.id,
@@ -62,3 +63,37 @@ export const me = async (userId) => {
 };
 
 export { publicUser };
+
+/**
+ * Signs a customer up for one restaurant.
+ *
+ * Role is fixed to CUSTOMER here rather than read from the request — this
+ * endpoint is public, so anything the caller could influence about privilege
+ * would be a way to mint a staff account. Tenant comes from the resolved
+ * request, so a signup on one storefront cannot create a user on another.
+ */
+export const register = async ({ name, email, password, phone }) => {
+  const tenantId = currentTenantId();
+  if (!tenantId) throw new HttpError(400, 'No restaurant selected');
+
+  const normalised = email.toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email: normalised } });
+  if (existing) throw new HttpError(409, 'An account with this email already exists');
+
+  const user = await prisma.user.create({
+    data: {
+      tenantId,
+      email: normalised,
+      password: await bcrypt.hash(password, 10),
+      name,
+      phone: phone || null,
+      role: 'CUSTOMER',
+    },
+  });
+
+  return {
+    token: sign(user, config.jwtExpiresIn),
+    refreshToken: sign(user, config.refreshExpiresIn),
+    user: publicUser(user),
+  };
+};

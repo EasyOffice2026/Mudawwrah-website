@@ -13,7 +13,14 @@ import * as settings from '../controllers/settingController.js';
 import * as tenants from '../controllers/tenantController.js';
 import * as users from '../controllers/userController.js';
 import * as whatsapp from '../controllers/whatsappController.js';
-import { authenticate, requireAdmin, requirePlatformAdmin, requireStaff } from '../middleware/auth.js';
+import {
+  authenticate,
+  optionalAuth,
+  requireAdmin,
+  requireCustomer,
+  requirePlatformAdmin,
+  requireStaff,
+} from '../middleware/auth.js';
 import { asyncHandler as h } from '../middleware/error.js';
 import { requireTenant } from '../middleware/tenant.js';
 import { upload } from '../middleware/upload.js';
@@ -62,8 +69,12 @@ scoped.put('/items/:id', requireStaff, h(items.update));
 scoped.delete('/items/:id', requireAdmin, h(items.remove));
 
 // Orders
-scoped.post('/orders', h(orders.create));
+scoped.post('/orders', optionalAuth, h(orders.create));
 // Above /orders/:id and public: the uuid in the link is the credential.
+// Customer accounts. Signup is tenant-scoped: an account belongs to the
+// restaurant it was created on.
+scoped.post('/auth/register', h(auth.register));
+scoped.get('/orders/mine', requireCustomer, h(orders.mine));
 scoped.get('/orders/track/:id', h(orders.track));
 scoped.get('/orders', requireStaff, h(orders.list));
 scoped.get('/orders/:id', requireStaff, h(orders.getById));

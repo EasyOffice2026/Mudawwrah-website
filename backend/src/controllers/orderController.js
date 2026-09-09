@@ -26,3 +26,7 @@ export const updateStatus = async (req, res) =>
 
 /** Public status lookup for the tracking link handed out at checkout. */
 export const track = async (req, res) => res.json(await service.track(req.params.id));
+
+/** The signed-in customer's own order history. */
+export const mine = async (req, res) =>
+  res.json(await service.listMine(req.user.sub, { page: req.query.page || 1, pageSize: req.query.pageSize || 20 }));

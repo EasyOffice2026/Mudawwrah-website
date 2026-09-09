@@ -65,6 +65,13 @@ export const bulkAvailabilitySchema = z.object({
   isAvailable: z.coerce.boolean(),
 });
 
+export const registerSchema = z.object({
+  name: z.string().trim().min(1),
+  email: z.string().trim().email(),
+  password: z.string().min(8, 'Use at least 8 characters'),
+  phone: optionalString,
+});
+
 export const orderSchema = z.object({
   customerName: z.string().trim().min(1),
   customerPhone: z.string().trim().min(6),

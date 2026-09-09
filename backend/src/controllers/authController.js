@@ -1,5 +1,5 @@
 import * as authService from '../services/authService.js';
-import { loginSchema } from '../validators.js';
+import { registerSchema, loginSchema } from '../validators.js';
 
 export const login = async (req, res) => {
   const data = loginSchema.parse(req.body);
@@ -13,3 +13,7 @@ export const refresh = async (req, res) => {
 export const me = async (req, res) => {
   res.json(await authService.me(req.user.sub));
 };
+
+/** Public customer signup for the restaurant in context. */
+export const register = async (req, res) =>
+  res.status(201).json(await authService.register(registerSchema.parse(req.body)));
