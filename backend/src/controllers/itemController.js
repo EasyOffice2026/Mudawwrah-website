@@ -22,3 +22,17 @@ export const bulkAvailability = async (req, res) => {
   const { ids, isAvailable } = bulkAvailabilitySchema.parse(req.body);
   res.json(await service.bulkAvailability(ids, isAvailable));
 };
+
+/** Cart upsell rail: what other customers are ordering right now. */
+export const popular = async (req, res) => {
+  const exclude = String(req.query.exclude || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+  res.json(
+    await service.popular({
+      limit: Math.min(Number(req.query.limit) || 8, 20),
+      excludeIds: exclude,
+    }),
+  );
+};

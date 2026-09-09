@@ -54,6 +54,8 @@ scoped.delete('/categories/:id', requireAdmin, h(categories.remove));
 scoped.get('/items', h(items.list));
 scoped.post('/items/reorder', requireStaff, h(items.reorder));
 scoped.post('/items/bulk-availability', requireStaff, h(items.bulkAvailability));
+// Before /items/:id, otherwise 'popular' is parsed as an item id.
+scoped.get('/items/popular', h(items.popular));
 scoped.get('/items/:id', h(items.getById));
 scoped.post('/items', requireStaff, h(items.create));
 scoped.put('/items/:id', requireStaff, h(items.update));

@@ -1,5 +1,6 @@
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
+import { currentTenantId } from '../tenantContext.js';
 
 const include = {
   image: true,
@@ -74,4 +75,66 @@ export const reorder = async (orderedIds) => {
 export const bulkAvailability = async (ids, isAvailable) => {
   const result = await prisma.menuItem.updateMany({ where: { id: { in: ids } }, data: { isAvailable } });
   return { updated: result.count };
+};
+
+/**
+ * Items other customers are actually ordering, for the cart's upsell rail.
+ *
+ * Ranked by quantity sold over a recent window rather than all time, so a
+ * dish that sold well last winter does not outrank what is moving this week.
+ * A restaurant with no trading history yet still needs something to show, so
+ * the list is topped up from the menu's own featured and top-rated picks
+ * before falling back to anything available.
+ */
+export const popular = async ({ limit = 8, excludeIds = [], windowDays = 30 } = {}) => {
+  const tenantId = currentTenantId();
+  const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+  const skip = new Set(excludeIds);
+
+  // OrderItem has no tenantId of its own, so it is scoped through its order.
+  const ranked = await prisma.orderItem.groupBy({
+    by: ['menuItemId'],
+    where: {
+      menuItemId: { not: null },
+      order: { tenantId, status: { not: 'CANCELLED' }, createdAt: { gte: since } },
+    },
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: 'desc' } },
+    take: limit * 4,
+  });
+
+  const sellable = (item) => item && item.isAvailable && !item.isOutOfStock && !skip.has(item.id);
+
+  const byId = new Map();
+  if (ranked.length) {
+    const items = await prisma.menuItem.findMany({
+      where: { id: { in: ranked.map((r) => r.menuItemId) } },
+      include,
+    });
+    for (const item of items) byId.set(item.id, item);
+  }
+
+  const picked = [];
+  const takenNames = new Set();
+  // The same drink often exists as separate rows in several categories.
+  const push = (item) => {
+    const name = item.nameEn.trim().toLowerCase();
+    if (picked.length >= limit || takenNames.has(name) || !sellable(item)) return;
+    takenNames.add(name);
+    picked.push(item);
+  };
+
+  for (const row of ranked) push(byId.get(row.menuItemId));
+
+  if (picked.length < limit) {
+    const fillers = await prisma.menuItem.findMany({
+      where: { isAvailable: true, isOutOfStock: false },
+      include,
+      orderBy: [{ isTopRated: 'desc' }, { isFeatured: 'desc' }, { displayOrder: 'asc' }],
+      take: limit * 4,
+    });
+    for (const item of fillers) push(item);
+  }
+
+  return picked;
 };

@@ -135,23 +135,21 @@ export default function Menu() {
       .filter((category) => category.items.length);
   }, [categories, query]);
 
-  // Cheap upsells for the cart, drawn from whatever this restaurant sells.
-  // The same drink often sits in several categories as separate rows, so these
-  // are de-duplicated by name — otherwise the strip shows "Pepsi" twice.
-  const suggestions = useMemo(() => {
-    const seen = new Set();
-    return categories
-      .flatMap((category) => category.items || [])
-      .filter((item) => item.isAvailable && !item.isOutOfStock && !item.isCustomizable)
-      .filter((item) => {
-        const key = item.nameEn.trim().toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => Number(a.price) - Number(b.price))
-      .slice(0, 6);
-  }, [categories]);
+  // What other customers are actually ordering, from the API rather than a
+  // local guess. Refreshed when the cart opens so the rail reflects recent
+  // trade and never suggests something already in the basket.
+  const [suggestions, setSuggestions] = useState([]);
+
+  const loadSuggestions = async () => {
+    try {
+      const exclude = [...new Set(useCart.getState().lines.map((l) => l.menuItemId))].join(',');
+      const { data } = await api.get('/items/popular', { params: { limit: 8, exclude } });
+      setSuggestions(data);
+    } catch {
+      // An upsell rail is not worth failing the cart over.
+      setSuggestions([]);
+    }
+  };
 
   /**
    * Tapping the item itself always opens its sheet — the description,
@@ -311,7 +309,7 @@ export default function Menu() {
         </section>
       ))}
 
-      <CartBar count={count()} subtotal={subtotal()} onOpen={() => setCartOpen(true)} />
+      <CartBar count={count()} subtotal={subtotal()} onOpen={() => { setCartOpen(true); loadSuggestions(); }} />
 
       {/* Headline offer stays pinned to the floor, lifting above itself when a
           cart bar appears so the two never overlap. */}
