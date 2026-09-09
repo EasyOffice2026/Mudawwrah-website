@@ -30,18 +30,22 @@ export default function PromoStrip({ promotions, onOpen, raised }) {
         : t('offers.freeDelivery');
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      // Sits under the cart bar when one is showing, otherwise on the floor.
-      className={`fixed inset-x-0 z-30 w-full bg-brand-light/90 backdrop-blur transition-[bottom] duration-300 ${
+    // Pinned to the viewport, but the tinted bar itself is capped to the menu
+    // column. Putting the background on the full-width element instead paints
+    // it right across a desktop window while the menu sits in a narrow column.
+    <div
+      className={`pointer-events-none fixed inset-x-0 z-30 transition-[bottom] duration-300 ${
         raised ? 'bottom-[76px]' : 'bottom-0'
       }`}
     >
-      <span className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="pointer-events-auto mx-auto flex w-full max-w-3xl items-center justify-between gap-3 bg-brand-light/90 px-4 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] backdrop-blur"
+      >
         <span className="truncate text-sm font-extrabold text-brand">{label}</span>
         <span className="shrink-0 text-xs font-bold text-accent">{t('offers.apply')}</span>
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }
