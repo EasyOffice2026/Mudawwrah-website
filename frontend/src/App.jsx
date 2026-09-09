@@ -9,6 +9,7 @@ import RestaurantPicker from './platform/RestaurantPicker.jsx';
 const AdminLayout = lazy(() => import('./admin/AdminLayout.jsx'));
 const Banners = lazy(() => import('./admin/pages/Banners.jsx'));
 const Dashboard = lazy(() => import('./admin/pages/Dashboard.jsx'));
+const Feedback = lazy(() => import('./admin/pages/Feedback.jsx'));
 const Login = lazy(() => import('./admin/pages/Login.jsx'));
 const MediaLibrary = lazy(() => import('./admin/pages/MediaLibrary.jsx'));
 const MenuManager = lazy(() => import('./admin/pages/MenuManager.jsx'));
@@ -33,6 +34,8 @@ export default function App() {
         <Route path="orders" element={<Orders />} />
         <Route path="media" element={<MediaLibrary />} />
         <Route path="banners" element={<Banners />} />
+        <Route path="feedback" element={<Feedback />} />
+        <Route path="feedback" element={<Feedback />} />
         <Route
           path="users"
           element={

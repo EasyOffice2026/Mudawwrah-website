@@ -169,7 +169,12 @@
     "active": "نشط",
     "restaurantInfo": "معلومات المطعم",
     "ordering": "الطلبات",
-    "saved": "تم الحفظ بنجاح"
+    "saved": "تم الحفظ بنجاح",
+    "channel": "القناة",
+    "feedback": "التقييمات",
+    "averageRating": "متوسط التقييم",
+    "rating": "التقييم",
+    "comment": "الملاحظات"
   },
   "store": {
     "prepWindow": "{{min}}-{{max}} دقيقة",

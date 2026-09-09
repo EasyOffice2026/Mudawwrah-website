@@ -35,7 +35,7 @@ const playChime = () => {
 
 export default function Orders() {
   const { t, i18n } = useTranslation();
-  const [filters, setFilters] = useState({ status: '', from: '', to: '', search: '' });
+  const [filters, setFilters] = useState({ status: '', channel: '', from: '', to: '', search: '' });
   const [result, setResult] = useState({ data: [], total: 0, page: 1, pageSize: 20 });
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
@@ -115,7 +115,7 @@ export default function Orders() {
         </div>
       </div>
 
-      <div className="card grid gap-3 sm:grid-cols-4">
+      <div className="card grid gap-3 sm:grid-cols-5">
         <div>
           <label className="label">{t('admin.status')}</label>
           <select className="input" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
@@ -125,6 +125,14 @@ export default function Orders() {
                 {status}
               </option>
             ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">{t('admin.channel')}</label>
+          <select className="input" value={filters.channel} onChange={(e) => setFilters({ ...filters, channel: e.target.value })}>
+            <option value="">{t('common.all')}</option>
+            <option value="WEB">WEB</option>
+            <option value="WHATSAPP">WHATSAPP</option>
           </select>
         </div>
         <div>
@@ -150,6 +158,7 @@ export default function Orders() {
               <th className="py-2 text-start">{t('admin.orderNumber')}</th>
               <th className="py-2 text-start">{t('admin.customer')}</th>
               <th className="py-2 text-start">{t('admin.placedAt')}</th>
+              <th className="py-2 text-start">{t('admin.channel')}</th>
               <th className="py-2 text-start">{t('admin.status')}</th>
               <th className="py-2 text-end">{t('admin.total')}</th>
               <th />
@@ -170,6 +179,12 @@ export default function Orders() {
                 </td>
                 <td className="py-2 text-gray-500">{dateTime(order.createdAt, i18n.language)}</td>
                 <td className="py-2">
+                  <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">{order.channel}</span>
+                  <span className="block text-xs text-gray-500">
+                    {order.paymentMethod} · {order.paymentStatus}
+                  </span>
+                </td>
+                <td className="py-2">
                   <select className="input py-1 text-xs" value={order.status} onChange={(e) => setStatus(order.id, e.target.value)}>
                     {STATUSES.map((status) => (
                       <option key={status} value={status}>
@@ -188,7 +203,7 @@ export default function Orders() {
             ))}
             {!result.data.length ? (
               <tr>
-                <td colSpan={6} className="py-6 text-center text-gray-500">
+                <td colSpan={7} className="py-6 text-center text-gray-500">
                   {t('common.noResults')}
                 </td>
               </tr>
@@ -218,8 +233,17 @@ export default function Orders() {
                 <span className="text-gray-500">{t('admin.customer')}:</span> {detail.customerName} · {detail.customerPhone}
               </p>
               <p>
-                <span className="text-gray-500">{t('checkout.paymentMethod')}:</span> {detail.paymentMethod}
+                <span className="text-gray-500">{t('checkout.paymentMethod')}:</span> {detail.paymentMethod} · {detail.paymentStatus}
               </p>
+              <p>
+                <span className="text-gray-500">{t('admin.channel')}:</span> {detail.channel}
+              </p>
+              {detail.feedback ? (
+                <p>
+                  <span className="text-gray-500">{t('admin.feedback')}:</span> {'⭐'.repeat(detail.feedback.rating)}{' '}
+                  {detail.feedback.comment || ''}
+                </p>
+              ) : null}
               {detail.address ? (
                 <p>
                   <span className="text-gray-500">{t('checkout.address')}:</span> {detail.address}

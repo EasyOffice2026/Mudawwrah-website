@@ -3,8 +3,13 @@ import { prisma } from '../prisma.js';
 import { currentTenant } from '../tenantContext.js';
 import { resolve as resolvePromotion } from './promotionService.js';
 import { getAll as getSettings } from './settingService.js';
+import { notifyStatusChange } from './whatsapp/notifications.js';
 
-const include = { items: { include: { menuItem: true } }, user: { select: { id: true, name: true, email: true } } };
+const include = {
+  items: { include: { menuItem: true } },
+  user: { select: { id: true, name: true, email: true } },
+  feedback: true,
+};
 
 const round3 = (value) => Number(Number(value).toFixed(3));
 
@@ -83,8 +88,15 @@ export const create = async (payload) => {
       userId: payload.userId || null,
       customerName: payload.customerName,
       customerPhone: payload.customerPhone,
+      // Pickup carries no address at all, so the structured parts the WhatsApp
+      // flow collects are dropped alongside the composed line.
       address: orderType === 'PICKUP' ? null : payload.address,
+      area: orderType === 'PICKUP' ? null : payload.area || null,
+      block: orderType === 'PICKUP' ? null : payload.block || null,
+      street: orderType === 'PICKUP' ? null : payload.street || null,
+      building: orderType === 'PICKUP' ? null : payload.building || null,
       notes: payload.notes,
+      channel: payload.channel || 'WEB',
       paymentMethod: payload.paymentMethod || 'CASH',
       orderType,
       subtotal,
@@ -103,9 +115,10 @@ export const create = async (payload) => {
   });
 };
 
-export const list = ({ status, from, to, search, page = 1, pageSize = 20 } = {}) => {
+export const list = ({ status, channel, from, to, search, page = 1, pageSize = 20 } = {}) => {
   const where = {
     ...(status ? { status } : {}),
+    ...(channel ? { channel } : {}),
     ...(from || to
       ? { createdAt: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(to) } : {}) } }
       : {}),
@@ -141,6 +154,9 @@ export const getById = async (id) => {
 };
 
 export const updateStatus = async (id, status) => {
-  await getById(id);
-  return prisma.order.update({ where: { id }, data: { status }, include });
+  const current = await getById(id);
+  if (current.status === status) return current;
+  const order = await prisma.order.update({ where: { id }, data: { status }, include });
+  await notifyStatusChange(order);
+  return order;
 };

@@ -7,11 +7,14 @@ import { applyTheme } from '../lib/theme';
 import { useAuth } from '../store/auth';
 
 const links = [
+  // Relative paths: the admin is mounted under /r/:slug/admin, so absolute
+  // "/admin/..." links would leave the restaurant behind.
   { to: '', labelKey: 'admin.dashboard', end: true },
   { to: 'menu', labelKey: 'admin.menu' },
   { to: 'orders', labelKey: 'admin.orders' },
   { to: 'media', labelKey: 'admin.media' },
   { to: 'banners', labelKey: 'admin.banners' },
+  { to: 'feedback', labelKey: 'admin.feedback' },
   { to: 'users', labelKey: 'admin.users', adminOnly: true },
   { to: 'settings', labelKey: 'admin.settings' },
 ];

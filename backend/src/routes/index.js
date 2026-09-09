@@ -3,13 +3,16 @@ import * as auth from '../controllers/authController.js';
 import * as banners from '../controllers/bannerController.js';
 import * as categories from '../controllers/categoryController.js';
 import * as dashboard from '../controllers/dashboardController.js';
+import * as feedback from '../controllers/feedbackController.js';
 import * as items from '../controllers/itemController.js';
 import * as media from '../controllers/mediaController.js';
 import * as orders from '../controllers/orderController.js';
+import * as payments from '../controllers/paymentController.js';
 import * as promotions from '../controllers/promotionController.js';
 import * as settings from '../controllers/settingController.js';
 import * as tenants from '../controllers/tenantController.js';
 import * as users from '../controllers/userController.js';
+import * as whatsapp from '../controllers/whatsappController.js';
 import { authenticate, requireAdmin, requirePlatformAdmin, requireStaff } from '../middleware/auth.js';
 import { asyncHandler as h } from '../middleware/error.js';
 import { requireTenant } from '../middleware/tenant.js';
@@ -93,6 +96,18 @@ scoped.delete('/users/:id', requireAdmin, h(users.remove));
 // Settings
 scoped.get('/settings', h(settings.get));
 scoped.put('/settings', requireStaff, h(settings.update));
+
+// Feedback (WhatsApp after-sale ratings)
+router.get('/feedback', requireStaff, h(feedback.list));
+
+// WhatsApp Cloud API webhook
+router.get('/whatsapp/webhook', whatsapp.verify);
+router.post('/whatsapp/webhook', h(whatsapp.receive));
+
+// Payment gateway callbacks
+router.get('/payments/mock/pay', h(payments.mockPay));
+router.get('/payments/:provider/callback', h(payments.callback));
+router.post('/payments/:provider/callback', h(payments.callback));
 
 // Dashboard
 scoped.get('/dashboard/stats', requireStaff, h(dashboard.stats));

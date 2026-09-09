@@ -14,7 +14,16 @@ export const createApp = () => {
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant'],
     }),
   );
-  app.use(express.json({ limit: '1mb' }));
+  app.use(
+    express.json({
+      limit: '1mb',
+      // Retained so the WhatsApp webhook can validate Meta's HMAC signature.
+      verify: (req, res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+  app.use(express.urlencoded({ extended: false }));
   app.use(morgan('dev'));
   app.use('/uploads', express.static(config.uploadDir));
   // Must run before the routes: it resolves the restaurant and opens the
