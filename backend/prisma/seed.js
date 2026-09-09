@@ -635,6 +635,7 @@ const RESTAURANTS = [
       { code: 'FREEDEL', titleEn: 'Free delivery', titleAr: 'توصيل مجاني', subtitleEn: 'On orders over KWD 4.000', subtitleAr: 'على الطلبات فوق ٤٫٠٠٠ د.ك', type: 'FREE_DELIVERY', minOrder: 4 },
       { code: 'KARAK30', titleEn: '30% off breakfast', titleAr: 'خصم ٣٠٪ على الفطور', subtitleEn: 'Up to KWD 1.500 off', subtitleAr: 'حتى ١٫٥٠٠ د.ك', type: 'PERCENT', value: 30, minOrder: 3, maxDiscount: 1.5 },
     ],
+    onOffer: { 'Super MIX': 0.25, 'Khalia Cinnabon': 0.15 },
     adminEmail: 'admin@mdawra.com',
     adminName: 'Mdawra Admin',
     settings: {
@@ -672,6 +673,7 @@ const RESTAURANTS = [
       { code: 'SMASH20', titleEn: '20% off double patties', titleAr: 'خصم ٢٠٪ على الدبل', subtitleEn: 'Up to KWD 2.000 off', subtitleAr: 'حتى ٢٫٠٠٠ د.ك', type: 'PERCENT', value: 20, minOrder: 5, maxDiscount: 2 },
       { code: 'FREEDEL', titleEn: 'Free delivery', titleAr: 'توصيل مجاني', subtitleEn: 'On orders over KWD 6.000', subtitleAr: 'على الطلبات فوق ٦٫٠٠٠ د.ك', type: 'FREE_DELIVERY', minOrder: 6 },
     ],
+    onOffer: { 'Double Smash Burger': 0.25, 'Loaded Cheese Fries': 0.15 },
     adminEmail: 'admin@burgerhouse.com',
     adminName: 'Burger House Admin',
     settings: {
@@ -717,6 +719,7 @@ const RESTAURANTS = [
       { code: 'MOCHA15', titleEn: '15% off all coffee', titleAr: 'خصم ١٥٪ على القهوة', subtitleEn: 'No minimum spend', subtitleAr: 'بدون حد أدنى', type: 'PERCENT', value: 15, minOrder: 0, maxDiscount: 1 },
       { code: 'BAKE1', titleEn: '1 KD off bakery', titleAr: 'خصم ١ د.ك على المخبوزات', subtitleEn: 'On orders over KWD 3.000', subtitleAr: 'على الطلبات فوق ٣٫٠٠٠ د.ك', type: 'FIXED', value: 1, minOrder: 3 },
     ],
+    onOffer: { 'Spanish Latte': 0.2, 'Almond Croissant': 0.15 },
     adminEmail: 'admin@cafemocha.com',
     adminName: 'Café Mocha Admin',
     settings: {
@@ -769,17 +772,19 @@ const seedRestaurant = async (definition, password) => {
       const existing = await prisma.menuItem.findFirst({
         where: { tenantId: tenant.id, categoryId: saved.id, nameEn: item.nameEn },
       });
-      // Every third item carries a visible discount so the storefront shows
-      // the struck-through pricing the client asked for; keyed off the index
-      // so reseeding is deterministic.
-      const discountPct = itemIndex % 3 === 0 ? 0.3 : itemIndex % 3 === 1 ? 0.15 : 0;
+      // Only the two dishes named in `onOffer` carry a struck-through price.
+      // This is demo data sitting on a restaurant's real menu, so it has to
+      // show the feature without looking like someone repriced their food:
+      // an earlier version discounted two thirds of the menu at prices that
+      // had never existed.
+      const discountPct = (definition.onOffer || {})[item.nameEn] || 0;
       const compareAtPrice = discountPct
         ? Number((Number(item.price) / (1 - discountPct)).toFixed(3))
         : null;
       const data = {
         ...itemData,
         compareAtPrice,
-        isTopRated: featured.has(item.nameEn),
+        isTopRated: Boolean(discountPct),
         tenantId: tenant.id,
         categoryId: saved.id,
         imageId: media.id,

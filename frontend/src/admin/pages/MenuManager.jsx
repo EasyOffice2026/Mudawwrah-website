@@ -20,11 +20,13 @@ const emptyItem = {
   descriptionEn: '',
   descriptionAr: '',
   price: '',
+  compareAtPrice: '',
   categoryId: '',
   imageId: null,
   isAvailable: true,
   isOutOfStock: false,
   isFeatured: false,
+  isTopRated: false,
   isCustomizable: false,
   options: [],
 };
@@ -108,6 +110,10 @@ export default function MenuManager() {
       const payload = {
         ...rest,
         price: Number(rest.price),
+        // Empty means "no discount" — send null rather than 0, which would
+        // read as a free item that used to cost nothing.
+        compareAtPrice:
+          rest.compareAtPrice === '' || rest.compareAtPrice == null ? null : Number(rest.compareAtPrice),
         options: (rest.options || []).map(({ id: optionId, menuItemId, ...option }) => ({
           ...option,
           extraPrice: Number(option.extraPrice || 0),
@@ -349,6 +355,18 @@ export default function MenuManager() {
                 required
               />
               <div>
+                <Field
+                  label="Was (KWD)"
+                  type="number"
+                  step="0.001"
+                  value={itemForm.compareAtPrice ?? ''}
+                  onChange={(v) => setItemForm({ ...itemForm, compareAtPrice: v })}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  The old price, shown crossed out beside the current one. Leave empty for no discount.
+                </p>
+              </div>
+              <div>
                 <label className="label">{t('admin.categories')}</label>
                 <select
                   className="input"
@@ -373,6 +391,7 @@ export default function MenuManager() {
               <Checkbox label={t('admin.available')} value={itemForm.isAvailable} onChange={(v) => setItemForm({ ...itemForm, isAvailable: v })} />
               <Checkbox label={t('admin.outOfStock')} value={itemForm.isOutOfStock} onChange={(v) => setItemForm({ ...itemForm, isOutOfStock: v })} />
               <Checkbox label={t('admin.featured')} value={itemForm.isFeatured} onChange={(v) => setItemForm({ ...itemForm, isFeatured: v })} />
+              <Checkbox label={t('menu.topRated')} value={itemForm.isTopRated} onChange={(v) => setItemForm({ ...itemForm, isTopRated: v })} />
               <Checkbox
                 label={t('admin.customizable')}
                 value={itemForm.isCustomizable}
