@@ -1,6 +1,7 @@
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
 import { currentTenant } from '../tenantContext.js';
+import { resolve as resolvePromotion } from './promotionService.js';
 import { getAll as getSettings } from './settingService.js';
 
 const include = { items: { include: { menuItem: true } }, user: { select: { id: true, name: true, email: true } } };
@@ -54,11 +55,27 @@ export const create = async (payload) => {
   if (subtotal < Number(settings.minimumOrder)) {
     throw new HttpError(422, `Minimum order value is KWD ${Number(settings.minimumOrder).toFixed(3)}`);
   }
-  const deliveryFee = round3(settings.deliveryFee);
-  const serviceCharge = round3((subtotal * Number(settings.serviceChargePercent)) / 100);
+
+  const orderType = payload.orderType === 'PICKUP' ? 'PICKUP' : 'DELIVERY';
+  if (orderType === 'PICKUP' && settings.pickupEnabled !== 'true') {
+    throw new HttpError(409, 'This restaurant is not accepting pickup orders');
+  }
+  if (orderType === 'DELIVERY' && settings.deliveryEnabled !== 'true') {
+    throw new HttpError(409, 'This restaurant is not accepting delivery orders');
+  }
+  // Collecting in person is never charged for delivery, and carries no address.
+  let deliveryFee = orderType === 'PICKUP' ? 0 : round3(settings.deliveryFee);
+
+  // The voucher is re-resolved from the database; the client only sends a code.
+  const { promotion, discount, freeDelivery } = await resolvePromotion(payload.promoCode, subtotal, deliveryFee);
+  if (freeDelivery) deliveryFee = 0;
+
+  const discountedSubtotal = round3(subtotal - discount);
+  const serviceCharge = round3((discountedSubtotal * Number(settings.serviceChargePercent)) / 100);
   // taxPercent was previously editable in admin but never applied to a total.
-  const tax = round3(((subtotal + serviceCharge) * Number(settings.taxPercent || 0)) / 100);
-  const total = round3(subtotal + deliveryFee + serviceCharge + tax);
+  const tax = round3(((discountedSubtotal + serviceCharge) * Number(settings.taxPercent || 0)) / 100);
+  const tip = orderType === 'PICKUP' ? 0 : Math.max(0, round3(payload.tip || 0));
+  const total = round3(discountedSubtotal + deliveryFee + serviceCharge + tax + tip);
 
   return prisma.order.create({
     data: {
@@ -66,13 +83,19 @@ export const create = async (payload) => {
       userId: payload.userId || null,
       customerName: payload.customerName,
       customerPhone: payload.customerPhone,
-      address: payload.address,
+      address: orderType === 'PICKUP' ? null : payload.address,
       notes: payload.notes,
       paymentMethod: payload.paymentMethod || 'CASH',
+      orderType,
       subtotal,
       deliveryFee,
       serviceCharge,
       tax,
+      promoCode: promotion?.code || null,
+      discount,
+      tip,
+      cutlery: Boolean(payload.cutlery),
+      deliveryNote: payload.deliveryNote || null,
       total,
       items: { create: lines },
     },

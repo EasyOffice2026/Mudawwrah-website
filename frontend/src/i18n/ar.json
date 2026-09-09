@@ -20,7 +20,10 @@
     "actions": "إجراءات",
     "language": "English",
     "retry": "إعادة المحاولة",
-    "error": "حدث خطأ ما"
+    "error": "حدث خطأ ما",
+    "back": "رجوع",
+    "favorite": "المفضلة",
+    "share": "مشاركة"
   },
   "menu": {
     "customizable": "قابل للتخصيص",
@@ -28,7 +31,21 @@
     "closedNotice": "المطعم مغلق حالياً. يمكنك تصفح القائمة دون إتمام الطلب.",
     "addToCart": "أضف إلى السلة",
     "extras": "إضافات",
-    "required": "مطلوب"
+    "required": "مطلوب",
+    "categories": "الأقسام",
+    "topRated": "الأعلى تقييماً",
+    "optional": "اختياري",
+    "chooseUpTo_zero": "اختر حتى {{count}} أصناف",
+    "chooseUpTo_one": "اختر صنفاً واحداً",
+    "chooseUpTo_two": "اختر حتى صنفين",
+    "chooseUpTo_few": "اختر حتى {{count}} أصناف",
+    "chooseUpTo_many": "اختر حتى {{count}} صنفاً",
+    "chooseUpTo_other": "اختر حتى {{count}} صنف",
+    "selectRequired": "الرجاء الاختيار من \"{{group}}\"",
+    "kcal": "سعرات",
+    "protein": "بروتين",
+    "fat": "دهون",
+    "carbs": "كربوهيدرات"
   },
   "cart": {
     "title": "طلبك",
@@ -45,7 +62,20 @@
     "checkout": "إتمام الطلب",
     "viewCart": "عرض السلة",
     "whatsapp": "اطلب عبر واتساب",
-    "minimumOrder": "الحد الأدنى للطلب {{amount}}"
+    "minimumOrder": "الحد الأدنى للطلب {{amount}}",
+    "suggestions": "قد يعجبك أيضاً…",
+    "specialRequest": "طلب خاص",
+    "cutlery": "أدوات المائدة",
+    "cutleryHint": "قلّل الهدر. اخترها فقط إذا كنت تحتاجها فعلاً.",
+    "notePlaceholder": "هل من شيء آخر تودّ إخبارنا به؟",
+    "saveOnOrder": "وفّر على طلبك",
+    "voucherPlaceholder": "أدخل كود الخصم",
+    "paymentSummary": "ملخص الدفع",
+    "couponDiscount": "خصم الكوبون",
+    "tax": "الضريبة",
+    "savingBanner": "رائع! أنت توفّر {{amount}}",
+    "remove": "إزالة",
+    "addItems": "إضافة أصناف"
   },
   "checkout": {
     "title": "إتمام الطلب",
@@ -60,7 +90,28 @@
     "placeOrder": "تأكيد الطلب",
     "success": "تم إنشاء الطلب {{orderNumber}} بنجاح",
     "successBody": "سنتواصل معك قريباً على {{phone}}.",
-    "newOrder": "العودة للقائمة"
+    "newOrder": "العودة للقائمة",
+    "fulfilment": "كيف تحب أن تستلم؟",
+    "delivery": "توصيل",
+    "pickup": "استلام من المطعم",
+    "pickupReady": "جاهز خلال {{minutes}} دقيقة",
+    "collectFrom": "الاستلام من:",
+    "yourDetails": "بياناتك",
+    "area": "المنطقة",
+    "building": "اسم المبنى",
+    "floor": "الطابق",
+    "block": "قطعة",
+    "street": "شارع",
+    "addressRequired": "الرجاء إضافة عنوان التوصيل",
+    "instructions": "تعليمات التوصيل",
+    "callOnArrival": "اتصل عند الوصول",
+    "dontRingBell": "لا تقرع الجرس",
+    "leaveAtReception": "اتركه في الاستقبال",
+    "ringDoorbell": "اقرع الجرس",
+    "tipTitle": "اشكر السائق بإكرامية",
+    "tipHint": "السائق يحصل على 100٪ من الإكرامية",
+    "payWith": "طريقة الدفع",
+    "successPickup": "سيكون جاهزاً للاستلام خلال {{minutes}} دقيقة تقريباً."
   },
   "admin": {
     "login": "دخول الإدارة",
@@ -119,5 +170,16 @@
     "restaurantInfo": "معلومات المطعم",
     "ordering": "الطلبات",
     "saved": "تم الحفظ بنجاح"
+  },
+  "store": {
+    "prepWindow": "{{min}}-{{max}} دقيقة",
+    "freeDelivery": "توصيل مجاني"
+  },
+  "offers": {
+    "apply": "استخدم الكود",
+    "applied": "تم التطبيق",
+    "freeDelivery": "توصيل مجاني",
+    "percentOff": "خصم {{value}}٪ على طلبك",
+    "amountOff": "خصم {{amount}} على طلبك"
   }
 }

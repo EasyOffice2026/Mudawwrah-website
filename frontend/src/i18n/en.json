@@ -20,7 +20,10 @@
     "actions": "Actions",
     "language": "العربية",
     "retry": "Retry",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "back": "Back",
+    "favorite": "Favourite",
+    "share": "Share"
   },
   "menu": {
     "customizable": "Customizable",
@@ -28,7 +31,17 @@
     "closedNotice": "We are currently closed. You can browse the menu but not place orders.",
     "addToCart": "Add to cart",
     "extras": "Extras",
-    "required": "Required"
+    "required": "Required",
+    "categories": "Categories",
+    "topRated": "Top rated",
+    "optional": "Optional",
+    "chooseUpTo_one": "Choose up to {{count}} item",
+    "chooseUpTo_other": "Choose up to {{count}} items",
+    "selectRequired": "Please choose from \"{{group}}\"",
+    "kcal": "KCAL",
+    "protein": "PROTEIN",
+    "fat": "FAT",
+    "carbs": "CARBS"
   },
   "cart": {
     "title": "Your order",
@@ -42,7 +55,20 @@
     "checkout": "Checkout",
     "viewCart": "View cart",
     "whatsapp": "Order via WhatsApp",
-    "minimumOrder": "Minimum order is {{amount}}"
+    "minimumOrder": "Minimum order is {{amount}}",
+    "suggestions": "You might also like…",
+    "specialRequest": "Special request",
+    "cutlery": "Cutlery",
+    "cutleryHint": "Reduce waste. Only select this if you really need cutlery.",
+    "notePlaceholder": "Anything else we should know?",
+    "saveOnOrder": "Save on your order",
+    "voucherPlaceholder": "Enter a promo code",
+    "paymentSummary": "Payment summary",
+    "couponDiscount": "Coupon discount",
+    "tax": "Tax",
+    "savingBanner": "Great! You're saving {{amount}}",
+    "remove": "Remove",
+    "addItems": "Add items"
   },
   "checkout": {
     "title": "Checkout",
@@ -57,7 +83,28 @@
     "placeOrder": "Place order",
     "success": "Order {{orderNumber}} placed successfully",
     "successBody": "We will contact you shortly on {{phone}}.",
-    "newOrder": "Back to menu"
+    "newOrder": "Back to menu",
+    "fulfilment": "How would you like it?",
+    "delivery": "Delivery",
+    "pickup": "Pickup",
+    "pickupReady": "Ready in {{minutes}} mins",
+    "collectFrom": "Collect from:",
+    "yourDetails": "Your details",
+    "area": "Area",
+    "building": "Building name",
+    "floor": "Floor",
+    "block": "Block",
+    "street": "Street",
+    "addressRequired": "Please add a delivery address",
+    "instructions": "Delivery instructions",
+    "callOnArrival": "Call on arrival",
+    "dontRingBell": "Don't ring bell",
+    "leaveAtReception": "Leave at reception",
+    "ringDoorbell": "Ring doorbell",
+    "tipTitle": "Say thanks with a tip",
+    "tipHint": "Your rider keeps 100% of the tip",
+    "payWith": "Pay with",
+    "successPickup": "Ready for collection in about {{minutes}} minutes."
   },
   "admin": {
     "login": "Admin login",
@@ -116,5 +163,16 @@
     "restaurantInfo": "Restaurant info",
     "ordering": "Ordering",
     "saved": "Saved successfully"
+  },
+  "store": {
+    "prepWindow": "{{min}}-{{max}} mins",
+    "freeDelivery": "Free delivery"
+  },
+  "offers": {
+    "apply": "Apply code",
+    "applied": "Applied",
+    "freeDelivery": "Free delivery",
+    "percentOff": "{{value}}% off your order",
+    "amountOff": "{{amount}} off your order"
   }
 }

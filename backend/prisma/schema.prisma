@@ -30,7 +30,19 @@ enum PaymentMethod {
   CASH
   KNET
   CARD
+  APPLE_PAY
   WHATSAPP
+}
+
+enum OrderType {
+  DELIVERY
+  PICKUP
+}
+
+enum PromotionType {
+  PERCENT
+  FIXED
+  FREE_DELIVERY
 }
 
 /// One restaurant on the platform. Every piece of content below belongs to
@@ -44,8 +56,15 @@ model Tenant {
   taglineAr    String?
   cuisineEn    String?
   cuisineAr    String?
-  /// Hero shot shown on the platform landing page.
+  /// Hero shot shown on the platform landing page and behind the store header.
   heroUrl      String?
+  /// Square mark shown in the storefront info card and the splash animation.
+  logoUrl      String?
+  /// Storefront credibility strip: rating, review count and prep window.
+  rating       Decimal? @db.Decimal(2, 1)
+  ratingCount  Int      @default(0)
+  prepMinutesMin Int    @default(15)
+  prepMinutesMax Int    @default(25)
   /// Hex colours, applied at runtime as CSS variables.
   brandColor   String  @default("#B00020")
   brandDark    String  @default("#8A0019")
@@ -67,6 +86,35 @@ model Tenant {
   banners    Banner[]
   media      Media[]
   settings   Setting[]
+  promotions Promotion[]
+}
+
+/// A voucher a customer can apply at checkout. Discounts are always recomputed
+/// server-side from this row, never trusted from the client.
+model Promotion {
+  id            String        @id @default(uuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code          String
+  titleEn       String
+  titleAr       String?
+  subtitleEn    String?
+  subtitleAr    String?
+  type          PromotionType @default(PERCENT)
+  /// Percent (0-100) for PERCENT, an absolute amount for FIXED, ignored for FREE_DELIVERY.
+  value         Decimal       @default(0) @db.Decimal(10, 3)
+  /// Subtotal the cart must reach before the code applies.
+  minOrder      Decimal       @default(0) @db.Decimal(10, 3)
+  /// Caps a PERCENT discount. Null means uncapped.
+  maxDiscount   Decimal?      @db.Decimal(10, 3)
+  isActive      Boolean       @default(true)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
 }
 
 model User {
@@ -116,6 +164,9 @@ model MenuItem {
   descriptionEn  String?
   descriptionAr  String?
   price          Decimal               @db.Decimal(10, 3)
+  /// Pre-discount price. When set and above `price`, the menu strikes it
+  /// through beside the live price and shows a discount badge.
+  compareAtPrice Decimal?              @db.Decimal(10, 3)
   categoryId     String
   category       Category              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   imageId        String?
@@ -123,7 +174,13 @@ model MenuItem {
   isAvailable    Boolean               @default(true)
   isOutOfStock   Boolean               @default(false)
   isFeatured     Boolean               @default(false)
+  isTopRated     Boolean               @default(false)
   isCustomizable Boolean               @default(false)
+  /// Per-serving nutrition, surfaced under the item name like a health menu.
+  calories       Int?
+  protein        Int?
+  fat            Int?
+  carbs          Int?
   displayOrder   Int                   @default(0)
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
@@ -160,10 +217,18 @@ model Order {
   notes         String?
   status        OrderStatus   @default(PENDING)
   paymentMethod PaymentMethod @default(CASH)
+  /// Pickup orders are never charged a delivery fee and carry no address.
+  orderType     OrderType     @default(DELIVERY)
   subtotal      Decimal       @db.Decimal(10, 3)
   deliveryFee   Decimal       @default(0) @db.Decimal(10, 3)
   serviceCharge Decimal       @default(0) @db.Decimal(10, 3)
   tax           Decimal       @default(0) @db.Decimal(10, 3)
+  /// Applied promo code and the amount it took off, both resolved server-side.
+  promoCode     String?
+  discount      Decimal       @default(0) @db.Decimal(10, 3)
+  tip           Decimal       @default(0) @db.Decimal(10, 3)
+  cutlery       Boolean       @default(false)
+  deliveryNote  String?
   total         Decimal       @db.Decimal(10, 3)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

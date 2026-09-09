@@ -15,6 +15,15 @@ export const DEFAULT_SETTINGS = {
   serviceChargePercent: '0',
   taxPercent: '0',
   isOpen: 'true',
+  // Checkout fulfilment: a restaurant can offer delivery, pickup, or both.
+  deliveryEnabled: 'true',
+  pickupEnabled: 'true',
+  pickupAddressEn: '',
+  pickupAddressAr: '',
+  pickupWaitMinutes: '15',
+  // Rider tipping, shown only on delivery orders.
+  tipsEnabled: 'true',
+  tipPresets: '0.350,0.700,1.000',
 };
 
 /** Defaults fall back to the tenant's own name rather than the platform's. */

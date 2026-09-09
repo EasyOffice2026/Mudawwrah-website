@@ -610,7 +610,16 @@ const RESTAURANTS = [
       brandDark: '#8A0019',
       brandLight: '#F6E4E7',
       accentColor: '#FF6B00',
+      rating: 4.6,
+      ratingCount: 1240,
+      prepMinutesMin: 15,
+      prepMinutesMax: 25,
     },
+    promotions: [
+      { code: 'MDAWRA2', titleEn: '2 KD off your next order', titleAr: 'خصم ٢ د.ك على طلبك القادم', subtitleEn: 'On orders over KWD 6.000', subtitleAr: 'على الطلبات فوق ٦٫٠٠٠ د.ك', type: 'FIXED', value: 2, minOrder: 6 },
+      { code: 'FREEDEL', titleEn: 'Free delivery', titleAr: 'توصيل مجاني', subtitleEn: 'On orders over KWD 4.000', subtitleAr: 'على الطلبات فوق ٤٫٠٠٠ د.ك', type: 'FREE_DELIVERY', minOrder: 4 },
+      { code: 'KARAK30', titleEn: '30% off breakfast', titleAr: 'خصم ٣٠٪ على الفطور', subtitleEn: 'Up to KWD 1.500 off', subtitleAr: 'حتى ١٫٥٠٠ د.ك', type: 'PERCENT', value: 30, minOrder: 3, maxDiscount: 1.5 },
+    ],
     adminEmail: 'admin@mdawra.com',
     adminName: 'Mdawra Admin',
     settings: {
@@ -639,7 +648,15 @@ const RESTAURANTS = [
       brandDark: '#111827',
       brandLight: '#E5E7EB',
       accentColor: '#F59E0B',
+      rating: 4.4,
+      ratingCount: 860,
+      prepMinutesMin: 20,
+      prepMinutesMax: 35,
     },
+    promotions: [
+      { code: 'SMASH20', titleEn: '20% off double patties', titleAr: 'خصم ٢٠٪ على الدبل', subtitleEn: 'Up to KWD 2.000 off', subtitleAr: 'حتى ٢٫٠٠٠ د.ك', type: 'PERCENT', value: 20, minOrder: 5, maxDiscount: 2 },
+      { code: 'FREEDEL', titleEn: 'Free delivery', titleAr: 'توصيل مجاني', subtitleEn: 'On orders over KWD 6.000', subtitleAr: 'على الطلبات فوق ٦٫٠٠٠ د.ك', type: 'FREE_DELIVERY', minOrder: 6 },
+    ],
     adminEmail: 'admin@burgerhouse.com',
     adminName: 'Burger House Admin',
     settings: {
@@ -676,7 +693,15 @@ const RESTAURANTS = [
       brandDark: '#533A29',
       brandLight: '#F0E6DC',
       accentColor: '#C8A165',
+      rating: 4.8,
+      ratingCount: 2100,
+      prepMinutesMin: 10,
+      prepMinutesMax: 20,
     },
+    promotions: [
+      { code: 'MOCHA15', titleEn: '15% off all coffee', titleAr: 'خصم ١٥٪ على القهوة', subtitleEn: 'No minimum spend', subtitleAr: 'بدون حد أدنى', type: 'PERCENT', value: 15, minOrder: 0, maxDiscount: 1 },
+      { code: 'BAKE1', titleEn: '1 KD off bakery', titleAr: 'خصم ١ د.ك على المخبوزات', subtitleEn: 'On orders over KWD 3.000', subtitleAr: 'على الطلبات فوق ٣٫٠٠٠ د.ك', type: 'FIXED', value: 1, minOrder: 3 },
+    ],
     adminEmail: 'admin@cafemocha.com',
     adminName: 'Café Mocha Admin',
     settings: {
@@ -729,8 +754,17 @@ const seedRestaurant = async (definition, password) => {
       const existing = await prisma.menuItem.findFirst({
         where: { tenantId: tenant.id, categoryId: saved.id, nameEn: item.nameEn },
       });
+      // Every third item carries a visible discount so the storefront shows
+      // the struck-through pricing the client asked for; keyed off the index
+      // so reseeding is deterministic.
+      const discountPct = itemIndex % 3 === 0 ? 0.3 : itemIndex % 3 === 1 ? 0.15 : 0;
+      const compareAtPrice = discountPct
+        ? Number((Number(item.price) / (1 - discountPct)).toFixed(3))
+        : null;
       const data = {
         ...itemData,
+        compareAtPrice,
+        isTopRated: featured.has(item.nameEn),
         tenantId: tenant.id,
         categoryId: saved.id,
         imageId: media.id,
@@ -763,6 +797,15 @@ const seedRestaurant = async (definition, password) => {
         imageId: bannerMedia.id,
         displayOrder: 0,
       },
+    });
+  }
+
+  // Voucher codes shown in the storefront offer strip.
+  for (const promotion of definition.promotions || []) {
+    await prisma.promotion.upsert({
+      where: { tenantId_code: { tenantId: tenant.id, code: promotion.code } },
+      update: promotion,
+      create: { ...promotion, tenantId: tenant.id },
     });
   }
 

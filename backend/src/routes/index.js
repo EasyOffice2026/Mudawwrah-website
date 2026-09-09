@@ -6,6 +6,7 @@ import * as dashboard from '../controllers/dashboardController.js';
 import * as items from '../controllers/itemController.js';
 import * as media from '../controllers/mediaController.js';
 import * as orders from '../controllers/orderController.js';
+import * as promotions from '../controllers/promotionController.js';
 import * as settings from '../controllers/settingController.js';
 import * as tenants from '../controllers/tenantController.js';
 import * as users from '../controllers/userController.js';
@@ -68,6 +69,14 @@ scoped.get('/banners/:id', requireStaff, h(banners.getById));
 scoped.post('/banners', requireStaff, h(banners.create));
 scoped.put('/banners/:id', requireStaff, h(banners.update));
 scoped.delete('/banners/:id', requireStaff, h(banners.remove));
+
+// Promotions
+scoped.get('/promotions', h(promotions.listPublic));
+scoped.post('/promotions/preview', h(promotions.preview));
+scoped.get('/promotions/all', requireStaff, h(promotions.listAll));
+scoped.post('/promotions', requireStaff, h(promotions.create));
+scoped.put('/promotions/:id', requireStaff, h(promotions.update));
+scoped.delete('/promotions/:id', requireAdmin, h(promotions.remove));
 
 // Media
 scoped.get('/media', requireStaff, h(media.list));

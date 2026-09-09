@@ -38,12 +38,18 @@ export const itemSchema = z.object({
   descriptionEn: optionalString,
   descriptionAr: optionalString,
   price,
+  compareAtPrice: z.coerce.number().min(0).nullable().optional(),
   categoryId: z.string().uuid(),
   imageId: z.string().uuid().optional().nullable(),
   isAvailable: z.coerce.boolean().optional(),
   isOutOfStock: z.coerce.boolean().optional(),
   isFeatured: z.coerce.boolean().optional(),
+  isTopRated: z.coerce.boolean().optional(),
   isCustomizable: z.coerce.boolean().optional(),
+  calories: z.coerce.number().int().min(0).nullable().optional(),
+  protein: z.coerce.number().int().min(0).nullable().optional(),
+  fat: z.coerce.number().int().min(0).nullable().optional(),
+  carbs: z.coerce.number().int().min(0).nullable().optional(),
   displayOrder: z.coerce.number().int().optional(),
   options: z.array(customizationOptionSchema).optional(),
 });
@@ -62,7 +68,13 @@ export const orderSchema = z.object({
   customerPhone: z.string().trim().min(6),
   address: optionalString,
   notes: optionalString,
-  paymentMethod: z.enum(['CASH', 'KNET', 'CARD', 'WHATSAPP']).optional(),
+  paymentMethod: z.enum(['CASH', 'KNET', 'CARD', 'APPLE_PAY', 'WHATSAPP']).optional(),
+  orderType: z.enum(['DELIVERY', 'PICKUP']).optional(),
+  // Only the code travels; the discount itself is resolved server-side.
+  promoCode: optionalString,
+  tip: z.coerce.number().min(0).optional(),
+  cutlery: z.coerce.boolean().optional(),
+  deliveryNote: optionalString,
   items: z
     .array(
       z.object({
@@ -72,6 +84,26 @@ export const orderSchema = z.object({
       }),
     )
     .min(1),
+});
+
+export const promoPreviewSchema = z.object({
+  code: z.string().trim().min(1),
+  subtotal: z.coerce.number().min(0),
+});
+
+export const promotionSchema = z.object({
+  code: z.string().trim().min(1),
+  titleEn: z.string().trim().min(1),
+  titleAr: optionalString,
+  subtitleEn: optionalString,
+  subtitleAr: optionalString,
+  type: z.enum(['PERCENT', 'FIXED', 'FREE_DELIVERY']).optional(),
+  value: z.coerce.number().min(0).optional(),
+  minOrder: z.coerce.number().min(0).optional(),
+  maxDiscount: z.coerce.number().min(0).nullable().optional(),
+  isActive: z.coerce.boolean().optional(),
+  startsAt: z.coerce.date().nullable().optional(),
+  endsAt: z.coerce.date().nullable().optional(),
 });
 
 export const orderStatusSchema = z.object({
@@ -126,6 +158,13 @@ export const tenantSchema = z.object({
   country: z.string().trim().length(2).optional(),
   customDomain: optionalString,
   isActive: z.coerce.boolean().optional(),
+  heroUrl: optionalString,
+  logoUrl: optionalString,
+  // Storefront credibility strip.
+  rating: z.coerce.number().min(0).max(5).nullable().optional(),
+  ratingCount: z.coerce.number().int().min(0).optional(),
+  prepMinutesMin: z.coerce.number().int().min(0).optional(),
+  prepMinutesMax: z.coerce.number().int().min(0).optional(),
 });
 
 export const tenantUpdateSchema = tenantSchema.partial();

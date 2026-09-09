@@ -5,3 +5,9 @@ dist/
 backend/uploads/
 *.log
 .DS_Store
+
+# Reference material (client videos, screen recordings, design comps).
+# These are large binaries that would bloat the repo; they are shared out of
+# band. docs/reference/README.md explains what belongs here.
+docs/reference/*
+!docs/reference/README.md

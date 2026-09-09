@@ -14,3 +14,24 @@ export const dateTime = (value, lang) =>
     hour: '2-digit',
     minute: '2-digit',
   });
+
+/**
+ * Discount maths for a menu item. `compareAtPrice` is the pre-discount price;
+ * it only counts when it is genuinely above what the customer pays now.
+ */
+export const discountOf = (item) => {
+  const price = Number(item?.price || 0);
+  const was = Number(item?.compareAtPrice || 0);
+  if (!was || was <= price) return null;
+  return { was, percent: Math.round(((was - price) / was) * 100) };
+};
+
+/** "KCAL-455, PROTEIN-30g" strip under an item name, when the data exists. */
+export const nutritionLine = (item, t) => {
+  const parts = [];
+  if (item?.calories != null) parts.push(`${t('menu.kcal')} ${item.calories}`);
+  if (item?.protein != null) parts.push(`${t('menu.protein')} ${item.protein}g`);
+  if (item?.fat != null) parts.push(`${t('menu.fat')} ${item.fat}g`);
+  if (item?.carbs != null) parts.push(`${t('menu.carbs')} ${item.carbs}g`);
+  return parts.length ? parts.join(' · ') : null;
+};
