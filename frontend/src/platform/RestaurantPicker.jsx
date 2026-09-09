@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { api, apiError } from '../lib/api';
 import { localized } from '../lib/format';
+import { setPageMeta } from '../lib/pageMeta';
 import { resetTheme } from '../lib/theme';
 
 const Card = ({ tenant, lang }) => (
@@ -71,9 +72,16 @@ export default function RestaurantPicker() {
   };
 
   useEffect(() => {
-    // The platform page uses neutral branding, not the last restaurant's.
+    // The platform page uses neutral branding, not the last restaurant's —
+    // including its title, which would otherwise still name whichever
+    // storefront the visitor came from.
     resetTheme();
     document.documentElement.dir = 'ltr';
+    setPageMeta({
+      title: 'Order from your favourite restaurants',
+      description: 'Browse menus and order directly from restaurants near you — delivery or pickup.',
+      lang: 'en',
+    });
     load();
   }, []);
 

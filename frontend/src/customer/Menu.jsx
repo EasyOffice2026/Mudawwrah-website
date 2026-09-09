@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, apiError } from '../lib/api';
 import { localized } from '../lib/format';
+import { setStorefrontMeta } from '../lib/pageMeta';
 import { applyTheme } from '../lib/theme';
 import { useCart } from '../store/cart';
 import BannerCarousel from './components/BannerCarousel.jsx';
@@ -79,8 +80,10 @@ export default function Menu() {
         api.get('/promotions'),
       ]);
       setTenant(tenantRes.data);
-      // Repaints the entire UI in this restaurant's palette.
+      // Repaints the entire UI in this restaurant's palette, and renames the
+      // tab and share tags so every storefront is not called "Mdawra".
       applyTheme(tenantRes.data);
+      setStorefrontMeta(tenantRes.data, lang);
       setCategories(categoriesRes.data);
       setBanners(bannersRes.data);
       setSettings(settingsRes.data);
@@ -102,6 +105,12 @@ export default function Menu() {
     if (conflict) setCartConflict({ previousName });
     load();
   }, [slug]);
+
+  // Switching language has to retitle the page too, otherwise an Arabic
+  // storefront still announces itself in English.
+  useEffect(() => {
+    if (tenant) setStorefrontMeta(tenant, lang);
+  }, [tenant, lang]);
 
   useEffect(() => {
     const onScroll = () => {

@@ -69,3 +69,20 @@ instruction chips, the "Pay with" list, and the closing payment summary.
 The `Delivered by talabat` line, the `pro` subscription badge, and the talabat
 wordmark are that marketplace's own features and trademarks. Each restaurant's
 own branding fills those slots instead.
+
+## Link previews (open at deploy time)
+
+Titles, descriptions and Open Graph tags are set per restaurant at runtime by
+`src/lib/pageMeta.js`, so browser tabs and search engines that render JavaScript
+see the right thing.
+
+Crawlers that do **not** run JavaScript — WhatsApp and most chat apps — read only
+the static HTML the host serves, which is the platform-level fallback in
+`frontend/index.html`. So a link to a specific restaurant pasted into WhatsApp
+previews as the platform, not that restaurant.
+
+Fixing it properly means rendering the tags server-side for `/r/:slug`, which is a
+hosting decision rather than an app change — an edge/serverless function that
+injects them, or a prerender step at build time. Worth folding into the
+deployment work rather than treating as a separate task, since the answer
+depends on where the site ends up being hosted.

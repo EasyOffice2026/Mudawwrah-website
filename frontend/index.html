@@ -4,7 +4,29 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mdawra · مدورة</title>
+    <meta name="theme-color" content="#B00020" />
+
+    <!--
+      Platform-level fallbacks. Each storefront replaces these at runtime with
+      its own name, tagline and hero shot (see src/lib/pageMeta.js).
+
+      Crawlers that do not execute JavaScript — WhatsApp and most chat apps —
+      only ever see what is below, so these must stand on their own rather than
+      naming one particular restaurant. Per-restaurant link previews need the
+      tags rendered server-side at deploy time.
+    -->
+    <title>Order from your favourite restaurants</title>
+    <meta
+      name="description"
+      content="Browse menus and order directly from restaurants near you — delivery or pickup."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Order from your favourite restaurants" />
+    <meta
+      property="og:description"
+      content="Browse menus and order directly from restaurants near you — delivery or pickup."
+    />
+    <meta name="twitter:card" content="summary" />
   </head>
   <body>
     <div id="root"></div>
