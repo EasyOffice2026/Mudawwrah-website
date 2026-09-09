@@ -1,7 +1,13 @@
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
 
-const include = { image: true, category: true, options: { orderBy: { displayOrder: 'asc' } } };
+const include = {
+  image: true,
+  category: true,
+  // Options carry their own thumbnails, which the item sheet renders beside
+  // each name, so they have to be loaded with the option rows.
+  options: { include: { image: true }, orderBy: { displayOrder: 'asc' } },
+};
 
 export const list = ({ categoryId, search, availableOnly, featuredOnly } = {}) =>
   prisma.menuItem.findMany({

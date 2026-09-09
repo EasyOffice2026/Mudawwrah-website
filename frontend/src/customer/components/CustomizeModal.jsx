@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { discountOf, kwd, localized, nutritionLine } from '../../lib/format';
 import SheetShell from './SheetShell.jsx';
@@ -15,6 +15,9 @@ export default function CustomizeModal({ item, lang, onClose, onConfirm }) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState([]);
   const [quantity, setQuantity] = useState(1);
+  // True once the hero photo has scrolled away and the title bar takes over.
+  const [scrolled, setScrolled] = useState(false);
+  const scrollRef = useRef(null);
   const itemId = item?.id;
 
   // A fresh sheet every time, so a previous item's extras never leak into it.
@@ -22,6 +25,9 @@ export default function CustomizeModal({ item, lang, onClose, onConfirm }) {
     if (itemId) {
       setSelected([]);
       setQuantity(1);
+      setScrolled(false);
+      // Reusing the same sheet for a new item must not inherit its scroll.
+      if (scrollRef.current) scrollRef.current.scrollTop = 0;
     }
   }, [itemId]);
 
@@ -66,7 +72,25 @@ export default function CustomizeModal({ item, lang, onClose, onConfirm }) {
 
   return (
     <SheetShell onBackdropClick={onClose} label={localized(item, 'name', lang)}>
-      <div className="flex-1 overflow-y-auto pb-32">
+      {/* Once the photo scrolls away the item name takes over the top of the
+          sheet, so it stays identifiable while working through long option
+          lists. The close control moves into it rather than being duplicated. */}
+      <div
+        className={`absolute inset-x-0 top-0 z-10 flex items-center gap-3 border-b border-hairline bg-white/95 px-3 backdrop-blur transition-[height,opacity] duration-200 ${
+          scrolled ? 'h-14 opacity-100' : 'pointer-events-none h-0 opacity-0'
+        }`}
+      >
+        <button type="button" onClick={onClose} aria-label={t('common.close')} className="icon-orb shadow-none">
+          ×
+        </button>
+        <span className="min-w-0 truncate text-base font-extrabold">{localized(item, 'name', lang)}</span>
+      </div>
+
+      <div
+        ref={scrollRef}
+        onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 200)}
+        className="flex-1 overflow-y-auto pb-32"
+      >
         <div className="relative">
           <img
             src={item.image?.url || item.image?.thumbnailUrl || '/placeholder.svg'}
@@ -77,7 +101,7 @@ export default function CustomizeModal({ item, lang, onClose, onConfirm }) {
             type="button"
             onClick={onClose}
             aria-label={t('common.close')}
-            className="icon-orb absolute start-3 top-3"
+            className={`icon-orb absolute start-3 top-3 transition-opacity ${scrolled ? 'opacity-0' : 'opacity-100'}`}
           >
             ×
           </button>
@@ -118,11 +142,34 @@ export default function CustomizeModal({ item, lang, onClose, onConfirm }) {
               {group.options.map((option) => {
                 const checked = selected.includes(option.id);
                 const extra = Number(option.extraPrice);
+                const wasExtra = Number(option.compareAtExtraPrice || 0);
+                // Only a genuine reduction is worth striking through.
+                const extraDiscounted = wasExtra > extra;
+                const thumb = option.image?.thumbnailUrl || option.image?.url;
                 return (
-                  <label key={option.id} className="flex cursor-pointer items-center justify-between gap-3 py-3.5">
-                    <span className="text-[15px]">{localized(option, 'name', lang)}</span>
+                  <label key={option.id} className="flex cursor-pointer items-center justify-between gap-3 py-3">
+                    <span className="flex min-w-0 items-center gap-3">
+                      {thumb ? (
+                        <img
+                          src={thumb}
+                          alt=""
+                          className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                          loading="lazy"
+                        />
+                      ) : null}
+                      <span className="truncate text-[15px]">{localized(option, 'name', lang)}</span>
+                    </span>
                     <span className="flex shrink-0 items-center gap-3">
-                      {extra > 0 ? <span className="text-sm font-semibold text-ink-soft">+ {kwd(extra)}</span> : null}
+                      {extra > 0 ? (
+                        <span className="text-end leading-tight">
+                          <span className="block text-sm font-semibold text-ink-soft">+ {kwd(extra)}</span>
+                          {extraDiscounted ? (
+                            <span className="block text-xs font-medium text-ink-soft/70 line-through">
+                              + {kwd(wasExtra)}
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : null}
                       <input
                         type="checkbox"
                         checked={checked}

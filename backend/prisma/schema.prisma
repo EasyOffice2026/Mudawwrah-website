@@ -217,9 +217,17 @@ model CustomizationOption {
   nameEn       String
   nameAr       String?
   extraPrice   Decimal  @default(0) @db.Decimal(10, 3)
+  /// Pre-discount surcharge. When set and above `extraPrice`, the item sheet
+  /// strikes it through beside what the extra actually costs now.
+  compareAtExtraPrice Decimal? @db.Decimal(10, 3)
+  /// Optional thumbnail, shown beside the option name (sauces, add-ons).
+  imageId      String?
+  image        Media?   @relation(fields: [imageId], references: [id])
   isRequired   Boolean  @default(false)
   maxSelect    Int      @default(1)
   displayOrder Int      @default(0)
+
+  @@index([imageId])
 }
 
 model Order {
@@ -364,6 +372,7 @@ model Media {
   createdAt    DateTime   @default(now())
   menuItems    MenuItem[]
   banners      Banner[]
+  options      CustomizationOption[]
 
   @@index([tenantId])
 }

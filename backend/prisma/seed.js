@@ -105,6 +105,21 @@ const PHOTOS = {
   'Date Cake': 'photo-1571877227200-a0d98ea607e9',
 };
 
+// Thumbnails for the add-ons shown beside each option in the item sheet.
+// Every photo here was checked by eye against the add-on it labels — a valid
+// Unsplash id is no guarantee the subject matches; several plausible-looking
+// ids turned out to be a graduation ceremony, a cauliflower and a portrait.
+// Only names listed here get a picture; the rest render text-only.
+const OPTION_PHOTOS = {
+  'Extra cheese': 'photo-1486297678162-eb2a19b0a32d',
+  'Extra veggies': 'photo-1540420773420-3366772f4999',
+  'Extra patty': 'photo-1607013251379-e6eecfffe234',
+  'Turkey bacon': 'photo-1528607929212-2636ec44253e',
+  'BBQ sauce': 'photo-1608039755401-742074f0548d',
+  'Extra shot': 'photo-1510707577719-ae7c14805e3a',
+  'Oat milk': 'photo-1550583724-b2692b85b150',
+};
+
 const BANNER_PHOTOS = {
   mdawra: 'photo-1493770348161-369560ae357d',
   'burger-house': 'photo-1550547660-d9450f859349',
@@ -151,7 +166,7 @@ const brandedPlaceholder = async (tenant, label) => {
  * use the same photo, so the library stays tidy.
  */
 const imageFor = async (tenant, label, fallbackSlug, { banner = false } = {}) => {
-  const photoId = banner ? BANNER_PHOTOS[tenant.slug] : PHOTOS[label];
+  const photoId = banner ? BANNER_PHOTOS[tenant.slug] : PHOTOS[label] || OPTION_PHOTOS[label];
   const key = photoId || `placeholder-${fallbackSlug}`;
   const cacheKey = `${tenant.id}:${key}`;
   if (mediaCache.has(cacheKey)) return mediaCache.get(cacheKey);
@@ -776,9 +791,23 @@ const seedRestaurant = async (definition, password) => {
         : await prisma.menuItem.create({ data });
       await prisma.customizationOption.deleteMany({ where: { menuItemId: menuItem.id } });
       if (options.length) {
-        await prisma.customizationOption.createMany({
-          data: options.map((option, index) => ({ ...option, menuItemId: menuItem.id, displayOrder: index })),
-        });
+        const optionRows = [];
+        for (const [index, option] of options.entries()) {
+          // Extras are discounted alongside the item, so the sheet can strike
+          // through what they used to cost.
+          const extra = Number(option.extraPrice || 0);
+          const media = OPTION_PHOTOS[option.nameEn]
+            ? await imageFor(tenant, option.nameEn, 'opt-' + slugify(option.nameEn))
+            : null;
+          optionRows.push({
+            ...option,
+            menuItemId: menuItem.id,
+            displayOrder: index,
+            imageId: media ? media.id : null,
+            compareAtExtraPrice: extra > 0 ? Number((extra / 0.7).toFixed(3)) : null,
+          });
+        }
+        await prisma.customizationOption.createMany({ data: optionRows });
       }
     }
   }

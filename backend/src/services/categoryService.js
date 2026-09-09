@@ -10,7 +10,9 @@ const slugify = (value) =>
     .replace(/(^-|-$)/g, '') || `category-${Date.now()}`;
 
 const itemInclude = {
-  include: { image: true, options: { orderBy: { displayOrder: 'asc' } } },
+  // Option thumbnails travel with the menu, since the item sheet opens from
+  // the category payload without a second request.
+  include: { image: true, options: { include: { image: true }, orderBy: { displayOrder: 'asc' } } },
   orderBy: { displayOrder: 'asc' },
 };
 

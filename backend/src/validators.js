@@ -27,6 +27,8 @@ export const customizationOptionSchema = z.object({
   nameEn: z.string().trim().min(1),
   nameAr: optionalString,
   extraPrice: price.optional(),
+  compareAtExtraPrice: z.coerce.number().min(0).nullable().optional(),
+  imageId: z.string().uuid().nullable().optional(),
   isRequired: z.coerce.boolean().optional(),
   maxSelect: z.coerce.number().int().min(1).optional(),
   displayOrder: z.coerce.number().int().optional(),
