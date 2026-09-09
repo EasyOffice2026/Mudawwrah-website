@@ -69,6 +69,8 @@ export default function CustomizeModal({ item, lang, onClose, onConfirm }) {
   const discount = discountOf(item);
   const wasTotal = discount ? (discount.was + extras) * quantity : null;
   const nutrition = nutritionLine(item, t);
+  // Nothing to read below the photo — a plain drink or side.
+  const sparse = !groups.length && !nutrition && !localized(item, 'description', lang);
 
   return (
     <SheetShell onBackdropClick={onClose} label={localized(item, 'name', lang)}>
@@ -98,7 +100,10 @@ export default function CustomizeModal({ item, lang, onClose, onConfirm }) {
           <img
             src={item.image?.url || item.image?.thumbnailUrl || '/placeholder.svg'}
             alt={localized(item, 'name', lang)}
-            className="h-64 w-full object-cover"
+            // An item with no description, nutrition or options has almost
+            // nothing below the fold, so the photo takes the slack rather than
+            // leaving the sheet looking half-loaded.
+            className={`w-full object-cover ${sparse ? 'h-[46vh]' : 'h-64'}`}
           />
           <button
             type="button"

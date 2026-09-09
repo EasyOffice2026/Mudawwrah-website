@@ -15,6 +15,10 @@ export const DEFAULT_SETTINGS = {
   serviceChargePercent: '0',
   taxPercent: '0',
   isOpen: 'true',
+  // IANA zone the restaurant's trading day is measured in. Dashboard day
+  // boundaries and chart buckets both derive from this, so a shop open past
+  // midnight reports late-night orders on the day it actually traded them.
+  timezone: 'Asia/Kuwait',
   // Checkout fulfilment: a restaurant can offer delivery, pickup, or both.
   deliveryEnabled: 'true',
   pickupEnabled: 'true',
