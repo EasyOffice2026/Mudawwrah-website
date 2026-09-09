@@ -8,7 +8,7 @@ import AddButton from './AddButton.jsx';
  * Same shape as ItemCard: the row is a role="button" div rather than a
  * <button>, because it contains the real add button.
  */
-export default function ItemRow({ item, lang, onAdd }) {
+export default function ItemRow({ item, lang, onOpen, onAdd }) {
   const { t } = useTranslation();
   const unavailable = item.isOutOfStock || !item.isAvailable;
   const description = localized(item, 'description', lang);
@@ -16,7 +16,7 @@ export default function ItemRow({ item, lang, onAdd }) {
   const nutrition = nutritionLine(item, t);
 
   const open = () => {
-    if (!unavailable) onAdd(item);
+    if (!unavailable) onOpen(item);
   };
 
   return (

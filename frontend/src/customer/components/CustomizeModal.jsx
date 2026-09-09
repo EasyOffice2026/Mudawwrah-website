@@ -76,6 +76,9 @@ export default function CustomizeModal({ item, lang, onClose, onConfirm }) {
           sheet, so it stays identifiable while working through long option
           lists. The close control moves into it rather than being duplicated. */}
       <div
+        // Hidden from assistive tech while collapsed, otherwise the sheet
+        // announces two "Close" buttons — this one and the orb on the photo.
+        aria-hidden={!scrolled}
         className={`absolute inset-x-0 top-0 z-10 flex items-center gap-3 border-b border-hairline bg-white/95 px-3 backdrop-blur transition-[height,opacity] duration-200 ${
           scrolled ? 'h-14 opacity-100' : 'pointer-events-none h-0 opacity-0'
         }`}

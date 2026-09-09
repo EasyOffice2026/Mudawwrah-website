@@ -153,6 +153,15 @@ export default function Menu() {
       .slice(0, 6);
   }, [categories]);
 
+  /**
+   * Tapping the item itself always opens its sheet — the description,
+   * nutrition and full photo live there, and adding an item sight-unseen is
+   * not what a tap on the row means.
+   */
+  const onOpen = (item) => setCustomizing(item);
+
+  /** The + button is the shortcut: straight into the cart, unless the item
+   *  has options that have to be chosen first. */
   const onAdd = (item) => {
     if (item.isCustomizable && item.options?.length) return setCustomizing(item);
     addLine(item, [], 1);
@@ -286,7 +295,7 @@ export default function Menu() {
             <div key={`${category.id}-${lang}`} className="stagger mt-4 grid grid-cols-2 gap-4">
               {category.items.map((item, index) => (
                 <div key={item.id} style={{ '--i': index }}>
-                  <ItemCard item={item} lang={lang} onAdd={onAdd} />
+                  <ItemCard item={item} lang={lang} onOpen={onOpen} onAdd={onAdd} />
                 </div>
               ))}
             </div>
@@ -294,7 +303,7 @@ export default function Menu() {
             <div key={`${category.id}-${lang}`} className="stagger mt-2">
               {category.items.map((item, index) => (
                 <div key={item.id} style={{ '--i': index }}>
-                  <ItemRow item={item} lang={lang} onAdd={onAdd} />
+                  <ItemRow item={item} lang={lang} onOpen={onOpen} onAdd={onAdd} />
                 </div>
               ))}
             </div>

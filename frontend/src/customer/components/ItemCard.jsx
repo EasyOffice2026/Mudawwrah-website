@@ -9,13 +9,13 @@ import AddButton from './AddButton.jsx';
  * button — so the tile itself is a role="button" div rather than a <button>,
  * which may not contain another button.
  */
-export default function ItemCard({ item, lang, onAdd }) {
+export default function ItemCard({ item, lang, onOpen, onAdd }) {
   const { t } = useTranslation();
   const unavailable = item.isOutOfStock || !item.isAvailable;
   const discount = discountOf(item);
 
   const open = () => {
-    if (!unavailable) onAdd(item);
+    if (!unavailable) onOpen(item);
   };
 
   return (
