@@ -183,7 +183,32 @@
     "feedback": "Feedback",
     "averageRating": "Average rating",
     "rating": "Rating",
-    "comment": "Comment"
+    "comment": "Comment",
+    "promotions": "Promotions",
+    "promo": {
+      "new": "New promo code",
+      "none": "No promo codes yet. Create one to show it in the storefront.",
+      "code": "Code",
+      "codeHint": "What customers type at checkout. Uppercase, unique per restaurant.",
+      "titleEn": "Title (EN)",
+      "titleAr": "Title (AR)",
+      "subtitleEn": "Subtitle (EN)",
+      "subtitleAr": "Subtitle (AR)",
+      "type": "Discount type",
+      "percent": "Percentage off",
+      "fixed": "Fixed amount off",
+      "percentValue": "Percent (%)",
+      "amount": "Amount (KWD)",
+      "minOrder": "Minimum order",
+      "cap": "Maximum discount",
+      "noCap": "No cap",
+      "startsAt": "Starts at",
+      "endsAt": "Ends at",
+      "running": "Running",
+      "paused": "Paused",
+      "scheduled": "Scheduled",
+      "expired": "Expired"
+    }
   },
   "store": {
     "prepWindow": "{{min}}-{{max}} mins",

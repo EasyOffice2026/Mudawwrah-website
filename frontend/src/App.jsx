@@ -14,6 +14,7 @@ const Login = lazy(() => import('./admin/pages/Login.jsx'));
 const MediaLibrary = lazy(() => import('./admin/pages/MediaLibrary.jsx'));
 const MenuManager = lazy(() => import('./admin/pages/MenuManager.jsx'));
 const Orders = lazy(() => import('./admin/pages/Orders.jsx'));
+const Promotions = lazy(() => import('./admin/pages/Promotions.jsx'));
 const Settings = lazy(() => import('./admin/pages/Settings.jsx'));
 const Users = lazy(() => import('./admin/pages/Users.jsx'));
 
@@ -34,7 +35,7 @@ export default function App() {
         <Route path="orders" element={<Orders />} />
         <Route path="media" element={<MediaLibrary />} />
         <Route path="banners" element={<Banners />} />
-        <Route path="feedback" element={<Feedback />} />
+        <Route path="promotions" element={<Promotions />} />
         <Route path="feedback" element={<Feedback />} />
         <Route
           path="users"
