@@ -1,10 +1,6 @@
 {
   "rewrites": [
-    {
-      "comment": "Images are proxied rather than linked directly at the API host. ngrok's free tier answers browser requests with an HTML interstitial, and an <img> tag cannot send the header that skips it — but Vercel's server-side fetch is not a browser, so it receives the real file. This also keeps every asset same-origin and https, avoiding mixed-content blocking.",
-      "source": "/uploads/:path*",
-      "destination": "https://fabulous-immobile-dweller.ngrok-free.dev/uploads/:path*"
-    },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/uploads/:file*", "destination": "/api/image?file=:file*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
