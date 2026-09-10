@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, apiError } from '../lib/api';
@@ -18,7 +18,7 @@ import ItemCard from './components/ItemCard.jsx';
 import ItemRow from './components/ItemRow.jsx';
 import NewCartDialog from './components/NewCartDialog.jsx';
 import OfferStrip from './components/OfferStrip.jsx';
-import PromoStrip from './components/PromoStrip.jsx';
+import SearchSheet from './components/SearchSheet.jsx';
 import SplashScreen, { splashAlreadyPlayed } from './components/SplashScreen.jsx';
 import StoreHeader from './components/StoreHeader.jsx';
 
@@ -59,7 +59,6 @@ export default function Menu() {
   // Set when arriving with another restaurant's cart still held.
   const [cartConflict, setCartConflict] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState('');
   const [favorite, setFavorite] = useState(localStorage.getItem('mdawra_favorite') === 'true');
   // Suppressed while the tab rail is driving the scroll, so the spy does not
   // fight the smooth scroll and flicker through every category on the way.
@@ -135,21 +134,6 @@ export default function Menu() {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, [categories, activeId]);
-
-  const visibleCategories = useMemo(() => {
-    if (!query.trim()) return categories;
-    const needle = query.trim().toLowerCase();
-    return categories
-      .map((category) => ({
-        ...category,
-        items: category.items.filter((item) =>
-          [item.nameEn, item.nameAr, item.descriptionEn, item.descriptionAr]
-            .filter(Boolean)
-            .some((value) => value.toLowerCase().includes(needle)),
-        ),
-      }))
-      .filter((category) => category.items.length);
-  }, [categories, query]);
 
   // What other customers are actually ordering, from the API rather than a
   // local guess. Refreshed when the cart opens so the rail reflects recent
@@ -236,18 +220,6 @@ export default function Menu() {
         onSearch={() => setSearchOpen((value) => !value)}
       />
 
-      {searchOpen ? (
-        <div className="px-3 pt-3">
-          <input
-            autoFocus
-            className="input"
-            placeholder={t('common.searchPlaceholder')}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </div>
-      ) : null}
-
       <OfferStrip promotions={promotions} lang={lang} onApply={applyOffer} appliedCode={promo?.code} />
 
       <BannerCarousel banners={banners} lang={lang} />
@@ -287,11 +259,11 @@ export default function Menu() {
         </div>
       ) : null}
 
-      {!loading && !error && !visibleCategories.length ? (
+      {!loading && !error && !categories.length ? (
         <p className="p-10 text-center text-sm text-ink-soft">{t('common.noResults')}</p>
       ) : null}
 
-      {visibleCategories.map((category) => (
+      {categories.map((category) => (
         <section
           key={category.id}
           ref={(el) => {
@@ -329,10 +301,15 @@ export default function Menu() {
 
       {/* Headline offer stays pinned to the floor, lifting above itself when a
           cart bar appears so the two never overlap. */}
-      <PromoStrip
-        promotions={promotions}
-        raised={count() > 0}
-        onOpen={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      <SearchSheet
+        open={searchOpen}
+        categories={categories}
+        lang={lang}
+        onClose={() => setSearchOpen(false)}
+        onSelect={(item) => {
+          setSearchOpen(false);
+          setCustomizing(item);
+        }}
       />
 
       <NewCartDialog

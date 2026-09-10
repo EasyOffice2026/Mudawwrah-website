@@ -23,7 +23,8 @@
     "error": "حدث خطأ ما",
     "back": "رجوع",
     "favorite": "المفضلة",
-    "share": "مشاركة"
+    "share": "مشاركة",
+    "searchPrompt": "اكتب للبحث في القائمة"
   },
   "menu": {
     "customizable": "قابل للتخصيص",

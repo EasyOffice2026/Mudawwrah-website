@@ -20,12 +20,12 @@ const Row = ({ label, value, tone }) => (
 
 /**
  * Full-screen cart. Beyond the line items it carries the things that lift an
- * order: upsells, a cutlery opt-out, a special request, and the voucher field —
+ * order: upsells, a special request, and the voucher field —
  * with a running "you're saving" total so the discount stays visible.
  */
 export default function CartDrawer({ open, onClose, settings, suggestions, promotions, lang, onCheckout, onAddSuggestion }) {
   const { t } = useTranslation();
-  const { lines, setQuantity, removeLine, subtotal, promo, setPromo, cutlery, setCutlery, note, setNote } = useCart();
+  const { lines, setQuantity, removeLine, subtotal, promo, setPromo, note, setNote } = useCart();
   const [code, setCode] = useState('');
   const [checking, setChecking] = useState(false);
   // Manual code entry is behind 'Add voucher'; the running offers show by default.
@@ -174,30 +174,6 @@ export default function CartDrawer({ open, onClose, settings, suggestions, promo
           <>
             <section className="mt-3 bg-white px-3 py-4">
               <h3 className="text-[15px] font-extrabold">{t('cart.specialRequest')}</h3>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold">{t('cart.cutlery')}</span>
-                  <span className="block text-xs text-ink-soft">{t('cart.cutleryHint')}</span>
-                </span>
-                {/* A real switch: a button with a sliding knob, rather than a
-                    restyled checkbox that renders as a bare pill. */}
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={cutlery}
-                  aria-label={t('cart.cutlery')}
-                  onClick={() => setCutlery(!cutlery)}
-                  className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-                    cutlery ? 'bg-brand' : 'bg-hairline'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${
-                      cutlery ? 'start-6' : 'start-1'
-                    }`}
-                  />
-                </button>
-              </div>
               <textarea
                 className="input mt-3"
                 rows={2}

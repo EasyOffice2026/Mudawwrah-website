@@ -67,7 +67,7 @@ const SegButton = ({ active, disabled, onClick, icon, label, hint }) => (
  */
 export default function CheckoutModal({ open, onClose, settings, tenant, lang }) {
   const { t, i18n } = useTranslation();
-  const { lines, clear, promo, cutlery, note, subtotal } = useCart();
+  const { lines, clear, promo, note, subtotal } = useCart();
   const [orderType, setOrderType] = useState('DELIVERY');
   const [tip, setTip] = useState(0);
   const [deliveryNote, setDeliveryNote] = useState('');
@@ -177,7 +177,6 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         orderType,
         promoCode: promo?.code,
         tip: effectiveTip,
-        cutlery,
         deliveryNote: deliveryNote || undefined,
         items: lines.map((line) => ({
           menuItemId: line.menuItemId,

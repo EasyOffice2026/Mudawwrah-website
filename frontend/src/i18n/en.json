@@ -23,7 +23,8 @@
     "error": "Something went wrong",
     "back": "Back",
     "favorite": "Favourite",
-    "share": "Share"
+    "share": "Share",
+    "searchPrompt": "Type to search the menu"
   },
   "menu": {
     "customizable": "Customizable",
