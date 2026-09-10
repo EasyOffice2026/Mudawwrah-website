@@ -89,6 +89,17 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   // Live status for the order just placed, refreshed while the screen is open.
   const [tracked, setTracked] = useState(null);
 
+  // Keep the selection on a method the restaurant actually offers — the form
+  // starts on CASH, which a shop that has switched cash off never shows.
+  useEffect(() => {
+    const allowed = String(settings?.paymentMethods || 'KNET,CARD')
+      .split(',')
+      .map((method) => method.trim().toUpperCase());
+    if (allowed.length && !allowed.includes(form.paymentMethod)) {
+      setForm((current) => ({ ...current, paymentMethod: allowed[0] }));
+    }
+  }, [settings?.paymentMethods, form.paymentMethod]);
+
   useEffect(() => {
     if (!placed?.id) return undefined;
     let alive = true;
@@ -124,6 +135,20 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   const tax = Number((((discounted + serviceCharge) * Number(settings?.taxPercent || 0)) / 100).toFixed(3));
   const effectiveTip = isPickup ? 0 : tip;
   const total = Number((discounted + deliveryFee + serviceCharge + tax + effectiveTip).toFixed(3));
+
+  // Driven by the restaurant's own settings, so a shop that does not take cash
+  // simply never offers it. Falls back to card-only rather than showing
+  // everything if the setting is missing.
+  const paymentLabels = {
+    CASH: [t('checkout.cash'), '💵'],
+    KNET: [t('checkout.knet'), '💳'],
+    CARD: [t('checkout.card'), '💳'],
+  };
+  const enabledPayments = String(settings?.paymentMethods || 'KNET,CARD')
+    .split(',')
+    .map((method) => method.trim().toUpperCase())
+    .filter((method) => paymentLabels[method])
+    .map((method) => [method, ...paymentLabels[method]]);
 
   const tipPresets = String(settings?.tipPresets || '')
     .split(',')
@@ -380,11 +405,7 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         <section className="mt-3 bg-white px-3 py-4">
           <h3 className="text-[15px] font-extrabold">{t('checkout.payWith')}</h3>
           <div className="mt-3 divide-y divide-hairline">
-            {[
-              ['CASH', t('checkout.cash'), '💵'],
-              ['KNET', t('checkout.knet'), '💳'],
-              ['CARD', t('checkout.card'), '💳'],
-            ].map(([value, label, icon]) => (
+            {enabledPayments.map(([value, label, icon]) => (
               <label key={value} className="flex cursor-pointer items-center justify-between py-3.5">
                 <span className="flex items-center gap-3 text-[15px] font-medium">
                   <span aria-hidden>{icon}</span>

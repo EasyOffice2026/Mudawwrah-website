@@ -65,6 +65,8 @@ export default function Menu() {
   // fight the smooth scroll and flicker through every category on the way.
   const scrollLock = useRef(false);
   const sectionRefs = useRef({});
+  // The sticky wrapper holding the store bar and the category rail.
+  const stickyRef = useRef(null);
   const { addLine, count, subtotal, ensureTenant, switchTenant, promo, setPromo } = useCart();
 
   const [splashDone, setSplashDone] = useState(() => splashAlreadyPlayed(slug));
@@ -114,8 +116,13 @@ export default function Menu() {
 
   useEffect(() => {
     const onScroll = () => {
-      // The store bar takes over once the hero and info card have passed.
-      setCollapsed(window.scrollY > 190);
+      // The store bar may only expand once its sticky wrapper is actually
+      // pinned to the top. Keying this off a fixed scrollY instead meant the
+      // bar unfolded while the wrapper was still in normal flow, leaving a
+      // full header floating in the middle of the page between the offers and
+      // the menu.
+      const rail = stickyRef.current;
+      setCollapsed(Boolean(rail) && rail.getBoundingClientRect().top <= 0);
       if (scrollLock.current) return;
       const offset = 120;
       let current = activeId;
@@ -249,7 +256,7 @@ export default function Menu() {
         // One sticky wrapper holds both the collapsed store bar and the
         // category rail, so they pin together and the menu scrolls beneath
         // them — the bar expands in place rather than covering the tabs.
-        <div className="sticky top-0 z-30 mt-4 bg-white/95 backdrop-blur">
+        <div ref={stickyRef} className="sticky top-0 z-30 mt-4 bg-white/95 backdrop-blur">
           <CollapsedBar
             collapsed={collapsed}
             title={localized(tenant, 'name', lang) || localized(settings, 'restaurantName', lang)}

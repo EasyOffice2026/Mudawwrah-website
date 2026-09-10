@@ -25,6 +25,10 @@ export const DEFAULT_SETTINGS = {
   pickupAddressEn: '',
   pickupAddressAr: '',
   pickupWaitMinutes: '15',
+  // Which payment methods the checkout offers, in the order shown. Cash is
+  // off by default at the client's request; a restaurant that wants it back
+  // adds CASH here from Admin -> Settings rather than needing a code change.
+  paymentMethods: 'KNET,CARD',
   // Rider tipping, shown only on delivery orders.
   tipsEnabled: 'true',
   tipPresets: '0.350,0.700,1.000',

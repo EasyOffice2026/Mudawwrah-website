@@ -12,7 +12,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node prisma/seed.js",
-    "lint": "node --check src/index.js"
+    "lint": "node --check src/index.js",
+    "db:rebase-media": "node prisma/rebase-media.js"
   },
   "keywords": [],
   "author": "",
