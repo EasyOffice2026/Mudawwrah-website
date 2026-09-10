@@ -64,8 +64,9 @@ export default function Menu() {
   // fight the smooth scroll and flicker through every category on the way.
   const scrollLock = useRef(false);
   const sectionRefs = useRef({});
-  // The sticky wrapper holding the store bar and the category rail.
-  const stickyRef = useRef(null);
+  // Zero-height marker just above the sticky rail. Once it scrolls out of
+  // view the rail is pinned, which is the moment the store bar should appear.
+  const sentinelRef = useRef(null);
   const { addLine, count, subtotal, ensureTenant, switchTenant, promo, setPromo } = useCart();
 
   const [splashDone, setSplashDone] = useState(() => splashAlreadyPlayed(slug));
@@ -113,15 +114,27 @@ export default function Menu() {
     if (tenant) setStorefrontMeta(tenant, lang);
   }, [tenant, lang]);
 
+  // The store bar appears exactly when the category rail reaches the top —
+  // which is where the product list begins — and is hidden before that.
+  //
+  // Watched with an observer on a sentinel sitting just above the rail rather
+  // than measured inside the scroll handler: an observer reports the true
+  // state on first paint and cannot be missed by a throttled or coalesced
+  // scroll event, which is how a half-open header used to end up stranded in
+  // the middle of the page.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => setCollapsed(!entry.isIntersecting),
+      { threshold: 0 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [categories.length]);
+
   useEffect(() => {
     const onScroll = () => {
-      // The store bar may only expand once its sticky wrapper is actually
-      // pinned to the top. Keying this off a fixed scrollY instead meant the
-      // bar unfolded while the wrapper was still in normal flow, leaving a
-      // full header floating in the middle of the page between the offers and
-      // the menu.
-      const rail = stickyRef.current;
-      setCollapsed(Boolean(rail) && rail.getBoundingClientRect().top <= 0);
       if (scrollLock.current) return;
       const offset = 120;
       let current = activeId;
@@ -228,7 +241,9 @@ export default function Menu() {
         // One sticky wrapper holds both the collapsed store bar and the
         // category rail, so they pin together and the menu scrolls beneath
         // them — the bar expands in place rather than covering the tabs.
-        <div ref={stickyRef} className="sticky top-0 z-30 mt-4 bg-white/95 backdrop-blur">
+        <>
+        <div ref={sentinelRef} aria-hidden className="h-px" />
+        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur">
           <CollapsedBar
             collapsed={collapsed}
             title={localized(tenant, 'name', lang) || localized(settings, 'restaurantName', lang)}
@@ -246,6 +261,7 @@ export default function Menu() {
             lang={lang}
           />
         </div>
+        </>
       ) : null}
 
       {loading ? <MenuSkeleton /> : null}
