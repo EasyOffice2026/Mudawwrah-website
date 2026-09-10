@@ -24,13 +24,15 @@ const Icon = ({ children, onClick, label, active }) => (
 export default function CollapsedBar({ collapsed, title, favorite, onToggleFavorite, onBack, onShare, onSearch }) {
   const { t, i18n } = useTranslation();
 
+  // Not rendered at all until the rail is pinned, rather than rendered and
+  // hidden with a zero height. Hiding by height leaves a full-size header in
+  // the markup that appears the moment anything stops that class applying —
+  // a stale stylesheet, a purged utility — which is exactly how it kept
+  // turning up stranded in the middle of the page.
+  if (!collapsed) return null;
+
   return (
-    <div
-      aria-hidden={!collapsed}
-      className={`overflow-hidden transition-[height,opacity] duration-300 ease-out ${
-        collapsed ? 'h-14 opacity-100' : 'h-0 opacity-0'
-      }`}
-    >
+    <div className="animate-rise overflow-hidden">
       <div className="flex h-14 items-center gap-2 px-3">
         <Icon label={t('common.back')} onClick={onBack}>
           <span className="rtl:rotate-180">←</span>
