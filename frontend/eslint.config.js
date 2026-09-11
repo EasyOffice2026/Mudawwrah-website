@@ -32,4 +32,9 @@ export default [
       'react-hooks/set-state-in-effect': 'off',
     },
   },
+  {
+    // Vercel serverless functions run on Node, not in the browser.
+    files: ['api/**/*.js'],
+    languageOptions: { globals: globals.node },
+  },
 ];

@@ -1,5 +1,7 @@
 import cors from 'cors';
 import express from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
 import morgan from 'morgan';
 import { config, isOriginAllowed } from './config.js';
 import { errorHandler, notFound } from './middleware/error.js';
@@ -30,9 +32,24 @@ export const createApp = () => {
   app.use(express.urlencoded({ extended: false }));
   app.use(morgan('dev'));
   app.use('/uploads', express.static(config.uploadDir));
-  // Must run before the routes: it resolves the restaurant and opens the
-  // AsyncLocalStorage scope every tenant-aware query relies on.
+  // resolveTenant must stay in front of the routes: it resolves the restaurant
+  // and opens the AsyncLocalStorage scope every tenant-aware query relies on.
+  // Without it no request carries a tenant and the whole API 400s.
   app.use('/api', resolveTenant, routes);
+
+  // Optionally serve the built frontend from the API, for single-origin
+  // deployments where one service answers both.
+  const serveStatic = config.staticDir && fs.existsSync(path.join(config.staticDir, 'index.html'));
+  if (serveStatic) {
+    app.use(express.static(config.staticDir));
+  }
+
+  // An unknown /api path is a 404 from the API, not the SPA shell.
+  app.use('/api', notFound);
+  if (serveStatic) {
+    app.get(/.*/, (req, res) => res.sendFile(path.join(config.staticDir, 'index.html')));
+  }
+
   app.use(notFound);
   app.use(errorHandler);
   return app;

@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: mdawra-api
+    runtime: node
+    plan: starter # a paid plan is required for the persistent disk used by uploads
+    rootDir: backend
+    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: mdawra-uploads
+      mountPath: /var/data/uploads
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        sync: false # Supabase Postgres URI (Session pooler, port 5432 — migrations need it)
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: "4000"
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: PUBLIC_URL
+        sync: false # https://mdawra-api.onrender.com (set after the first deploy)
+      - key: CORS_ORIGINS
+        sync: false # https://<your-app>.vercel.app
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
