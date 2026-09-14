@@ -17,6 +17,9 @@ const Orders = lazy(() => import('./admin/pages/Orders.jsx'));
 const Promotions = lazy(() => import('./admin/pages/Promotions.jsx'));
 const Settings = lazy(() => import('./admin/pages/Settings.jsx'));
 const Users = lazy(() => import('./admin/pages/Users.jsx'));
+// Operator-only, so it stays out of the bundle a customer downloads.
+const PlatformConsole = lazy(() => import('./platform/PlatformConsole.jsx'));
+const PlatformLogin = lazy(() => import('./platform/PlatformLogin.jsx'));
 
 export default function App() {
   return (
@@ -24,6 +27,8 @@ export default function App() {
     <Routes>
       {/* Platform level — every restaurant running on the same codebase. */}
       <Route path="/" element={<RestaurantPicker />} />
+      <Route path="/platform/login" element={<PlatformLogin />} />
+      <Route path="/platform" element={<PlatformConsole />} />
 
       {/* One restaurant. In production this is also reachable at
           <slug>.yourplatform.com or the restaurant's own domain. */}
