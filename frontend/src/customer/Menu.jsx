@@ -6,7 +6,6 @@ import { localized } from '../lib/format';
 import { setStorefrontMeta } from '../lib/pageMeta';
 import { applyTheme } from '../lib/theme';
 import { useCart } from '../store/cart';
-import BannerCarousel from './components/BannerCarousel.jsx';
 import CartBar from './components/CartBar.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import CategorySheet from './components/CategorySheet.jsx';
@@ -44,7 +43,6 @@ export default function Menu() {
   const lang = i18n.language;
   const [tenant, setTenant] = useState(null);
   const [categories, setCategories] = useState([]);
-  const [banners, setBanners] = useState([]);
   const [promotions, setPromotions] = useState([]);
   const [settings, setSettings] = useState(null);
   const [error, setError] = useState(null);
@@ -74,10 +72,9 @@ export default function Menu() {
   const load = async () => {
     setLoading(true);
     try {
-      const [tenantRes, categoriesRes, bannersRes, settingsRes, promotionsRes] = await Promise.all([
+      const [tenantRes, categoriesRes, settingsRes, promotionsRes] = await Promise.all([
         api.get('/tenants/current'),
         api.get('/categories'),
-        api.get('/banners'),
         api.get('/settings'),
         api.get('/promotions'),
       ]);
@@ -87,7 +84,6 @@ export default function Menu() {
       applyTheme(tenantRes.data);
       setStorefrontMeta(tenantRes.data, lang);
       setCategories(categoriesRes.data);
-      setBanners(bannersRes.data);
       setSettings(settingsRes.data);
       setPromotions(promotionsRes.data);
       setActiveId(categoriesRes.data[0]?.id || null);
@@ -234,8 +230,6 @@ export default function Menu() {
       />
 
       <OfferStrip promotions={promotions} lang={lang} onApply={applyOffer} appliedCode={promo?.code} />
-
-      <BannerCarousel banners={banners} lang={lang} />
 
       {categories.length ? (
         // One sticky wrapper holds both the collapsed store bar and the
