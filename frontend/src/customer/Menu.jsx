@@ -5,6 +5,7 @@ import { api, apiError } from '../lib/api';
 import { localized } from '../lib/format';
 import { setStorefrontMeta } from '../lib/pageMeta';
 import { applyTheme } from '../lib/theme';
+import { applyTracking, captureAttribution } from '../lib/tracking';
 import { useCart } from '../store/cart';
 import CartBar from './components/CartBar.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
@@ -85,6 +86,7 @@ export default function Menu() {
       setStorefrontMeta(tenantRes.data, lang);
       setCategories(categoriesRes.data);
       setSettings(settingsRes.data);
+      applyTracking(settingsRes.data);
       setPromotions(promotionsRes.data);
       setActiveId(categoriesRes.data[0]?.id || null);
       ensureTenant(slug, localized(tenantRes.data, "name", lang));
@@ -95,6 +97,13 @@ export default function Menu() {
       setLoading(false);
     }
   };
+
+  // Read once, from the very first URL this tab loaded — not on every
+  // internal navigation between categories or restaurants, which carries no
+  // campaign parameters and would otherwise look like a direct visit.
+  useEffect(() => {
+    captureAttribution();
+  }, []);
 
   useEffect(() => {
     // A cart holding another restaurant's items is not dropped silently — the

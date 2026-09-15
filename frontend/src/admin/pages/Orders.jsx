@@ -238,6 +238,19 @@ export default function Orders() {
               <p>
                 <span className="text-gray-500">{t('admin.channel')}:</span> {detail.channel}
               </p>
+              {detail.pickupLocation ? (
+                <p>
+                  <span className="text-gray-500">Pickup branch:</span> {detail.pickupLocation.nameEn}
+                </p>
+              ) : null}
+              {detail.utmSource || detail.utmMedium || detail.utmCampaign || detail.referrer ? (
+                <p className="sm:col-span-2">
+                  <span className="text-gray-500">Came from:</span>{' '}
+                  {[detail.utmSource, detail.utmMedium, detail.utmCampaign, detail.utmTerm, detail.utmContent]
+                    .filter(Boolean)
+                    .join(' / ') || detail.referrer}
+                </p>
+              ) : null}
               {detail.feedback ? (
                 <p>
                   <span className="text-gray-500">{t('admin.feedback')}:</span> {'⭐'.repeat(detail.feedback.rating)}{' '}

@@ -9,6 +9,9 @@ const include = {
   items: { include: { menuItem: true } },
   user: { select: { id: true, name: true, email: true } },
   feedback: true,
+  // Named rather than only referenced, so the kitchen sees which branch is
+  // collecting without a second lookup. Null once a branch is retired.
+  pickupLocation: { select: { id: true, nameEn: true, nameAr: true, addressEn: true, addressAr: true } },
 };
 
 const round3 = (value) => Number(Number(value).toFixed(3));
@@ -68,6 +71,17 @@ export const create = async (payload) => {
   if (orderType === 'DELIVERY' && settings.deliveryEnabled !== 'true') {
     throw new HttpError(409, 'This restaurant is not accepting delivery orders');
   }
+  // A branch id arrives from the client, and a foreign key alone would happily
+  // accept another restaurant's branch. This read is tenant-scoped, so a
+  // branch belonging to anyone else simply is not found.
+  if (orderType === 'PICKUP' && payload.pickupLocationId) {
+    const branch = await prisma.pickupLocation.findUnique({
+      where: { id: payload.pickupLocationId },
+      select: { id: true, isActive: true },
+    });
+    if (!branch) throw new HttpError(400, 'That pickup location does not exist');
+    if (!branch.isActive) throw new HttpError(409, 'That pickup location is not taking orders');
+  }
   // Collecting in person is never charged for delivery, and carries no address.
   let deliveryFee = orderType === 'PICKUP' ? 0 : round3(settings.deliveryFee);
 
@@ -108,6 +122,16 @@ export const create = async (payload) => {
       tip,
       cutlery: Boolean(payload.cutlery),
       deliveryNote: payload.deliveryNote || null,
+      // Only meaningful for collection; a delivery order carries no branch.
+      pickupLocationId: orderType === 'PICKUP' ? payload.pickupLocationId || null : null,
+      // Where this sale came from. Recorded on the order rather than inferred
+      // later, because the link the customer arrived on is gone by then.
+      utmSource: payload.utmSource || null,
+      utmMedium: payload.utmMedium || null,
+      utmCampaign: payload.utmCampaign || null,
+      utmTerm: payload.utmTerm || null,
+      utmContent: payload.utmContent || null,
+      referrer: payload.referrer || null,
       total,
       items: { create: lines },
     },

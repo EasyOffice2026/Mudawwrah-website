@@ -105,6 +105,7 @@ model Tenant {
   media      Media[]
   settings   Setting[]
   promotions Promotion[]
+  pickupLocations PickupLocation[]
 }
 
 /// A voucher a customer can apply at checkout. Discounts are always recomputed
@@ -266,6 +267,22 @@ model Order {
   tip           Decimal       @default(0) @db.Decimal(10, 3)
   cutlery       Boolean       @default(false)
   deliveryNote  String?
+  /// Which pickup branch the customer chose. Kept as a relation rather than a
+  /// copied string so the branch can be renamed without rewriting history,
+  /// and SetNull so retiring a branch never deletes the orders it took.
+  pickupLocationId String?
+  pickupLocation   PickupLocation? @relation(fields: [pickupLocationId], references: [id], onDelete: SetNull)
+  /// Where the customer came from, read off the link they arrived on. Recorded
+  /// per order so a restaurant can tell which campaign actually sold food,
+  /// rather than only which one drove traffic.
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  utmTerm       String?
+  utmContent    String?
+  /// Set when there were no utm parameters, so direct and organic arrivals are
+  /// still distinguishable instead of all reading as "unknown".
+  referrer      String?
   total         Decimal       @db.Decimal(10, 3)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -338,6 +355,41 @@ model OrderItem {
   quantity       Int
   lineTotal      Decimal   @db.Decimal(10, 3)
   customizations Json?
+}
+
+/// A branch a customer can collect from.
+///
+/// A restaurant with one shop needs none of this — the single pickup address in
+/// Settings still covers it. This exists for the ones with several branches,
+/// where "when is it open" differs per branch and the customer has to be told
+/// before choosing.
+model PickupLocation {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nameEn       String
+  nameAr       String?
+  addressEn    String?
+  addressAr    String?
+  /// Free text rather than a map pin: what a customer needs is the landmark
+  /// and the floor, which no coordinate conveys.
+  directionsEn String?
+  directionsAr String?
+  phone        String?
+  /// Collection hours, one entry per weekday, as
+  /// [{ day: 0-6, open: "09:00", close: "23:00", closed: false }].
+  /// Held as JSON because it is only ever read and written whole, and a table
+  /// of seven rows per branch would buy nothing.
+  hours        Json?
+  /// Minutes between placing the order and it being ready at this branch.
+  prepMinutes  Int      @default(15)
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  orders       Order[]
+
+  @@index([tenantId])
 }
 
 model Banner {

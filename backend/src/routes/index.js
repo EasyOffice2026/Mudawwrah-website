@@ -8,6 +8,7 @@ import * as items from '../controllers/itemController.js';
 import * as media from '../controllers/mediaController.js';
 import * as orders from '../controllers/orderController.js';
 import * as payments from '../controllers/paymentController.js';
+import * as pickupLocations from '../controllers/pickupLocationController.js';
 import * as promotions from '../controllers/promotionController.js';
 import * as settings from '../controllers/settingController.js';
 import * as tenants from '../controllers/tenantController.js';
@@ -81,6 +82,16 @@ scoped.get('/orders/:id', requireStaff, h(orders.getById));
 scoped.patch('/orders/:id/status', requireStaff, h(orders.updateStatus));
 
 // Banners
+// Pickup branches. The public list is what the checkout offers; everything
+// else is staff-only, and every read is confined to the current restaurant.
+scoped.get('/pickup-locations', h(pickupLocations.listPublic));
+scoped.get('/pickup-locations/all', requireStaff, h(pickupLocations.listAll));
+scoped.post('/pickup-locations/reorder', requireStaff, h(pickupLocations.reorder));
+scoped.get('/pickup-locations/:id', requireStaff, h(pickupLocations.getById));
+scoped.post('/pickup-locations', requireStaff, h(pickupLocations.create));
+scoped.put('/pickup-locations/:id', requireStaff, h(pickupLocations.update));
+scoped.delete('/pickup-locations/:id', requireAdmin, h(pickupLocations.remove));
+
 scoped.get('/banners', h(banners.listPublic));
 scoped.get('/banners/all', requireStaff, h(banners.listAll));
 scoped.get('/banners/:id', requireStaff, h(banners.getById));

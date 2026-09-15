@@ -94,9 +94,14 @@ export default function AdminLayout() {
             <a href={`/r/${slug}`} className="btn-ghost">
               {t('admin.viewStore')}
             </a>
-            <a href="/" className="btn-ghost">
-              {t('admin.allRestaurants')}
-            </a>
+            {/* Only the operator who runs every restaurant. A restaurant's own
+                staff are given this dashboard, and must see no trace of the
+                other tenants — not even a link out to a list of them. */}
+            {user.tenantId === null ? (
+              <a href="/platform" className="btn-ghost">
+                {t('admin.allRestaurants')}
+              </a>
+            ) : null}
             <button
               type="button"
               className="btn-ghost"

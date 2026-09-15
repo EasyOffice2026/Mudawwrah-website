@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
+import { getAttribution } from '../../lib/tracking';
 import { useCart } from '../../store/cart';
 import LocationPicker from './LocationPicker.jsx';
 import SheetShell from './SheetShell.jsx';
@@ -83,6 +84,11 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   });
   // Delivery orders confirm a map location before filling in the address.
   const [locationOpen, setLocationOpen] = useState(false);
+  // Branches the restaurant has set up under Settings → Pickup locations. A
+  // restaurant with none keeps working exactly as before, off the single
+  // pickup address in Settings.
+  const [pickupLocations, setPickupLocations] = useState([]);
+  const [pickupLocationId, setPickupLocationId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [placed, setPlaced] = useState(null);
@@ -99,6 +105,16 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
       setForm((current) => ({ ...current, paymentMethod: allowed[0] }));
     }
   }, [settings?.paymentMethods, form.paymentMethod]);
+
+  useEffect(() => {
+    api
+      .get('/pickup-locations')
+      .then(({ data }) => {
+        setPickupLocations(data);
+        if (data.length === 1) setPickupLocationId(data[0].id);
+      })
+      .catch(() => setPickupLocations([]));
+  }, []);
 
   useEffect(() => {
     if (!placed?.id) return undefined;
@@ -162,7 +178,12 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
     .join(', ');
 
   const addressMissing = !isPickup && !composedAddress;
-  const canSubmit = form.customerName.trim() && form.customerPhone.trim().length >= 6 && !addressMissing;
+  // Once the restaurant has set up named branches, "pickup" without saying
+  // which one is not a complete order — there is nowhere for the kitchen to
+  // hand it to.
+  const branchMissing = isPickup && pickupLocations.length > 0 && !pickupLocationId;
+  const canSubmit =
+    form.customerName.trim() && form.customerPhone.trim().length >= 6 && !addressMissing && !branchMissing;
 
   const submit = async (viaWhatsapp) => {
     setSubmitting(true);
@@ -175,9 +196,13 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         notes: note || undefined,
         paymentMethod: viaWhatsapp ? 'WHATSAPP' : form.paymentMethod,
         orderType,
+        pickupLocationId: isPickup ? pickupLocationId : undefined,
         promoCode: promo?.code,
         tip: effectiveTip,
         deliveryNote: deliveryNote || undefined,
+        // Which campaign brought this customer here, read from what the URL
+        // captured when the storefront first loaded. Empty on a direct visit.
+        ...getAttribution(),
         items: lines.map((line) => ({
           menuItemId: line.menuItemId,
           quantity: line.quantity,
@@ -289,7 +314,33 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
               hint={t('checkout.pickupReady', { minutes: settings?.pickupWaitMinutes || 15 })}
             />
           </div>
-          {isPickup ? (
+          {isPickup && pickupLocations.length ? (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs font-bold text-ink">{t('checkout.collectFrom')}</p>
+              {pickupLocations.map((branch) => (
+                <label
+                  key={branch.id}
+                  className={`flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 text-xs leading-relaxed transition ${
+                    pickupLocationId === branch.id ? 'border-brand bg-surface' : 'border-hairline'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="pickupLocation"
+                    className="mt-0.5 h-4 w-4 accent-brand"
+                    checked={pickupLocationId === branch.id}
+                    onChange={() => setPickupLocationId(branch.id)}
+                  />
+                  <span>
+                    <span className="block font-bold text-ink">{localized(branch, 'name', lang)}</span>
+                    {localized(branch, 'address', lang) ? (
+                      <span className="block text-ink-soft">{localized(branch, 'address', lang)}</span>
+                    ) : null}
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : isPickup ? (
             <p className="mt-3 rounded-xl bg-surface px-3 py-2.5 text-xs leading-relaxed text-ink-soft">
               <span className="font-bold text-ink">{t('checkout.collectFrom')}</span>{' '}
               {localized(settings, 'pickupAddress', lang) || localized(settings, 'address', lang)}

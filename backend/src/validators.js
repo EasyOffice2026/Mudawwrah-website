@@ -3,6 +3,10 @@ import { z } from 'zod';
 const price = z.coerce.number().min(0);
 const optionalString = z.string().trim().optional().nullable();
 
+// A utm value is whatever was in the query string, so it is capped and trimmed
+// before it can reach the database or the admin order list.
+const attribution = z.string().trim().max(200).nullable().optional();
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -84,6 +88,17 @@ export const orderSchema = z.object({
   tip: z.coerce.number().min(0).optional(),
   cutlery: z.coerce.boolean().optional(),
   deliveryNote: optionalString,
+  /// Branch to collect from, when this is a pickup order.
+  pickupLocationId: z.string().uuid().nullable().optional(),
+  // Marketing attribution, forwarded by the storefront from the link the
+  // customer arrived on. Length-capped because it lands in the admin's order
+  // list: these are attacker-controlled strings from a URL, not our own data.
+  utmSource: attribution,
+  utmMedium: attribution,
+  utmCampaign: attribution,
+  utmTerm: attribution,
+  utmContent: attribution,
+  referrer: z.string().trim().max(500).nullable().optional(),
   items: z
     .array(
       z.object({
@@ -94,6 +109,30 @@ export const orderSchema = z.object({
     )
     .min(1),
 });
+
+/** One weekday's collection window. Day 0 is Sunday, matching Date#getDay. */
+const openingHours = z.object({
+  day: z.coerce.number().int().min(0).max(6),
+  open: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected a time like 09:00'),
+  close: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected a time like 23:00'),
+  closed: z.coerce.boolean().optional(),
+});
+
+export const pickupLocationSchema = z.object({
+  nameEn: z.string().trim().min(1),
+  nameAr: optionalString,
+  addressEn: optionalString,
+  addressAr: optionalString,
+  directionsEn: optionalString,
+  directionsAr: optionalString,
+  phone: optionalString,
+  hours: z.array(openingHours).max(7).optional(),
+  prepMinutes: z.coerce.number().int().min(0).max(600).optional(),
+  displayOrder: z.coerce.number().int().min(0).optional(),
+  isActive: z.coerce.boolean().optional(),
+});
+
+export const pickupLocationUpdateSchema = pickupLocationSchema.partial();
 
 export const promoPreviewSchema = z.object({
   code: z.string().trim().min(1),
