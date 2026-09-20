@@ -40,6 +40,25 @@ export const resolveTenant = async (req, res, next) => {
   }
 };
 
+/**
+ * Re-enters the tenant's AsyncLocalStorage context after a middleware that
+ * may have escaped it.
+ *
+ * Multer's multipart parser is the known case: verified by instrumenting
+ * both sides of it directly, the tenant is present in context immediately
+ * before it runs and gone immediately after, for an upload large enough to
+ * span more than one stream chunk — a small file completes within a single
+ * tick and never shows the gap. `req.tenant` is an ordinary property on the
+ * request object rather than something carried through AsyncLocalStorage, so
+ * it survives untouched regardless, which is what makes re-entering context
+ * from it here reliable rather than a guess.
+ *
+ * Mount this after any middleware that reads the request as a raw stream
+ * (file uploads today; anything similar added later) and before the routes
+ * that follow it.
+ */
+export const reattachTenant = (req, res, next) => runWithTenant(req.tenant, () => next());
+
 /** Guards routes that are meaningless without a restaurant in context. */
 export const requireTenant = (req, res, next) => {
   if (!req.tenant) {

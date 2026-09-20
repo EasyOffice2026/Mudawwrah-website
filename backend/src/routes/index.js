@@ -23,7 +23,7 @@ import {
   requireStaff,
 } from '../middleware/auth.js';
 import { asyncHandler as h } from '../middleware/error.js';
-import { requireTenant } from '../middleware/tenant.js';
+import { reattachTenant, requireTenant } from '../middleware/tenant.js';
 import { upload } from '../middleware/upload.js';
 
 const router = Router();
@@ -109,7 +109,7 @@ scoped.delete('/promotions/:id', requireAdmin, h(promotions.remove));
 
 // Media
 scoped.get('/media', requireStaff, h(media.list));
-scoped.post('/media', requireStaff, upload.single('file'), h(media.upload));
+scoped.post('/media', requireStaff, upload.single('file'), reattachTenant, h(media.upload));
 scoped.delete('/media/:id', requireStaff, h(media.remove));
 
 // Users
