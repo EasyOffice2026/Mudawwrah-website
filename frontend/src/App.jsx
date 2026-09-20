@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminOnly from './admin/AdminOnly.jsx';
 import Menu from './customer/Menu.jsx';
-import RestaurantPicker from './platform/RestaurantPicker.jsx';
+import RootRoute, { RootAdminRoute } from './platform/RootRoute.jsx';
 
 // The admin panel (and its charting library) is loaded on demand, so a
 // customer opening the menu on mobile data never downloads it.
@@ -25,8 +25,11 @@ export default function App() {
   return (
     <Suspense fallback={<p className="p-8 text-center text-sm text-gray-500">Loading…</p>}>
     <Routes>
-      {/* Platform level — every restaurant running on the same codebase. */}
-      <Route path="/" element={<RestaurantPicker />} />
+      {/* Platform level on the platform's own host — every restaurant running
+          on the same codebase. On a restaurant's own domain these same paths
+          resolve to that restaurant instead; see RootRoute. */}
+      <Route path="/" element={<RootRoute />} />
+      <Route path="/admin/*" element={<RootAdminRoute />} />
       <Route path="/platform/login" element={<PlatformLogin />} />
       <Route path="/platform" element={<PlatformConsole />} />
 

@@ -16,10 +16,20 @@ const bySlug = (slug) => prisma.tenant.findFirst({ where: { slug, isActive: true
  *
  * Host-based resolution is listed first so that moving a restaurant onto its
  * own domain later needs no code change.
+ *
+ * The host itself comes from X-Storefront-Host ahead of the raw HTTP Host
+ * header. The frontend calls this API cross-origin — a different host than
+ * the address bar the customer is actually looking at — so the connection's
+ * own Host header is the API's host, never the storefront's; only the SPA
+ * telling us its real address bar makes a restaurant's own domain resolve at
+ * all. X-Forwarded-Host stays as a fallback for a same-origin deployment
+ * behind a reverse proxy, which sets that header itself.
  */
 export const resolveTenant = async (req, res, next) => {
   try {
-    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(':')[0];
+    const host = String(
+      req.headers['x-storefront-host'] || req.headers['x-forwarded-host'] || req.headers.host || '',
+    ).split(':')[0];
     let tenant = null;
 
     if (host) {

@@ -21,6 +21,14 @@ api.interceptors.request.use((config) => {
   // Tells the API which restaurant this request belongs to. The API also
   // accepts a custom domain or subdomain, which is the production path.
   if (slug) config.headers['X-Tenant'] = slug;
+  // The page and the API are on different hosts — the frontend calls the API
+  // directly cross-origin (ngrok today, likely Render later), so the raw
+  // Host header the API sees on that request is the API's own host, never
+  // the storefront's. Sending the address bar's actual hostname explicitly
+  // is what lets a restaurant's own domain resolve at all; without it,
+  // resolveTenant's custom-domain matching would have nothing real to
+  // compare against.
+  config.headers['X-Storefront-Host'] = window.location.hostname;
   const token = localStorage.getItem(tokenKey(slug));
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

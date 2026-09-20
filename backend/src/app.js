@@ -17,7 +17,7 @@ export const createApp = () => {
       origin: (origin, callback) => callback(null, isOriginAllowed(origin)),
       // ngrok-skip-browser-warning is what stops ngrok's free tier serving its
       // HTML interstitial to a browser instead of the JSON the app expects.
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant', 'ngrok-skip-browser-warning'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant', 'X-Storefront-Host', 'ngrok-skip-browser-warning'],
     }),
   );
   app.use(
