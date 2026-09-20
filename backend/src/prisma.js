@@ -51,12 +51,19 @@ const READ_ONLY = new Set([
  * Losing the database for a second should cost a visitor a slower page, not an
  * error screen — so a read that dies on a dropped connection is given a couple
  * more chances while Prisma reconnects. Anything else is rethrown untouched.
+ *
+ * The window is sized against how long the local dev database actually takes
+ * to come back after a restart, not a guess: a real login hit the shorter
+ * window this replaced and still surfaced a raw connection error to the
+ * client, so it wasn't wide enough. ~4.5s covers a restart with real margin
+ * while still failing within a few seconds if the database is genuinely down
+ * rather than mid-restart.
  */
 export const withRetry = async (operation, run) => {
   if (!READ_ONLY.has(operation)) return run();
 
   let lastError;
-  for (const waitMs of [0, 150, 450]) {
+  for (const waitMs of [0, 150, 400, 800, 1500, 1800]) {
     if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
     try {
       return await run();
