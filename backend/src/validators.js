@@ -216,3 +216,17 @@ export const tenantSchema = z.object({
 });
 
 export const tenantUpdateSchema = tenantSchema.partial();
+
+/**
+ * A new restaurant, plus the one account that can actually sign into it.
+ *
+ * A Tenant row with nobody able to log in is a dead end — whoever created it
+ * would have to come back through the database to hand it an admin. Its
+ * password is generated server-side and returned once, the same as
+ * rotate-credentials: nothing this sensitive should be typed into a form
+ * field that a screen-recording or a shoulder could catch.
+ */
+export const tenantCreateSchema = tenantSchema.extend({
+  adminEmail: z.string().trim().toLowerCase().email(),
+  adminName: optionalString,
+});

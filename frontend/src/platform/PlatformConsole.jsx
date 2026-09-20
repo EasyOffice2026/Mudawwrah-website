@@ -104,6 +104,131 @@ const StoreRow = ({ tenant, counts, onSaved }) => {
   );
 };
 
+const slugify = (value) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 40);
+
+/**
+ * A brand new restaurant, plus the one account that can sign into it.
+ *
+ * Both are created together — a restaurant with no admin is a dead end that
+ * would need a developer to fix by hand, which is exactly what this button
+ * exists to avoid. The password is generated on the server and shown here
+ * exactly once, the same rule Settings follows for tracking IDs and the
+ * rotate-credentials script follows for staff passwords: nothing this
+ * sensitive is ever typed into a form.
+ */
+const NewRestaurantForm = ({ onCreated, onCancel }) => {
+  const [form, setForm] = useState({ nameEn: '', nameAr: '', slug: '', adminEmail: '', brandColor: '#B00020' });
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [state, setState] = useState({ saving: false, error: null });
+  const [created, setCreated] = useState(null);
+
+  const setField = (key) => (event) => {
+    const value = event.target.value;
+    setForm((f) => ({
+      ...f,
+      [key]: value,
+      // Follows the name into a slug until the operator edits the slug
+      // themselves — after that, typing the name faster never overwrites
+      // a slug they deliberately changed.
+      ...(key === 'nameEn' && !slugTouched ? { slug: slugify(value) } : {}),
+    }));
+  };
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setState({ saving: true, error: null });
+    try {
+      const { data } = await api.post('/tenants', form);
+      setCreated(data);
+    } catch (err) {
+      setState({ saving: false, error: apiError(err) });
+    }
+  };
+
+  if (created) {
+    return (
+      <div className="card space-y-3 border-2 border-green-600">
+        <p className="font-bold text-green-700">{created.tenant.nameEn} is live.</p>
+        <div className="rounded-xl bg-gray-50 p-3 text-sm">
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Its admin sign-in</p>
+          <p className="mt-1">
+            Dashboard: <code>/r/{created.tenant.slug}/admin</code>
+          </p>
+          <p>
+            Email: <code>{created.admin.email}</code>
+          </p>
+          <p>
+            Password: <code className="font-bold">{created.admin.password}</code>
+          </p>
+          <p className="mt-2 text-xs font-semibold text-red-600">
+            Shown once — copy it now. Send it to whoever runs this restaurant over a different channel than
+            wherever you send the dashboard link.
+          </p>
+        </div>
+        <button type="button" className="btn bg-gray-900 text-white" onClick={() => onCreated(created.tenant)}>
+          Done
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="card space-y-4">
+      <p className="font-bold">New restaurant</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="label">Name (EN)</label>
+          <input className="input" required value={form.nameEn} onChange={setField('nameEn')} />
+        </div>
+        <div>
+          <label className="label">Name (AR)</label>
+          <input className="input" required value={form.nameAr} onChange={setField('nameAr')} dir="rtl" />
+        </div>
+        <div>
+          <label className="label">Web address</label>
+          <div className="flex items-center gap-1 text-sm text-gray-500">
+            <span className="shrink-0">/r/</span>
+            <input
+              className="input"
+              required
+              value={form.slug}
+              onChange={(e) => {
+                setSlugTouched(true);
+                setForm((f) => ({ ...f, slug: slugify(e.target.value) }));
+              }}
+            />
+          </div>
+        </div>
+        <div>
+          <label className="label">Brand colour</label>
+          <input type="color" className="h-10 w-full rounded-lg border border-gray-200" value={form.brandColor} onChange={setField('brandColor')} />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label">Admin email — who signs into this restaurant's dashboard</label>
+          <input type="email" className="input" required value={form.adminEmail} onChange={setField('adminEmail')} />
+        </div>
+      </div>
+
+      {state.error ? <p className="text-sm font-semibold text-red-600">{state.error}</p> : null}
+
+      <div className="flex items-center gap-2">
+        <button type="submit" className="btn bg-gray-900 text-white" disabled={state.saving}>
+          {state.saving ? 'Creating…' : 'Create restaurant'}
+        </button>
+        <button type="button" className="btn-ghost" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+};
+
 export default function PlatformConsole() {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -111,6 +236,7 @@ export default function PlatformConsole() {
   const [counts, setCounts] = useState({});
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [addingRestaurant, setAddingRestaurant] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -164,13 +290,30 @@ export default function PlatformConsole() {
               Each one keeps its own menu, orders, staff and dashboard. Nothing is shared between them.
             </p>
           </div>
-          <button type="button" className="btn-ghost" onClick={signOut}>
-            Sign out
-          </button>
+          <div className="flex items-center gap-2">
+            {!addingRestaurant ? (
+              <button type="button" className="btn bg-gray-900 text-white" onClick={() => setAddingRestaurant(true)}>
+                + Add restaurant
+              </button>
+            ) : null}
+            <button type="button" className="btn-ghost" onClick={signOut}>
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl space-y-4 px-4 py-8">
+        {addingRestaurant ? (
+          <NewRestaurantForm
+            onCancel={() => setAddingRestaurant(false)}
+            onCreated={() => {
+              setAddingRestaurant(false);
+              load();
+            }}
+          />
+        ) : null}
+
         {loading ? <p className="py-10 text-center text-sm text-gray-500">Loading restaurants…</p> : null}
 
         {error ? (
