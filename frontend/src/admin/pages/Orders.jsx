@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Modal from '../../components/Modal.jsx';
 import { api, apiError } from '../../lib/api';
 import { dateTime, kwd } from '../../lib/format';
+import OrderReceipt from '../components/OrderReceipt.jsx';
 
 const STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED'];
 const POLL_MS = 15000;
@@ -42,7 +43,15 @@ export default function Orders() {
   const [page, setPage] = useState(1);
   const [live, setLive] = useState(true);
   const [newIds, setNewIds] = useState(() => new Set());
+  const [restaurantName, setRestaurantName] = useState('');
   const seenIds = useRef(null);
+
+  useEffect(() => {
+    api
+      .get('/tenants/current')
+      .then(({ data }) => setRestaurantName(data.nameEn))
+      .catch(() => {});
+  }, []);
 
   const load = async () => {
     try {
@@ -302,7 +311,7 @@ export default function Orders() {
               {Number(detail.serviceCharge) > 0 ? <Row label={t('cart.serviceCharge')} value={kwd(detail.serviceCharge)} /> : null}
               <Row label={t('cart.total')} value={kwd(detail.total)} bold />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {STATUSES.map((status) => (
                 <button
                   key={status}
@@ -315,10 +324,17 @@ export default function Orders() {
                   {status}
                 </button>
               ))}
+              <button type="button" className="btn-ghost ms-auto" onClick={() => window.print()}>
+                🖨️ Print ticket
+              </button>
             </div>
           </div>
         ) : null}
       </Modal>
+
+      {/* Off-screen until printed — index.css's print rule hides everything
+          else on the page and reveals only this. */}
+      <OrderReceipt order={detail} restaurantName={restaurantName} lang={i18n.language} />
     </div>
   );
 }

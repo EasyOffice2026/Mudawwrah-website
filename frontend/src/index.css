@@ -160,3 +160,32 @@ body {
     @apply text-sm font-medium text-ink-soft line-through decoration-ink-soft/60;
   }
 }
+
+/**
+ * Printing one order ticket, on a page that also has an admin sidebar and a
+ * modal overlay around it.
+ *
+ * Hiding everything else with print:hidden classes scattered through the
+ * layout works only until one wrapper is missed, and a sidebar or overlay
+ * printed alongside a receipt is a real waste of a small thermal printer's
+ * paper. Hiding the whole page and re-revealing only .print-receipt is the
+ * one rule that can't be defeated by a nesting change elsewhere later.
+ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-receipt,
+  .print-receipt * {
+    visibility: visible;
+  }
+  .print-receipt {
+    /* Overrides the `hidden` (display:none) Tailwind class it carries on
+       screen — visibility alone can never reveal a display:none element. */
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    width: 80mm;
+    margin: 0 auto;
+  }
+}
