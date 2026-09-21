@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
+import BrandingSection from '../components/BrandingSection.jsx';
 import PickupLocationsSection from '../components/PickupLocationsSection.jsx';
 
 const TEXT_FIELDS = [
-  ['restaurantNameEn', 'Restaurant name (EN)'],
-  ['restaurantNameAr', 'Restaurant name (AR)'],
-  ['logoUrl', 'Logo URL'],
   ['contactPhone', 'Contact phone'],
   ['whatsappNumber', 'WhatsApp order number (digits only)'],
   ['address', 'Address'],
@@ -65,6 +63,8 @@ export default function Settings() {
   return (
     <form onSubmit={save} className="max-w-2xl space-y-4">
       <h1 className="text-xl font-extrabold">{t('admin.settings')}</h1>
+
+      <BrandingSection />
 
       <section className="card space-y-3">
         <h2 className="font-bold">{t('admin.restaurantInfo')}</h2>

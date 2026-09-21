@@ -1,6 +1,6 @@
 import { HttpError } from '../middleware/error.js';
 import * as service from '../services/tenantService.js';
-import { tenantCreateSchema, tenantUpdateSchema } from '../validators.js';
+import { tenantBrandingSchema, tenantCreateSchema, tenantUpdateSchema } from '../validators.js';
 
 export const listPublic = async (req, res) => res.json(await service.listPublic());
 
@@ -17,3 +17,5 @@ export const create = async (req, res) => res.status(201).json(await service.cre
 
 export const update = async (req, res) =>
   res.json(await service.update(req.params.id, tenantUpdateSchema.parse(req.body)));
+
+export const updateOwn = async (req, res) => res.json(await service.updateOwn(tenantBrandingSchema.parse(req.body)));

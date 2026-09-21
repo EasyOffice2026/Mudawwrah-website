@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
+import { currentTenantId } from '../tenantContext.js';
 
 /**
  * Readable enough to retype off a phone, random enough to be worth having —
@@ -93,4 +94,17 @@ export const update = async (id, data) => {
   const tenant = await prisma.tenant.findUnique({ where: { id } });
   if (!tenant) throw new HttpError(404, 'Restaurant not found');
   return prisma.tenant.update({ where: { id }, data });
+};
+
+/**
+ * A restaurant editing its own name, banner and logo — the fields the
+ * storefront header and the platform picker actually read. There is no id in
+ * the request: the target is always whichever tenant resolveTenant already
+ * put in context, so a store admin has no way to name another restaurant's
+ * row even by tampering with the request.
+ */
+export const updateOwn = (data) => {
+  const tenantId = currentTenantId();
+  if (!tenantId) throw new HttpError(400, 'No restaurant selected');
+  return prisma.tenant.update({ where: { id: tenantId }, data });
 };

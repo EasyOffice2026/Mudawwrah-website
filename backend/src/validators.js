@@ -218,6 +218,24 @@ export const tenantSchema = z.object({
 export const tenantUpdateSchema = tenantSchema.partial();
 
 /**
+ * What a restaurant's own admin may change about its identity — name, banner,
+ * logo, tagline, cuisine tag. Deliberately a small subset of tenantSchema:
+ * slug, customDomain and isActive stay platform-operator-only, since those
+ * affect routing and multi-tenancy safety rather than how the storefront
+ * looks.
+ */
+export const tenantBrandingSchema = z.object({
+  nameEn: z.string().trim().min(1).optional(),
+  nameAr: z.string().trim().min(1).optional(),
+  taglineEn: optionalString,
+  taglineAr: optionalString,
+  cuisineEn: optionalString,
+  cuisineAr: optionalString,
+  heroUrl: optionalString,
+  logoUrl: optionalString,
+});
+
+/**
  * A new restaurant, plus the one account that can actually sign into it.
  *
  * A Tenant row with nobody able to log in is a dead end — whoever created it

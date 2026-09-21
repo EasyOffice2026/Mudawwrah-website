@@ -138,6 +138,11 @@ router.post('/payments/:provider/callback', h(payments.callback));
 // Dashboard
 scoped.get('/dashboard/stats', requireStaff, h(dashboard.stats));
 
+// A restaurant's own name, banner and logo — the fields the storefront
+// header and the platform picker actually display. requireAdmin, not just
+// staff: this is the restaurant's identity, not day-to-day order handling.
+scoped.put('/tenant', requireAdmin, h(tenants.updateOwn));
+
 router.use(scoped);
 
 export default router;
