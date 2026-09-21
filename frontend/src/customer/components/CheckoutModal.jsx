@@ -197,6 +197,8 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         paymentMethod: viaWhatsapp ? 'WHATSAPP' : form.paymentMethod,
         orderType,
         pickupLocationId: isPickup ? pickupLocationId : undefined,
+        deliveryLat: isPickup ? undefined : form.deliveryLat,
+        deliveryLng: isPickup ? undefined : form.deliveryLng,
         promoCode: promo?.code,
         tip: effectiveTip,
         deliveryNote: deliveryNote || undefined,
@@ -544,8 +546,9 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         open={locationOpen}
         areas={KUWAIT_AREAS}
         onClose={() => setLocationOpen(false)}
-        onConfirm={({ area }) => {
+        onConfirm={({ area, lat, lng }) => {
           if (area) setForm((current) => ({ ...current, area }));
+          setForm((current) => ({ ...current, deliveryLat: lat, deliveryLng: lng }));
           setLocationOpen(false);
         }}
       />

@@ -88,6 +88,11 @@ export const orderSchema = z.object({
   tip: z.coerce.number().min(0).optional(),
   cutlery: z.coerce.boolean().optional(),
   deliveryNote: optionalString,
+  /// Where the customer dropped the pin on the checkout map. What a rider
+  /// actually navigates to, as opposed to the typed address fields below,
+  /// which are hand-entered and can be wrong or incomplete.
+  deliveryLat: z.coerce.number().min(-90).max(90).nullable().optional(),
+  deliveryLng: z.coerce.number().min(-180).max(180).nullable().optional(),
   /// Branch to collect from, when this is a pickup order.
   pickupLocationId: z.string().uuid().nullable().optional(),
   // Marketing attribution, forwarded by the storefront from the link the

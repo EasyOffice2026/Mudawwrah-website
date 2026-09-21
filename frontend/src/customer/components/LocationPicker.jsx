@@ -153,7 +153,10 @@ export default function LocationPicker({ open, areas = [], onClose, onConfirm })
           type="button"
           className="btn-primary w-full py-4"
           disabled={!canContinue}
-          onClick={() => onConfirm({ area, lat: centre.lat, lng: centre.lng })}
+          // The centre coordinate only means anything once the customer has
+          // actually pinned it on a real map — in the no-map fallback it is
+          // just the fixed Kuwait City default, never dragged anywhere.
+          onClick={() => onConfirm({ area, lat: mapReady ? centre.lat : null, lng: mapReady ? centre.lng : null })}
         >
           {t('checkout.enterAddress')}
         </button>

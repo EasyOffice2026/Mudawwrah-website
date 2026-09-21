@@ -109,6 +109,8 @@ export const create = async (payload) => {
       block: orderType === 'PICKUP' ? null : payload.block || null,
       street: orderType === 'PICKUP' ? null : payload.street || null,
       building: orderType === 'PICKUP' ? null : payload.building || null,
+      deliveryLat: orderType === 'PICKUP' ? null : payload.deliveryLat ?? null,
+      deliveryLng: orderType === 'PICKUP' ? null : payload.deliveryLng ?? null,
       notes: payload.notes,
       channel: payload.channel || 'WEB',
       paymentMethod: payload.paymentMethod || 'CASH',

@@ -262,6 +262,19 @@ export default function Orders() {
                   <span className="text-gray-500">{t('checkout.address')}:</span> {detail.address}
                 </p>
               ) : null}
+              {detail.deliveryLat && detail.deliveryLng ? (
+                <p>
+                  <span className="text-gray-500">Pinned location:</span>{' '}
+                  <a
+                    className="text-brand underline"
+                    target="_blank"
+                    rel="noreferrer"
+                    href={`https://www.google.com/maps/search/?api=1&query=${detail.deliveryLat},${detail.deliveryLng}`}
+                  >
+                    Open in Google Maps
+                  </a>
+                </p>
+              ) : null}
               {detail.notes ? (
                 <p>
                   <span className="text-gray-500">{t('checkout.notes')}:</span> {detail.notes}

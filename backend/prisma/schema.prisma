@@ -257,6 +257,12 @@ model Order {
   block         String?
   street        String?
   building      String?
+  /// Exactly where the customer dropped the pin on the checkout map — the
+  /// written address parts above are typed by hand and can be wrong or
+  /// incomplete; this is what a rider actually navigates to. Null for
+  /// pickup orders and for any delivery placed before this existed.
+  deliveryLat   Decimal?      @db.Decimal(9, 6)
+  deliveryLng   Decimal?      @db.Decimal(9, 6)
   subtotal      Decimal       @db.Decimal(10, 3)
   deliveryFee   Decimal       @default(0) @db.Decimal(10, 3)
   serviceCharge Decimal       @default(0) @db.Decimal(10, 3)
