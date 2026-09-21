@@ -235,5 +235,9 @@
     "freeDelivery": "توصيل مجاني",
     "percentOff": "خصم {{value}}٪ على طلبك",
     "amountOff": "خصم {{amount}} على طلبك"
+  },
+  "footer": {
+    "contactUs": "تواصل معنا",
+    "admin": "إدارة المطعم"
   }
 }

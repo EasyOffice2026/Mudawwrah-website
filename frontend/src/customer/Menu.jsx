@@ -20,6 +20,7 @@ import NewCartDialog from './components/NewCartDialog.jsx';
 import OfferStrip from './components/OfferStrip.jsx';
 import SearchSheet from './components/SearchSheet.jsx';
 import SplashScreen, { splashAlreadyPlayed } from './components/SplashScreen.jsx';
+import StoreFooter from './components/StoreFooter.jsx';
 import StoreHeader from './components/StoreHeader.jsx';
 
 const MenuSkeleton = () => (
@@ -315,6 +316,8 @@ export default function Menu() {
           )}
         </section>
       ))}
+
+      <StoreFooter slug={slug} settings={settings} />
 
       <CartBar count={count()} subtotal={subtotal()} onOpen={() => { setCartOpen(true); loadSuggestions(); }} />
 

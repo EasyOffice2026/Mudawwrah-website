@@ -228,5 +228,9 @@
     "freeDelivery": "Free delivery",
     "percentOff": "{{value}}% off your order",
     "amountOff": "{{amount}} off your order"
+  },
+  "footer": {
+    "contactUs": "Contact us",
+    "admin": "Restaurant admin"
   }
 }
