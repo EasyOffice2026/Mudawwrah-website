@@ -3,41 +3,45 @@ import { persist } from 'zustand/middleware';
 
 const lineKey = (itemId, optionIds) => `${itemId}::${[...optionIds].sort().join(',')}`;
 
+const emptyCart = () => ({ lines: [], promo: null, cutlery: false, note: '' });
+
 export const useCart = create(
   persist(
     (set, get) => ({
       lines: [],
       tenantSlug: null,
-      /** Shown in the "Start a new cart?" prompt when switching restaurants. */
       tenantName: null,
       /** Voucher preview returned by the API: { code, discount, freeDelivery }. */
       promo: null,
       cutlery: false,
       note: '',
       /**
-       * Carts belong to one restaurant, so opening a different one cannot carry
-       * items (or their prices) across.
-       *
-       * Claiming an empty cart for the new restaurant is free. A cart with
-       * items is NOT cleared here — the caller is told so it can ask first, via
-       * `switchTenant` once the customer confirms.
+       * Every restaurant's cart is filed away here under its own slug, so this
+       * one browser can hold a separate, untouched cart per restaurant — the
+       * same as if each were a genuinely separate website. `lines`/`promo`/
+       * `cutlery`/`note` above are always just the *active* restaurant's copy.
+       */
+      carts: {},
+      /**
+       * Called whenever a storefront loads. Archives whatever restaurant was
+       * active under its own slug and restores (or starts empty) the cart for
+       * `slug` — silently, since two restaurants' carts must never interact,
+       * merge, or prompt one another.
        */
       ensureTenant: (slug, name) => {
         const state = get();
         if (state.tenantSlug === slug) {
           // Keep the display name fresh (e.g. after a language switch).
           if (name && state.tenantName !== name) set({ tenantName: name });
-          return { conflict: false };
+          return;
         }
-        if (!state.lines.length) {
-          set({ tenantSlug: slug, tenantName: name ?? null, promo: null, cutlery: false, note: '' });
-          return { conflict: false };
+        const carts = { ...state.carts };
+        if (state.tenantSlug) {
+          carts[state.tenantSlug] = { lines: state.lines, promo: state.promo, cutlery: state.cutlery, note: state.note };
         }
-        return { conflict: true, previousName: state.tenantName, previousSlug: state.tenantSlug };
+        const restored = carts[slug] || emptyCart();
+        set({ ...restored, carts, tenantSlug: slug, tenantName: name ?? null });
       },
-      /** Confirmed "Start a new cart?" — drop the old order and adopt the new restaurant. */
-      switchTenant: (slug, name) =>
-        set({ tenantSlug: slug, tenantName: name ?? null, lines: [], promo: null, cutlery: false, note: '' }),
       addLine: (item, options = [], quantity = 1) =>
         set((state) => {
           const optionIds = options.map((o) => o.id);

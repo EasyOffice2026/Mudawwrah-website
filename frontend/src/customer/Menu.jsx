@@ -16,7 +16,6 @@ import CheckoutModal from './components/CheckoutModal.jsx';
 import CustomizeModal from './components/CustomizeModal.jsx';
 import ItemCard from './components/ItemCard.jsx';
 import ItemRow from './components/ItemRow.jsx';
-import NewCartDialog from './components/NewCartDialog.jsx';
 import OfferStrip from './components/OfferStrip.jsx';
 import SearchSheet from './components/SearchSheet.jsx';
 import SplashScreen, { splashAlreadyPlayed } from './components/SplashScreen.jsx';
@@ -57,7 +56,6 @@ export default function Menu() {
   // True once the hero has scrolled away and the compact store bar takes over.
   const [collapsed, setCollapsed] = useState(false);
   // Set when arriving with another restaurant's cart still held.
-  const [cartConflict, setCartConflict] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [favorite, setFavorite] = useState(localStorage.getItem('mdawra_favorite') === 'true');
   // Suppressed while the tab rail is driving the scroll, so the spy does not
@@ -67,7 +65,7 @@ export default function Menu() {
   // Zero-height marker just above the sticky rail. Once it scrolls out of
   // view the rail is pinned, which is the moment the store bar should appear.
   const sentinelRef = useRef(null);
-  const { addLine, count, subtotal, ensureTenant, switchTenant, promo, setPromo } = useCart();
+  const { addLine, count, subtotal, ensureTenant, promo, setPromo } = useCart();
 
   const [splashDone, setSplashDone] = useState(() => splashAlreadyPlayed(slug));
 
@@ -107,10 +105,9 @@ export default function Menu() {
   }, []);
 
   useEffect(() => {
-    // A cart holding another restaurant's items is not dropped silently — the
-    // customer is asked first, and the menu still loads behind the prompt.
-    const { conflict, previousName } = ensureTenant(slug);
-    if (conflict) setCartConflict({ previousName });
+    // Each restaurant keeps its own isolated cart — switching slugs never
+    // touches another restaurant's items.
+    ensureTenant(slug);
     load();
   }, [slug]);
 
@@ -331,20 +328,6 @@ export default function Menu() {
         onSelect={(item) => {
           setSearchOpen(false);
           setCustomizing(item);
-        }}
-      />
-
-      <NewCartDialog
-        open={Boolean(cartConflict)}
-        restaurantName={cartConflict?.previousName || t('brand')}
-        onCancel={() => {
-          setCartConflict(null);
-          // Leaving the cart intact means leaving this restaurant.
-          navigate('/');
-        }}
-        onConfirm={() => {
-          switchTenant(slug, tenant ? localized(tenant, 'name', lang) : null);
-          setCartConflict(null);
         }}
       />
 

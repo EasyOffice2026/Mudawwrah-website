@@ -79,9 +79,6 @@
     "savingBanner": "رائع! أنت توفّر {{amount}}",
     "remove": "إزالة",
     "addItems": "إضافة أصناف",
-    "newCartTitle": "تبدأ سلة جديدة؟",
-    "newCartBody": "الطلب الجديد سيمسح سلتك مع \"{{restaurant}}\"",
-    "newCartStart": "ابدأ",
     "addVoucher": "إضافة كوبون",
     "addMoreToApply": "أضف {{amount}} للاستفادة",
     "noVouchers": "لا توجد عروض حالياً"

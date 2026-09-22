@@ -72,9 +72,6 @@
     "savingBanner": "Great! You're saving {{amount}}",
     "remove": "Remove",
     "addItems": "Add items",
-    "newCartTitle": "Start a new cart?",
-    "newCartBody": "A new order will clear your cart with \"{{restaurant}}\"",
-    "newCartStart": "Start",
     "addVoucher": "Add voucher",
     "addMoreToApply": "Add {{amount}} more to apply",
     "noVouchers": "No offers running right now"
