@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
+import { reverseGeocode } from '../../lib/geocode';
 import { getAttribution } from '../../lib/tracking';
 import { useCart } from '../../store/cart';
 import LocationPicker from './LocationPicker.jsx';
@@ -546,10 +547,23 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         open={locationOpen}
         areas={KUWAIT_AREAS}
         onClose={() => setLocationOpen(false)}
-        onConfirm={({ area, lat, lng }) => {
+        onConfirm={async ({ area, lat, lng }) => {
           if (area) setForm((current) => ({ ...current, area }));
           setForm((current) => ({ ...current, deliveryLat: lat, deliveryLng: lng }));
           setLocationOpen(false);
+          // Only a real map pin is worth looking up — the no-map fallback
+          // already asked for the area directly, and its centre point was
+          // never actually placed anywhere meaningful.
+          if (lat == null || lng == null) return;
+          const found = await reverseGeocode(lat, lng);
+          setForm((current) => ({
+            ...current,
+            // Never overwrites something the customer already typed —
+            // arriving after they've started filling the form in by hand
+            // should refine it, not fight with it.
+            area: current.area || found.area || current.area,
+            street: current.street || found.street || current.street,
+          }));
         }}
       />
     </SheetShell>
