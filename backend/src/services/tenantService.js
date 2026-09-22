@@ -52,7 +52,13 @@ export const getBySlug = async (slug) => {
   return tenant;
 };
 
-export const listAll = () => prisma.tenant.findMany({ orderBy: { createdAt: 'asc' } });
+// The access token is a bearer secret for the Meta Graph API — it has no
+// business round-tripping to a browser once saved, even the platform
+// operator's own. omit keeps it out of every response below without having
+// to hand-maintain a select list alongside the schema.
+const hideWhatsappToken = { omit: { whatsappAccessToken: true } };
+
+export const listAll = () => prisma.tenant.findMany({ orderBy: { createdAt: 'asc' }, ...hideWhatsappToken });
 
 /**
  * Creates a restaurant together with the one account that can sign into it —
@@ -73,7 +79,7 @@ export const create = async ({ adminEmail, adminName, ...tenantData }) => {
   const passwordHash = await bcrypt.hash(password, 10);
 
   const { tenant, admin } = await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenant.create({ data: tenantData });
+    const tenant = await tx.tenant.create({ data: tenantData, ...hideWhatsappToken });
     const admin = await tx.user.create({
       data: {
         tenantId: tenant.id,
@@ -93,7 +99,7 @@ export const create = async ({ adminEmail, adminName, ...tenantData }) => {
 export const update = async (id, data) => {
   const tenant = await prisma.tenant.findUnique({ where: { id } });
   if (!tenant) throw new HttpError(404, 'Restaurant not found');
-  return prisma.tenant.update({ where: { id }, data });
+  return prisma.tenant.update({ where: { id }, data, ...hideWhatsappToken });
 };
 
 /**

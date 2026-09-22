@@ -210,6 +210,8 @@ export const tenantSchema = z.object({
   currency: z.string().trim().length(3).optional(),
   country: z.string().trim().length(2).optional(),
   customDomain: optionalString,
+  whatsappPhoneNumberId: optionalString,
+  whatsappAccessToken: optionalString,
   isActive: z.coerce.boolean().optional(),
   heroUrl: optionalString,
   logoUrl: optionalString,

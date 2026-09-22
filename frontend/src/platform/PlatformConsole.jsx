@@ -17,7 +17,11 @@ const StoreRow = ({ tenant, counts, onSaved }) => {
   const [domain, setDomain] = useState(tenant.customDomain || '');
   const [state, setState] = useState({ saving: false, error: null, saved: false });
 
+  const [waPhoneNumberId, setWaPhoneNumberId] = useState(tenant.whatsappPhoneNumberId || '');
+  const [waState, setWaState] = useState({ saving: false, error: null, saved: false });
+
   const dirty = (tenant.customDomain || '') !== domain.trim();
+  const waDirty = (tenant.whatsappPhoneNumberId || '') !== waPhoneNumberId.trim();
 
   const save = async () => {
     setState({ saving: true, error: null, saved: false });
@@ -29,6 +33,19 @@ const StoreRow = ({ tenant, counts, onSaved }) => {
       onSaved(data);
     } catch (err) {
       setState({ saving: false, error: apiError(err), saved: false });
+    }
+  };
+
+  const saveWaPhoneNumberId = async () => {
+    setWaState({ saving: true, error: null, saved: false });
+    try {
+      const { data } = await api.put(`/tenants/${tenant.id}`, {
+        whatsappPhoneNumberId: waPhoneNumberId.trim() || null,
+      });
+      setWaState({ saving: false, error: null, saved: true });
+      onSaved(data);
+    } catch (err) {
+      setWaState({ saving: false, error: apiError(err), saved: false });
     }
   };
 
@@ -97,6 +114,44 @@ const StoreRow = ({ tenant, counts, onSaved }) => {
         {!state.error && !state.saved ? (
           <p className="mt-2 text-xs text-gray-500">
             Also always reachable at <code>{tenant.slug}</code>.yourplatform.com and /r/{tenant.slug}.
+          </p>
+        ) : null}
+      </div>
+
+      <div className="rounded-xl bg-gray-50 p-3">
+        <label className="label" htmlFor={`wa-phone-${tenant.id}`}>
+          WhatsApp phone number ID
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            id={`wa-phone-${tenant.id}`}
+            className="input min-w-0 flex-1"
+            placeholder="From Meta's WhatsApp Cloud API — leave empty to disable"
+            value={waPhoneNumberId}
+            onChange={(event) => {
+              setWaPhoneNumberId(event.target.value);
+              setWaState((s) => ({ ...s, saved: false }));
+            }}
+          />
+          <button
+            type="button"
+            className="btn bg-gray-900 text-white"
+            onClick={saveWaPhoneNumberId}
+            disabled={!waDirty || waState.saving}
+          >
+            {waState.saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+
+        {waState.error ? <p className="mt-2 text-xs font-semibold text-red-600">{waState.error}</p> : null}
+        {waState.saved ? (
+          <p className="mt-2 text-xs font-semibold text-green-700">
+            Saved. Messages to this WhatsApp number now route to {tenant.nameEn}.
+          </p>
+        ) : null}
+        {!waState.error && !waState.saved ? (
+          <p className="mt-2 text-xs text-gray-500">
+            Which of the business's registered WhatsApp numbers the bot answers as this restaurant.
           </p>
         ) : null}
       </div>
