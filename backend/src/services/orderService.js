@@ -3,7 +3,7 @@ import { prisma } from '../prisma.js';
 import { currentTenant } from '../tenantContext.js';
 import { resolve as resolvePromotion } from './promotionService.js';
 import { getAll as getSettings } from './settingService.js';
-import { notifyStatusChange } from './whatsapp/notifications.js';
+import { notifyNewOrder, notifyStatusChange } from './whatsapp/notifications.js';
 
 const include = {
   items: { include: { menuItem: true } },
@@ -96,7 +96,7 @@ export const create = async (payload) => {
   const tip = orderType === 'PICKUP' ? 0 : Math.max(0, round3(payload.tip || 0));
   const total = round3(discountedSubtotal + deliveryFee + serviceCharge + tax + tip);
 
-  return prisma.order.create({
+  const order = await prisma.order.create({
     data: {
       orderNumber: await generateOrderNumber(),
       userId: payload.userId || null,
@@ -139,6 +139,10 @@ export const create = async (payload) => {
     },
     include,
   });
+  // Fire-and-forget: a slow or failed WhatsApp call must never delay the
+  // order confirmation the customer is waiting on.
+  notifyNewOrder(order, settings).catch((error) => console.error('[whatsapp] new-order notification failed', error));
+  return order;
 };
 
 export const list = ({ status, channel, from, to, search, page = 1, pageSize = 20 } = {}) => {
@@ -183,7 +187,9 @@ export const updateStatus = async (id, status) => {
   const current = await getById(id);
   if (current.status === status) return current;
   const order = await prisma.order.update({ where: { id }, data: { status }, include });
-  await notifyStatusChange(order);
+  // A WhatsApp hiccup is not worth failing an admin's status update over —
+  // the change has already been saved above by the time this runs.
+  await notifyStatusChange(order).catch((error) => console.error('[whatsapp] status notification failed', error));
   return order;
 };
 

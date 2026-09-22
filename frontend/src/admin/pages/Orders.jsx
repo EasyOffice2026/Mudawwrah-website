@@ -307,8 +307,14 @@ export default function Orders() {
             </ul>
             <div className="space-y-1">
               <Row label={t('cart.subtotal')} value={kwd(detail.subtotal)} />
+              {Number(detail.discount) > 0 ? <Row label={t('cart.couponDiscount')} value={`− ${kwd(detail.discount)}`} /> : null}
               <Row label={t('cart.deliveryFee')} value={kwd(detail.deliveryFee)} />
               {Number(detail.serviceCharge) > 0 ? <Row label={t('cart.serviceCharge')} value={kwd(detail.serviceCharge)} /> : null}
+              {Number(detail.tax) > 0 ? <Row label={t('cart.tax')} value={kwd(detail.tax)} /> : null}
+              {/* The one line that was missing here — a tip folds silently into
+                  the total otherwise, which is exactly what read as a wrong
+                  calculation on a printed ticket that never showed it. */}
+              {Number(detail.tip) > 0 ? <Row label={t('checkout.tipTitle')} value={kwd(detail.tip)} /> : null}
               <Row label={t('cart.total')} value={kwd(detail.total)} bold />
             </div>
             <div className="flex flex-wrap items-center gap-2">

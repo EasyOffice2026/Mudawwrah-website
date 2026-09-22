@@ -2,7 +2,10 @@ import { prisma } from '../../prisma.js';
 import { money, t } from './copy.js';
 import { sendButtons, sendText } from './waClient.js';
 
-const sessionFor = (phone) => prisma.whatsappSession.findUnique({ where: { phone } });
+// phone alone is no longer unique — a number can hold an independent session
+// with each restaurant it has texted — so this has to be findFirst (which the
+// tenant-scoping extension merges tenantId into) rather than findUnique.
+const sessionFor = (phone) => prisma.whatsappSession.findFirst({ where: { phone } });
 
 const langFor = async (phone) => (await sessionFor(phone))?.lang || 'en';
 
@@ -25,6 +28,41 @@ export const notifyStatusChange = async (order) => {
   if (order.status === 'DELIVERED') await requestFeedback(order, lang);
 };
 
+/**
+ * Alerts the restaurant's own WhatsApp number (Settings → WhatsApp number)
+ * the moment any order comes in, regardless of channel or payment method —
+ * so staff see it without watching the dashboard. A no-op without that
+ * number set, and silent until this restaurant's Meta credentials exist,
+ * the same as every other outbound message here.
+ */
+export const notifyNewOrder = async (order, settings) => {
+  const to = settings?.whatsappNumber;
+  if (!to) return;
+  const lines = order.items
+    .map(
+      (item) =>
+        `• ${item.quantity} × ${item.nameEn}${
+          item.customizations?.length ? ` (${item.customizations.map((c) => c.nameEn).join(', ')})` : ''
+        } — ${money(item.lineTotal)}`,
+    )
+    .join('\n');
+  const message = [
+    `🔔 New order ${order.orderNumber}`,
+    `${order.orderType === 'PICKUP' ? 'Pickup' : 'Delivery'} · ${order.paymentMethod}`,
+    '',
+    lines,
+    '',
+    `Total: ${money(order.total)}`,
+    '',
+    `${order.customerName} · ${order.customerPhone}`,
+    order.address ? `Address: ${order.address}` : null,
+    order.notes ? `Notes: ${order.notes}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+  await sendText(to, message).catch(logFailure);
+};
+
 export const notifyPaymentResult = async (order, paid) => {
   if (order.channel !== 'WHATSAPP') return;
   const copy = t(await langFor(order.customerPhone));
@@ -43,9 +81,12 @@ export const requestFeedback = async (order, lang) => {
     { id: 'rate:3', title: '⭐⭐⭐' },
     { id: 'rate:1', title: '⭐' },
   ]).catch(logFailure);
-  await prisma.whatsappSession
-    .update({ where: { phone: order.customerPhone }, data: { state: 'FEEDBACK_RATING', lastOrderId: order.id } })
-    .catch(() => {});
+  const session = await sessionFor(order.customerPhone);
+  if (session) {
+    await prisma.whatsappSession
+      .update({ where: { id: session.id }, data: { state: 'FEEDBACK_RATING', lastOrderId: order.id } })
+      .catch(() => {});
+  }
 };
 
 const logFailure = (error) => console.error('[whatsapp] notification failed', error);
