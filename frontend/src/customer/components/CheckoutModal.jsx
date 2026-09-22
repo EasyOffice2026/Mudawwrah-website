@@ -76,13 +76,20 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   const [form, setForm] = useState({
     customerName: '',
     customerPhone: '',
+    propertyType: 'apartment',
     building: '',
+    aptNumber: '',
     floor: '',
     street: '',
     block: '',
+    avenue: '',
     area: '',
     paymentMethod: 'CASH',
   });
+  // Building/street/block only turn red after a first attempt to submit —
+  // never on first load, which would greet the customer with a form full of
+  // errors before they have typed anything.
+  const [addressTouched, setAddressTouched] = useState(false);
   // Delivery orders confirm a map location before filling in the address.
   const [locationOpen, setLocationOpen] = useState(false);
   // Branches the restaurant has set up under Settings → Pickup locations. A
@@ -173,20 +180,39 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
     .filter((value) => value > 0);
 
   // Assembled into the single address line the API stores.
-  const composedAddress = [form.building, form.floor, form.street, form.block, form.area]
+  const propertyLabels = { apartment: t('checkout.propertyApartment'), house: t('checkout.propertyHouse'), office: t('checkout.propertyOffice') };
+  const composedAddress = [
+    propertyLabels[form.propertyType],
+    form.building,
+    form.aptNumber && `${t('checkout.aptNumber')} ${form.aptNumber}`,
+    form.floor,
+    form.street,
+    form.block,
+    form.avenue,
+    form.area,
+  ]
     .map((part) => String(part || '').trim())
     .filter(Boolean)
     .join(', ');
 
-  const addressMissing = !isPickup && !composedAddress;
+  // A real Kuwait delivery address needs at least these three — the same
+  // fields the reference app the client sent over requires before it lets a
+  // customer continue.
+  const requiredAddressFields = ['building', 'street', 'block'];
+  const missingAddressFields = requiredAddressFields.filter((key) => !form[key].trim());
+  const addressMissing = !isPickup && missingAddressFields.length > 0;
+  const fieldError = (key) => addressTouched && missingAddressFields.includes(key);
   // Once the restaurant has set up named branches, "pickup" without saying
   // which one is not a complete order — there is nowhere for the kitchen to
   // hand it to.
   const branchMissing = isPickup && pickupLocations.length > 0 && !pickupLocationId;
-  const canSubmit =
-    form.customerName.trim() && form.customerPhone.trim().length >= 6 && !addressMissing && !branchMissing;
+  const canSubmit = form.customerName.trim() && form.customerPhone.trim().length >= 6 && !branchMissing;
 
   const submit = async (viaWhatsapp) => {
+    // A first tap with a required address field empty reveals exactly which
+    // ones, the same way the reference address form does, rather than a
+    // single generic error or a permanently disabled button.
+    if (addressMissing) return setAddressTouched(true);
     setSubmitting(true);
     setError(null);
     try {
@@ -378,29 +404,68 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
                   {t('checkout.confirmLocation')}
                 </button>
               </div>
+              <div className="mt-3 rounded-xl bg-surface px-3 py-2.5">
+                <label className="label">{t('checkout.area')}</label>
+                <input className="input" value={form.area} onChange={set('area')} />
+              </div>
+
+              <div className="mt-3 flex gap-2">
+                {['apartment', 'house', 'office'].map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setForm((current) => ({ ...current, propertyType: key }))}
+                    className={`flex-1 rounded-xl border-2 py-2.5 text-xs font-bold transition active:scale-[0.98] ${
+                      form.propertyType === key ? 'border-brand bg-brand-light text-brand' : 'border-hairline bg-white'
+                    }`}
+                  >
+                    {t(`checkout.property${key[0].toUpperCase()}${key.slice(1)}`)}
+                  </button>
+                ))}
+              </div>
+
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className="label">{t('checkout.area')}</label>
-                  <input className="input" value={form.area} onChange={set('area')} />
-                </div>
-                <div className="col-span-2">
                   <label className="label">{t('checkout.building')}</label>
-                  <input className="input" value={form.building} onChange={set('building')} />
+                  <input
+                    className={`input ${fieldError('building') ? 'border-brand' : ''}`}
+                    value={form.building}
+                    onChange={set('building')}
+                  />
+                  {fieldError('building') ? <p className="mt-1 text-xs font-semibold text-brand">{t('checkout.addressFieldRequired')}</p> : null}
+                </div>
+                <div>
+                  <label className="label">{t('checkout.aptNumber')}</label>
+                  <input className="input" value={form.aptNumber} onChange={set('aptNumber')} />
                 </div>
                 <div>
                   <label className="label">{t('checkout.floor')}</label>
                   <input className="input" value={form.floor} onChange={set('floor')} />
                 </div>
-                <div>
-                  <label className="label">{t('checkout.block')}</label>
-                  <input className="input" value={form.block} onChange={set('block')} />
-                </div>
                 <div className="col-span-2">
                   <label className="label">{t('checkout.street')}</label>
-                  <input className="input" value={form.street} onChange={set('street')} />
+                  <input
+                    className={`input ${fieldError('street') ? 'border-brand' : ''}`}
+                    value={form.street}
+                    onChange={set('street')}
+                  />
+                  {fieldError('street') ? <p className="mt-1 text-xs font-semibold text-brand">{t('checkout.addressFieldRequired')}</p> : null}
+                </div>
+                <div>
+                  <label className="label">{t('checkout.block')}</label>
+                  <input
+                    className={`input ${fieldError('block') ? 'border-brand' : ''}`}
+                    value={form.block}
+                    onChange={set('block')}
+                  />
+                  {fieldError('block') ? <p className="mt-1 text-xs font-semibold text-brand">{t('checkout.addressFieldRequired')}</p> : null}
+                </div>
+                <div>
+                  <label className="label">{t('checkout.avenue')}</label>
+                  <input className="input" value={form.avenue} onChange={set('avenue')} />
                 </div>
               </div>
-              {addressMissing ? (
+              {addressTouched && addressMissing ? (
                 <p className="mt-2 text-xs font-semibold text-brand">{t('checkout.addressRequired')}</p>
               ) : null}
             </section>
