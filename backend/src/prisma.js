@@ -6,7 +6,24 @@ const base = new PrismaClient();
 // Models whose rows belong to exactly one tenant and can be filtered
 // automatically. Setting and User are excluded because they need composite-key
 // and cross-tenant handling respectively — their services scope explicitly.
-const SCOPED = new Set(['Category', 'MenuItem', 'Order', 'Banner', 'Media', 'Promotion', 'PickupLocation']);
+const SCOPED = new Set([
+  'Category',
+  'MenuItem',
+  'Order',
+  'Banner',
+  'Media',
+  'Promotion',
+  'PickupLocation',
+  // Safe to add here specifically because every write to these three already
+  // resolves the row first and updates by its real id — findFirst({phone})
+  // then update({id}) — never a direct update keyed on the natural (phone)
+  // column the way User's would have to be. WhatsappSession additionally
+  // needed its store rewritten to that same pattern before joining this set;
+  // see sessionStore.js.
+  'WhatsappSession',
+  'WhatsappMessage',
+  'CustomerAddress',
+]);
 
 // Operations whose `where` is a plain filter, so tenantId can be merged in.
 const FILTERED = new Set([

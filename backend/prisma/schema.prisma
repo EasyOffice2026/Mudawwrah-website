@@ -92,6 +92,17 @@ model Tenant {
   country      String  @default("KW")
   /// Reserved for the paid tier: restaurant.com instead of a subdomain.
   customDomain String? @unique
+  /// Which WhatsApp Business number this restaurant answers on. Meta routes
+  /// every inbound message by this id, not by any header we control — the
+  /// same way a custom domain routes web traffic — so a restaurant with no
+  /// number set here simply never resolves and its WhatsApp bot stays silent
+  /// rather than accidentally answering for someone else's.
+  whatsappPhoneNumberId String? @unique
+  /// Only needed when this restaurant has its own separate Meta app rather
+  /// than sharing the platform's. Null falls back to the platform-wide
+  /// WHATSAPP_TOKEN, which is the normal case for multiple numbers under one
+  /// WhatsApp Business Account.
+  whatsappAccessToken   String?
   isActive     Boolean @default(true)
 
   createdAt DateTime @default(now())
@@ -309,9 +320,15 @@ model OrderFeedback {
   createdAt DateTime @default(now())
 }
 
+/// One customer's conversation with one restaurant. tenantId + phone is the
+/// real identity, not phone alone: the same phone number texting two
+/// different restaurants' WhatsApp numbers is two independent conversations,
+/// each with its own cart and state, not one shared session that leaks
+/// between them.
 model WhatsappSession {
   id          String   @id @default(uuid())
-  phone       String   @unique
+  tenantId    String
+  phone       String
   waName      String?
   lang        String   @default("en")
   state       String   @default("START")
@@ -320,10 +337,13 @@ model WhatsappSession {
   lastOrderId String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, phone])
 }
 
 model WhatsappMessage {
   id          String           @id @default(uuid())
+  tenantId    String
   phone       String
   direction   MessageDirection
   waMessageId String?          @unique
@@ -331,11 +351,15 @@ model WhatsappMessage {
   payload     Json?
   createdAt   DateTime         @default(now())
 
-  @@index([phone, createdAt])
+  @@index([tenantId, phone, createdAt])
 }
 
+/// A customer's most recent delivery address, remembered per restaurant —
+/// deliberately not shared across them, since "my usual place" means
+/// something different to each one and nothing here should imply otherwise.
 model CustomerAddress {
   id        String   @id @default(uuid())
+  tenantId  String
   phone     String
   area      String
   block     String?
@@ -346,7 +370,7 @@ model CustomerAddress {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([phone])
+  @@index([tenantId, phone])
 }
 
 model OrderItem {

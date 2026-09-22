@@ -2,7 +2,7 @@ export const money = (value) => `KWD ${Number(value).toFixed(3)}`;
 
 const dictionary = {
   en: {
-    chooseLanguage: 'Welcome to Mdawra 👋\nPlease choose your language.',
+    chooseLanguage: (name) => `Welcome to ${name} 👋\nPlease choose your language.`,
     languageSet: 'Language set to English.',
     mainMenu: (name) => `Hello ${name || 'there'}! What would you like to do?`,
     browseMenu: 'Browse menu',
@@ -65,7 +65,7 @@ const dictionary = {
     noOrders: 'You have no previous orders yet.',
   },
   ar: {
-    chooseLanguage: 'مرحباً بك في مدورة 👋\nاختر اللغة المفضلة.',
+    chooseLanguage: (name) => `مرحباً بك في ${name} 👋\nاختر اللغة المفضلة.`,
     languageSet: 'تم اختيار اللغة العربية.',
     mainMenu: (name) => `أهلاً ${name || ''}! كيف نقدر نساعدك؟`,
     browseMenu: 'تصفح المنيو',

@@ -1,9 +1,27 @@
 import crypto from 'crypto';
-import { config, isWhatsappConfigured } from '../../config.js';
+import { config } from '../../config.js';
 import { prisma } from '../../prisma.js';
+import { currentTenant } from '../../tenantContext.js';
 
-const graphUrl = () =>
-  `https://graph.facebook.com/${config.whatsapp.apiVersion}/${config.whatsapp.phoneNumberId}/messages`;
+/**
+ * A restaurant's own WhatsApp number and token if it has them, otherwise the
+ * platform-wide ones from the environment — the normal case, since one Meta
+ * app can host several restaurants' numbers under a single access token.
+ */
+const credentials = () => {
+  const tenant = currentTenant();
+  return {
+    phoneNumberId: tenant?.whatsappPhoneNumberId || config.whatsapp.phoneNumberId,
+    token: tenant?.whatsappAccessToken || config.whatsapp.token,
+  };
+};
+
+const isConfigured = () => {
+  const { phoneNumberId, token } = credentials();
+  return Boolean(phoneNumberId && token);
+};
+
+const graphUrl = () => `https://graph.facebook.com/${config.whatsapp.apiVersion}/${credentials().phoneNumberId}/messages`;
 
 const logOutbound = (phone, payload) =>
   prisma.whatsappMessage
@@ -18,14 +36,14 @@ const describe = (payload) => {
 
 const send = async (payload) => {
   await logOutbound(payload.to, payload);
-  if (!isWhatsappConfigured()) {
-    console.warn('[whatsapp] not configured — message not delivered:', describe(payload));
+  if (!isConfigured()) {
+    console.warn('[whatsapp] not configured for this restaurant — message not delivered:', describe(payload));
     return { skipped: true };
   }
   const response = await fetch(graphUrl(), {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${config.whatsapp.token}`,
+      Authorization: `Bearer ${credentials().token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', ...payload }),
@@ -88,10 +106,10 @@ export const sendImage = (to, link, caption) =>
   send({ to, type: 'image', image: { link, ...(caption ? { caption: truncate(caption, 1024) } : {}) } });
 
 export const markAsRead = async (messageId) => {
-  if (!isWhatsappConfigured() || !messageId) return;
+  if (!isConfigured() || !messageId) return;
   await fetch(graphUrl(), {
     method: 'POST',
-    headers: { Authorization: `Bearer ${config.whatsapp.token}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${credentials().token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ messaging_product: 'whatsapp', status: 'read', message_id: messageId }),
   }).catch((err) => console.error('[whatsapp] mark as read failed', err));
 };

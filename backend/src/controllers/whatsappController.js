@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { prisma } from '../prisma.js';
+import { runWithTenant } from '../tenantContext.js';
 import { handleInbound } from '../services/whatsapp/flow.js';
 import { markAsRead, verifySignature } from '../services/whatsapp/waClient.js';
 
@@ -28,6 +29,22 @@ const extractInput = (message) => {
 };
 
 /**
+ * Which restaurant this message belongs to.
+ *
+ * Meta delivers every restaurant's messages to the same webhook URL — there
+ * is no per-tenant endpoint the way the web app gets one via /r/:slug — so
+ * the only real signal is which of the business's WhatsApp numbers actually
+ * received it. That is exactly the customDomain pattern applied to phone
+ * numbers instead of hostnames: a restaurant with none configured here
+ * simply never resolves, and its bot stays silent rather than accidentally
+ * answering as a different restaurant.
+ */
+const resolveTenantForNumber = (phoneNumberId) => {
+  if (!phoneNumberId) return null;
+  return prisma.tenant.findFirst({ where: { whatsappPhoneNumberId: phoneNumberId, isActive: true } });
+};
+
+/**
  * Meta always expects a 200 here, so messages are acknowledged first and processed
  * afterwards; failures are logged rather than retried by Meta.
  */
@@ -39,9 +56,22 @@ export const receive = async (req, res) => {
   for (const entry of entries) {
     for (const change of entry.changes || []) {
       const value = change.value || {};
+      const tenant = await resolveTenantForNumber(value.metadata?.phone_number_id);
+      if (!tenant) {
+        console.error(
+          '[whatsapp] no restaurant is configured for phone_number_id',
+          value.metadata?.phone_number_id,
+          '— add it under that restaurant in the platform console',
+        );
+        continue;
+      }
       for (const message of value.messages || []) {
         try {
-          await processMessage(message, value);
+          // Everything downstream — every menu lookup, the session, the
+          // order it eventually places — runs inside this one restaurant's
+          // context, the same AsyncLocalStorage scope resolveTenant opens
+          // for a normal web request.
+          await runWithTenant(tenant, () => processMessage(message, value));
         } catch (error) {
           console.error('[whatsapp] failed to process message', error);
         }

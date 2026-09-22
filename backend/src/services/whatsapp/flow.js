@@ -1,4 +1,5 @@
 import { prisma } from '../../prisma.js';
+import { currentTenant } from '../../tenantContext.js';
 import * as orderService from '../orderService.js';
 import * as payment from '../payment/index.js';
 import { getAll as getSettings } from '../settingService.js';
@@ -59,7 +60,12 @@ const cartSubtotal = (lines) => round3(lines.reduce((sum, l) => sum + l.lineTota
 /* ------------------------------------------------------------------- prompts */
 
 const askLanguage = async (phone) => {
-  await sendButtons(phone, t('en').chooseLanguage, [
+  // This is genuinely per-restaurant, unlike the rest of the platform-wide
+  // config here: which restaurant answered is exactly what tenantId in
+  // this AsyncLocalStorage scope already says, since resolveTenantForNumber
+  // opened it from the WhatsApp number the customer actually messaged.
+  const name = currentTenant()?.nameEn || 'us';
+  await sendButtons(phone, t('en').chooseLanguage(name), [
     { id: 'lang:en', title: 'English' },
     { id: 'lang:ar', title: 'العربية' },
   ]);
