@@ -125,6 +125,7 @@
     "selectArea": "Select your area",
     "locating": "Finding you…",
     "locationDenied": "Location permission denied. Pick your area instead.",
+    "locationDeniedMapReady": "Location permission denied. Drag the map to your delivery spot instead.",
     "trackTitle": "Order status",
     "status_PENDING": "Sent to the restaurant",
     "status_CONFIRMED": "Confirmed",

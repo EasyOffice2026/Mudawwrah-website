@@ -132,6 +132,7 @@
     "selectArea": "اختر منطقتك",
     "locating": "جارٍ تحديد موقعك…",
     "locationDenied": "تم رفض إذن الموقع. اختر منطقتك بدلاً من ذلك.",
+    "locationDeniedMapReady": "تم رفض إذن الموقع. حرّك الخريطة إلى موقع التوصيل بدلاً من ذلك.",
     "trackTitle": "حالة الطلب",
     "status_PENDING": "أُرسل إلى المطعم",
     "status_CONFIRMED": "تم التأكيد",
