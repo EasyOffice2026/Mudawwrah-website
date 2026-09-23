@@ -46,13 +46,26 @@ export const notifyNewOrder = async (order, settings) => {
         } — ${money(item.lineTotal)}`,
     )
     .join('\n');
+  // Every other order summary in this app — the customer's cart, the admin
+  // ticket — itemises discount/tax/tip rather than folding them silently into
+  // one number. Two separate "wrong total" reports were both actually this:
+  // a real deduction or add-on with nowhere to show. Same breakdown here.
+  const totals = [
+    `Subtotal: ${money(order.subtotal)}`,
+    Number(order.discount) > 0 ? `Discount (${order.promoCode}): -${money(order.discount)}` : null,
+    order.orderType === 'PICKUP' ? null : `Delivery: ${money(order.deliveryFee)}`,
+    Number(order.serviceCharge) > 0 ? `Service charge: ${money(order.serviceCharge)}` : null,
+    Number(order.tax) > 0 ? `Tax: ${money(order.tax)}` : null,
+    Number(order.tip) > 0 ? `Tip: ${money(order.tip)}` : null,
+    `Total: ${money(order.total)}`,
+  ].filter(Boolean);
   const message = [
     `🔔 New order ${order.orderNumber}`,
     `${order.orderType === 'PICKUP' ? 'Pickup' : 'Delivery'} · ${order.paymentMethod}`,
     '',
     lines,
     '',
-    `Total: ${money(order.total)}`,
+    ...totals,
     '',
     `${order.customerName} · ${order.customerPhone}`,
     order.address ? `Address: ${order.address}` : null,
