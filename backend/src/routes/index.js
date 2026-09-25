@@ -4,6 +4,7 @@ import * as banners from '../controllers/bannerController.js';
 import * as categories from '../controllers/categoryController.js';
 import * as dashboard from '../controllers/dashboardController.js';
 import * as feedback from '../controllers/feedbackController.js';
+import * as foodics from '../controllers/foodicsController.js';
 import * as items from '../controllers/itemController.js';
 import * as media from '../controllers/mediaController.js';
 import * as orders from '../controllers/orderController.js';
@@ -129,6 +130,14 @@ router.get('/feedback', requireStaff, h(feedback.list));
 // WhatsApp Cloud API webhook
 router.get('/whatsapp/webhook', whatsapp.verify);
 router.post('/whatsapp/webhook', h(whatsapp.receive));
+
+// Foodics POS: status updates come back per restaurant, authenticated by the
+// webhook secret saved in Settings → Foodics.
+router.post('/foodics/webhook/:slug', h(foodics.webhook));
+scoped.get('/foodics/settings', requireAdmin, h(foodics.getSettings));
+scoped.put('/foodics/settings', requireAdmin, h(foodics.updateSettings));
+scoped.get('/foodics/branches', requireAdmin, h(foodics.branches));
+scoped.post('/orders/:id/foodics', requireStaff, h(foodics.pushOrder));
 
 // Payment gateway callbacks
 router.get('/payments/mock/pay', h(payments.mockPay));

@@ -103,6 +103,11 @@ model Tenant {
   /// WHATSAPP_TOKEN, which is the normal case for multiple numbers under one
   /// WhatsApp Business Account.
   whatsappAccessToken   String?
+  /// Foodics POS integration. Orders are pushed to this branch as they come
+  /// in; the webhook secret authenticates status updates coming back.
+  foodicsAccessToken    String?
+  foodicsBranchId       String?
+  foodicsWebhookSecret  String?
   isActive     Boolean @default(true)
 
   createdAt DateTime @default(now())
@@ -206,6 +211,8 @@ model MenuItem {
   isFeatured     Boolean               @default(false)
   isTopRated     Boolean               @default(false)
   isCustomizable Boolean               @default(false)
+  /// Matching product in Foodics; items without one cannot be pushed to the POS.
+  foodicsProductId String?
   /// Per-serving nutrition, surfaced under the item name like a health menu.
   calories       Int?
   protein        Int?
@@ -238,6 +245,7 @@ model CustomizationOption {
   isRequired   Boolean  @default(false)
   maxSelect    Int      @default(1)
   displayOrder Int      @default(0)
+  foodicsModifierOptionId String?
 
   @@index([imageId])
 }
@@ -262,6 +270,10 @@ model Order {
   paymentProvider String?
   paymentRef      String?
   paymentUrl      String?
+  /// Set once the order exists in Foodics; the error is kept when the push
+  /// failed so staff can see it on the ticket and retry.
+  foodicsOrderId  String?
+  foodicsError    String?
   paidAt          DateTime?
   /// Structured address parts, collected step by step by the WhatsApp flow.
   area          String?

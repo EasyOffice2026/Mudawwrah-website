@@ -36,6 +36,7 @@ export const customizationOptionSchema = z.object({
   isRequired: z.coerce.boolean().optional(),
   maxSelect: z.coerce.number().int().min(1).optional(),
   displayOrder: z.coerce.number().int().optional(),
+  foodicsModifierOptionId: optionalString,
 });
 
 export const itemSchema = z.object({
@@ -57,6 +58,7 @@ export const itemSchema = z.object({
   fat: z.coerce.number().int().min(0).nullable().optional(),
   carbs: z.coerce.number().int().min(0).nullable().optional(),
   displayOrder: z.coerce.number().int().optional(),
+  foodicsProductId: optionalString,
   options: z.array(customizationOptionSchema).optional(),
 });
 
@@ -186,6 +188,16 @@ export const userSchema = z.object({
 });
 
 export const userUpdateSchema = userSchema.partial();
+
+/**
+ * Secrets accept `null` to clear and '' to leave as they are, so the dashboard
+ * never has to echo the saved token back to re-save the branch id.
+ */
+export const foodicsSettingsSchema = z.object({
+  accessToken: z.string().trim().nullable().optional(),
+  branchId: z.string().trim().optional(),
+  webhookSecret: z.string().trim().nullable().optional(),
+});
 
 export const settingsSchema = z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]));
 

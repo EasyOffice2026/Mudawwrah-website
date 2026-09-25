@@ -56,7 +56,7 @@ export const getBySlug = async (slug) => {
 // business round-tripping to a browser once saved, even the platform
 // operator's own. omit keeps it out of every response below without having
 // to hand-maintain a select list alongside the schema.
-const hideWhatsappToken = { omit: { whatsappAccessToken: true } };
+const hideWhatsappToken = { omit: { whatsappAccessToken: true, foodicsAccessToken: true, foodicsWebhookSecret: true } };
 
 export const listAll = () => prisma.tenant.findMany({ orderBy: { createdAt: 'asc' }, ...hideWhatsappToken });
 
@@ -112,5 +112,5 @@ export const update = async (id, data) => {
 export const updateOwn = (data) => {
   const tenantId = currentTenantId();
   if (!tenantId) throw new HttpError(400, 'No restaurant selected');
-  return prisma.tenant.update({ where: { id: tenantId }, data });
+  return prisma.tenant.update({ where: { id: tenantId }, data, ...hideWhatsappToken });
 };

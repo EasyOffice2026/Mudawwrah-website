@@ -100,6 +100,16 @@ export default function Orders() {
     }
   };
 
+  const pushToFoodics = async (id) => {
+    try {
+      const { data } = await api.post(`/orders/${id}/foodics`);
+      setDetail((current) => (current?.id === id ? data : current));
+      await load();
+    } catch (err) {
+      setError(apiError(err));
+    }
+  };
+
   const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
 
   return (
@@ -247,6 +257,21 @@ export default function Orders() {
               <p>
                 <span className="text-gray-500">{t('admin.channel')}:</span> {detail.channel}
               </p>
+              {detail.foodicsOrderId || detail.foodicsError ? (
+                <p>
+                  <span className="text-gray-500">Foodics:</span>{' '}
+                  {detail.foodicsOrderId ? (
+                    <span className="text-green-700">sent ({detail.foodicsOrderId.slice(0, 8)}…)</span>
+                  ) : (
+                    <>
+                      <span className="text-red-600">{detail.foodicsError}</span>{' '}
+                      <button type="button" className="text-brand underline" onClick={() => pushToFoodics(detail.id)}>
+                        Retry
+                      </button>
+                    </>
+                  )}
+                </p>
+              ) : null}
               {detail.pickupLocation ? (
                 <p>
                   <span className="text-gray-500">Pickup branch:</span> {detail.pickupLocation.nameEn}
