@@ -14,6 +14,8 @@ datasource db {
 enum Role {
   ADMIN
   STAFF
+  /// Staff of one branch: that branch's orders and sold-out list only, and only from the branch's own IPs.
+  BRANCH
   CUSTOMER
 }
 
@@ -22,6 +24,8 @@ enum OrderStatus {
   CONFIRMED
   PREPARING
   READY
+  OUT_FOR_DELIVERY
+  REACHED
   DELIVERED
   CANCELLED
 }
@@ -117,6 +121,8 @@ model Tenant {
   settings   Setting[]
   promotions Promotion[]
   pickupLocations PickupLocation[]
+  deliveryZones   DeliveryZone[]
+  branchSoldOut   BranchSoldOut[]
 }
 
 /// A voucher a customer can apply at checkout. Discounts are always recomputed
@@ -158,11 +164,15 @@ model User {
   phone     String?
   role      Role     @default(CUSTOMER)
   isActive  Boolean  @default(true)
+  /// The branch a BRANCH user works at. SetNull: removing a branch locks its accounts out rather than deleting them.
+  branchId  String?
+  branch    PickupLocation? @relation("BranchStaff", fields: [branchId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]
 
   @@index([tenantId])
+  @@index([branchId])
 }
 
 model Category {
@@ -216,6 +226,7 @@ model MenuItem {
   updatedAt      DateTime              @updatedAt
   options        CustomizationOption[]
   orderItems     OrderItem[]
+  soldOutAt      BranchSoldOut[]
 
   @@index([tenantId])
 }
@@ -288,7 +299,14 @@ model Order {
   /// copied string so the branch can be renamed without rewriting history,
   /// and SetNull so retiring a branch never deletes the orders it took.
   pickupLocationId String?
-  pickupLocation   PickupLocation? @relation(fields: [pickupLocationId], references: [id], onDelete: SetNull)
+  pickupLocation   PickupLocation? @relation("OrderPickupLocation", fields: [pickupLocationId], references: [id], onDelete: SetNull)
+  /// The branch handling the order: the pickup branch, or the branch whose delivery zone the address is in.
+  /// Branch staff see only their own branch's orders.
+  branchId         String?
+  branch           PickupLocation? @relation("OrderBranch", fields: [branchId], references: [id], onDelete: SetNull)
+  /// The delivery zone the address matched; its fee and minimum order were applied.
+  zoneId           String?
+  zone             DeliveryZone?   @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   /// Where the customer came from, read off the link they arrived on. Recorded
   /// per order so a restaurant can tell which campaign actually sold food,
   /// rather than only which one drove traffic.
@@ -308,6 +326,7 @@ model Order {
 
   @@unique([tenantId, orderNumber])
   @@index([tenantId])
+  @@index([branchId])
 }
 
 model OrderFeedback {
@@ -406,8 +425,9 @@ model PickupLocation {
   directionsEn String?
   directionsAr String?
   phone        String?
-  /// Collection hours, one entry per weekday, as
-  /// [{ day: 0-6, open: "09:00", close: "23:00", closed: false }].
+  /// Opening hours, one entry per weekday, as
+  /// [{ day: 0-6, open: "09:00", close: "23:00", closed: false, breaks: [{ from: "11:30", to: "13:00" }] }].
+  /// Equal open and close means open 24 hours; breaks close the branch for part of the day (Friday prayer).
   /// Held as JSON because it is only ever read and written whole, and a table
   /// of seven rows per branch would buy nothing.
   hours        Json?
@@ -415,10 +435,58 @@ model PickupLocation {
   prepMinutes  Int      @default(15)
   displayOrder Int      @default(0)
   isActive     Boolean  @default(true)
+  /// Static IPs the branch's staff may sign in from. Empty means no IP restriction.
+  allowedIps   String[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  orders       Order[]  @relation("OrderPickupLocation")
+  branchOrders Order[]  @relation("OrderBranch")
+  staff        User[]   @relation("BranchStaff")
+  zones        DeliveryZone[]
+  soldOut      BranchSoldOut[]
+
+  @@index([tenantId])
+}
+
+/// An area the restaurant delivers to, and the branch that serves it. An address
+/// outside every active zone cannot order delivery, and neither can one whose
+/// branch is closed: the client asked for no automatic re-routing.
+model DeliveryZone {
+  id           String         @id @default(uuid())
+  tenantId     String
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nameEn       String
+  nameAr       String?
+  branchId     String
+  branch       PickupLocation @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  /// Null falls back to the restaurant-wide delivery fee / minimum order in Settings.
+  deliveryFee  Decimal?       @db.Decimal(10, 3)
+  minimumOrder Decimal?       @db.Decimal(10, 3)
+  /// Typical minutes from order to door, shown at checkout.
+  etaMinutes   Int?
+  isActive     Boolean        @default(true)
+  displayOrder Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
   orders       Order[]
 
+  @@index([tenantId])
+  @@index([branchId])
+}
+
+/// An item sold out at one branch only. Its presence is the flag; other branches
+/// keep selling it. The restaurant-wide switches on MenuItem still apply everywhere.
+model BranchSoldOut {
+  id         String         @id @default(uuid())
+  tenantId   String
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId   String
+  branch     PickupLocation @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem       @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+
+  @@unique([branchId, menuItemId])
   @@index([tenantId])
 }
 

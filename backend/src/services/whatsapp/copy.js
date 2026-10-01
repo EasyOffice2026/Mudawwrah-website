@@ -52,7 +52,9 @@ const dictionary = {
     statusUpdate: {
       CONFIRMED: (n) => `Order ${n} is confirmed 👍`,
       PREPARING: (n) => `Order ${n} is being prepared 👨‍🍳`,
-      READY: (n) => `Order ${n} is ready and on its way 🛵`,
+      READY: (n) => `Order ${n} is ready ✅`,
+      OUT_FOR_DELIVERY: (n) => `Order ${n} is out for delivery 🛵`,
+      REACHED: (n) => `Our driver has reached your location with order ${n} 📍`,
       DELIVERED: (n) => `Order ${n} has been delivered. Enjoy your meal! 🍽️`,
       CANCELLED: (n) => `Order ${n} has been cancelled. Contact us if this was a mistake.`,
     },
@@ -117,7 +119,9 @@ const dictionary = {
     statusUpdate: {
       CONFIRMED: (n) => `تم تأكيد الطلب ${n} 👍`,
       PREPARING: (n) => `جاري تحضير الطلب ${n} 👨‍🍳`,
-      READY: (n) => `الطلب ${n} جاهز وفي الطريق إليك 🛵`,
+      READY: (n) => `الطلب ${n} جاهز ✅`,
+      OUT_FOR_DELIVERY: (n) => `طلبك ${n} طلع للتوصيل 🛵`,
+      REACHED: (n) => `المندوب وصل عند موقعك بالطلب ${n} 📍`,
       DELIVERED: (n) => `تم توصيل الطلب ${n}. بالهناء والشفاء! 🍽️`,
       CANCELLED: (n) => `تم إلغاء الطلب ${n}. تواصل معنا إذا كان ذلك بالخطأ.`,
     },

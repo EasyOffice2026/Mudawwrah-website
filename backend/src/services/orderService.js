@@ -3,6 +3,9 @@ import { prisma } from '../prisma.js';
 import { currentTenant } from '../tenantContext.js';
 import { resolve as resolvePromotion } from './promotionService.js';
 import { getAll as getSettings } from './settingService.js';
+import { isOpenAt, nextOpening } from './branchHours.js';
+import { resolveForDelivery } from './zoneService.js';
+import { firstSoldOut } from './soldOutService.js';
 import { notifyNewOrder, notifyStatusChange } from './whatsapp/notifications.js';
 
 const include = {
@@ -12,7 +15,13 @@ const include = {
   // Named rather than only referenced, so the kitchen sees which branch is
   // collecting without a second lookup. Null once a branch is retired.
   pickupLocation: { select: { id: true, nameEn: true, nameAr: true, addressEn: true, addressAr: true } },
+  // The branch handling the order (pickup or delivery) and the delivery zone it matched.
+  branch: { select: { id: true, nameEn: true, nameAr: true } },
+  zone: { select: { id: true, nameEn: true, nameAr: true } },
 };
+
+/** Branch staff only ever see their own branch's orders; a branch account without a branch sees none. */
+const viewerScope = (viewer) => (viewer?.role === 'BRANCH' ? { branchId: viewer.branchId || '00000000-0000-0000-0000-000000000000' } : {});
 
 const round3 = (value) => Number(Number(value).toFixed(3));
 
@@ -60,9 +69,6 @@ export const create = async (payload) => {
   });
 
   const subtotal = round3(lines.reduce((sum, l) => sum + l.lineTotal, 0));
-  if (subtotal < Number(settings.minimumOrder)) {
-    throw new HttpError(422, `Minimum order value is KWD ${Number(settings.minimumOrder).toFixed(3)}`);
-  }
 
   const orderType = payload.orderType === 'PICKUP' ? 'PICKUP' : 'DELIVERY';
   if (orderType === 'PICKUP' && settings.pickupEnabled !== 'true') {
@@ -71,19 +77,45 @@ export const create = async (payload) => {
   if (orderType === 'DELIVERY' && settings.deliveryEnabled !== 'true') {
     throw new HttpError(409, 'This restaurant is not accepting delivery orders');
   }
-  // A branch id arrives from the client, and a foreign key alone would happily
-  // accept another restaurant's branch. This read is tenant-scoped, so a
-  // branch belonging to anyone else simply is not found.
+  const timezone = settings.timezone || 'Asia/Kuwait';
+
+  // Which branch handles the order. Pickup: the branch chosen. Delivery: the
+  // branch of the zone the address is in. Either must be open right now; an
+  // uncovered area or a closed branch is refused, never re-routed (client's choice).
+  let branchId = null;
+  let zone = null;
   if (orderType === 'PICKUP' && payload.pickupLocationId) {
+    // A branch id arrives from the client, and a foreign key alone would happily
+    // accept another restaurant's branch. This read is tenant-scoped, so a
+    // branch belonging to anyone else simply is not found.
     const branch = await prisma.pickupLocation.findUnique({
       where: { id: payload.pickupLocationId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, nameEn: true, hours: true },
     });
     if (!branch) throw new HttpError(400, 'That pickup location does not exist');
     if (!branch.isActive) throw new HttpError(409, 'That pickup location is not taking orders');
+    if (!isOpenAt(branch.hours, new Date(), timezone)) {
+      const next = nextOpening(branch.hours, new Date(), timezone);
+      throw new HttpError(409, `Our ${branch.nameEn} branch is closed right now.${next ? ` It opens at ${next.time}${next.daysAhead ? ' (another day)' : ''}.` : ''}`);
+    }
+    branchId = branch.id;
+  } else if (orderType === 'PICKUP' && (await prisma.pickupLocation.count({ where: { isActive: true } }))) {
+    throw new HttpError(422, 'Please choose the branch you will pick up from');
+  }
+  if (orderType === 'DELIVERY') {
+    zone = await resolveForDelivery({ zoneId: payload.zoneId, area: payload.area }, { timezone });
+    if (zone) branchId = zone.branchId;
+  }
+
+  const soldOut = await firstSoldOut(branchId, lines.map((l) => l.menuItemId));
+  if (soldOut) throw new HttpError(409, `${soldOut.item} is sold out at our ${soldOut.branch} branch right now`);
+
+  const minimumOrder = zone?.minimumOrder ?? Number(settings.minimumOrder);
+  if (subtotal < minimumOrder) {
+    throw new HttpError(422, `Minimum order value is KWD ${Number(minimumOrder).toFixed(3)}`);
   }
   // Collecting in person is never charged for delivery, and carries no address.
-  let deliveryFee = orderType === 'PICKUP' ? 0 : round3(settings.deliveryFee);
+  let deliveryFee = orderType === 'PICKUP' ? 0 : round3(zone?.deliveryFee ?? settings.deliveryFee);
 
   // The voucher is re-resolved from the database; the client only sends a code.
   const { promotion, discount, freeDelivery } = await resolvePromotion(payload.promoCode, subtotal, deliveryFee);
@@ -105,7 +137,8 @@ export const create = async (payload) => {
       // Pickup carries no address at all, so the structured parts the WhatsApp
       // flow collects are dropped alongside the composed line.
       address: orderType === 'PICKUP' ? null : payload.address,
-      area: orderType === 'PICKUP' ? null : payload.area || null,
+      // The zone's own name when one matched, so every order of an area reads the same in the dashboard.
+      area: orderType === 'PICKUP' ? null : zone?.nameEn || payload.area || null,
       block: orderType === 'PICKUP' ? null : payload.block || null,
       street: orderType === 'PICKUP' ? null : payload.street || null,
       building: orderType === 'PICKUP' ? null : payload.building || null,
@@ -126,6 +159,8 @@ export const create = async (payload) => {
       deliveryNote: payload.deliveryNote || null,
       // Only meaningful for collection; a delivery order carries no branch.
       pickupLocationId: orderType === 'PICKUP' ? payload.pickupLocationId || null : null,
+      branchId,
+      zoneId: zone?.id || null,
       // Where this sale came from. Recorded on the order rather than inferred
       // later, because the link the customer arrived on is gone by then.
       utmSource: payload.utmSource || null,
@@ -145,8 +180,11 @@ export const create = async (payload) => {
   return order;
 };
 
-export const list = ({ status, channel, from, to, search, page = 1, pageSize = 20 } = {}) => {
+export const list = ({ status, channel, from, to, search, branchId, page = 1, pageSize = 20 } = {}, viewer = null) => {
   const where = {
+    ...(branchId ? { branchId } : {}),
+    // After the filter above, so a branch account cannot widen its own view.
+    ...viewerScope(viewer),
     ...(status ? { status } : {}),
     ...(channel ? { channel } : {}),
     ...(from || to
@@ -177,14 +215,15 @@ export const list = ({ status, channel, from, to, search, page = 1, pageSize = 2
   });
 };
 
-export const getById = async (id) => {
+export const getById = async (id, viewer = null) => {
   const order = await prisma.order.findUnique({ where: { id }, include });
-  if (!order) throw new HttpError(404, 'Order not found');
+  // Another branch's order is reported as not found rather than forbidden: no hint it exists.
+  if (!order || (viewer?.role === 'BRANCH' && order.branchId !== viewer.branchId)) throw new HttpError(404, 'Order not found');
   return order;
 };
 
-export const updateStatus = async (id, status) => {
-  const current = await getById(id);
+export const updateStatus = async (id, status, viewer = null) => {
+  const current = await getById(id, viewer);
   if (current.status === status) return current;
   const order = await prisma.order.update({ where: { id }, data: { status }, include });
   // A WhatsApp hiccup is not worth failing an admin's status update over —

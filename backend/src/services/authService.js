@@ -13,18 +13,43 @@ const publicUser = (user) => ({
   phone: user.phone,
   role: user.role,
   isActive: user.isActive,
+  branchId: user.branchId ?? null,
 });
 
 // tenantId travels in the token so every request knows which restaurant this
 // operator belongs to. Null marks a platform operator with access to all.
+// branchId confines a BRANCH account to its branch's orders.
 const sign = (user, expiresIn) =>
   jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, name: user.name, tenantId: user.tenantId ?? null },
+    { sub: user.id, email: user.email, role: user.role, name: user.name, tenantId: user.tenantId ?? null, branchId: user.branchId ?? null },
     config.jwtSecret,
     { expiresIn },
   );
 
-export const login = async ({ email, password }) => {
+/** The client's address, as Cloudflare or the proxy in front of us saw it. */
+export const clientIp = (req) =>
+  String(
+    req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || String(req.headers['x-forwarded-for'] || '').split(',')[0] || req.socket?.remoteAddress || '',
+  )
+    .trim()
+    .replace(/^::ffff:/, '');
+
+/**
+ * A branch account may only be used at its branch: the branch must exist and be
+ * active, and when it lists static IPs the request must come from one of them.
+ * Base client on purpose: login runs before any restaurant is in context.
+ */
+export const assertBranchAccess = async (user, ip) => {
+  if (user.role !== 'BRANCH') return;
+  if (!user.branchId) throw new HttpError(403, 'This branch account is not linked to a branch');
+  const branch = await prisma.pickupLocation.findFirst({ where: { id: user.branchId, tenantId: user.tenantId }, select: { isActive: true, allowedIps: true } });
+  if (!branch || !branch.isActive) throw new HttpError(403, 'This branch is not active');
+  if (branch.allowedIps.length && !branch.allowedIps.includes(ip)) {
+    throw new HttpError(403, 'This branch account can only be used from the branch itself');
+  }
+};
+
+export const login = async ({ email, password }, { ip = '' } = {}) => {
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
     include: { tenant: { select: { slug: true, nameEn: true } } },
@@ -33,6 +58,7 @@ export const login = async ({ email, password }) => {
     throw new HttpError(401, 'Invalid email or password');
   }
   if (!user.isActive) throw new HttpError(403, 'Account is deactivated');
+  await assertBranchAccess(user, ip);
   return {
     token: sign(user, config.jwtExpiresIn),
     refreshToken: sign(user, config.refreshExpiresIn),
@@ -40,7 +66,7 @@ export const login = async ({ email, password }) => {
   };
 };
 
-export const refresh = async (refreshToken) => {
+export const refresh = async (refreshToken, { ip = '' } = {}) => {
   if (!refreshToken) throw new HttpError(400, 'refreshToken is required');
   let payload;
   try {
@@ -50,6 +76,7 @@ export const refresh = async (refreshToken) => {
   }
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
   if (!user || !user.isActive) throw new HttpError(401, 'User no longer active');
+  await assertBranchAccess(user, ip);
   return { token: sign(user, config.jwtExpiresIn), user: publicUser(user) };
 };
 

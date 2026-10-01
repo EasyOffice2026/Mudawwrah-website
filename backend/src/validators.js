@@ -95,6 +95,12 @@ export const orderSchema = z.object({
   deliveryLng: z.coerce.number().min(-180).max(180).nullable().optional(),
   /// Branch to collect from, when this is a pickup order.
   pickupLocationId: z.string().uuid().nullable().optional(),
+  /// Delivery area chosen at checkout. Without it the typed area is matched against the zones by name.
+  zoneId: z.string().uuid().nullable().optional(),
+  area: optionalString,
+  block: optionalString,
+  street: optionalString,
+  building: optionalString,
   // Marketing attribution, forwarded by the storefront from the link the
   // customer arrived on. Length-capped because it lands in the admin's order
   // list: these are attacker-controlled strings from a URL, not our own data.
@@ -121,6 +127,16 @@ const openingHours = z.object({
   open: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected a time like 09:00'),
   close: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected a time like 23:00'),
   closed: z.coerce.boolean().optional(),
+  /// Closed for part of the day, e.g. Friday prayer 11:30–13:00.
+  breaks: z
+    .array(
+      z.object({
+        from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected a time like 11:30'),
+        to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected a time like 13:00'),
+      }),
+    )
+    .max(4)
+    .optional(),
 });
 
 export const pickupLocationSchema = z.object({
@@ -135,9 +151,33 @@ export const pickupLocationSchema = z.object({
   prepMinutes: z.coerce.number().int().min(0).max(600).optional(),
   displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.coerce.boolean().optional(),
+  /// Static IPs branch staff may sign in from; empty means unrestricted.
+  allowedIps: z.array(z.string().trim().regex(/^[0-9a-fA-F:.]{2,45}$/, 'Expected an IP address like 37.39.10.20')).max(10).optional(),
 });
 
 export const pickupLocationUpdateSchema = pickupLocationSchema.partial();
+
+/** A delivery area and the branch that serves it. Fee / minimum left empty use the Settings values. */
+export const deliveryZoneSchema = z.object({
+  nameEn: z.string().trim().min(1).max(80),
+  nameAr: optionalString,
+  branchId: z.string().uuid(),
+  deliveryFee: z.coerce.number().min(0).max(100).nullable().optional(),
+  minimumOrder: z.coerce.number().min(0).max(1000).nullable().optional(),
+  etaMinutes: z.coerce.number().int().min(0).max(600).nullable().optional(),
+  isActive: z.coerce.boolean().optional(),
+  displayOrder: z.coerce.number().int().min(0).optional(),
+});
+
+export const deliveryZoneUpdateSchema = deliveryZoneSchema.partial();
+
+/** A branch marking an item sold out (or back in stock) at its own branch only. */
+export const branchSoldOutSchema = z.object({
+  menuItemId: z.string().uuid(),
+  soldOut: z.coerce.boolean(),
+  /// Admins choose the branch; branch staff always act on their own.
+  branchId: z.string().uuid().optional(),
+});
 
 export const promoPreviewSchema = z.object({
   code: z.string().trim().min(1),
@@ -160,7 +200,7 @@ export const promotionSchema = z.object({
 });
 
 export const orderStatusSchema = z.object({
-  status: z.enum(['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED']),
+  status: z.enum(['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'REACHED', 'DELIVERED', 'CANCELLED']),
 });
 
 export const bannerSchema = z.object({
@@ -181,8 +221,10 @@ export const userSchema = z.object({
   password: z.string().min(6),
   name: z.string().trim().min(1),
   phone: optionalString,
-  role: z.enum(['ADMIN', 'STAFF', 'CUSTOMER']).optional(),
+  role: z.enum(['ADMIN', 'STAFF', 'BRANCH', 'CUSTOMER']).optional(),
   isActive: z.coerce.boolean().optional(),
+  /// Required for BRANCH accounts: the branch whose orders they handle.
+  branchId: z.string().uuid().nullable().optional(),
 });
 
 export const userUpdateSchema = userSchema.partial();
