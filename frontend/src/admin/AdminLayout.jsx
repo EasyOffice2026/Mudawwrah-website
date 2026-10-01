@@ -6,18 +6,27 @@ import { localized } from '../lib/format';
 import { applyTheme } from '../lib/theme';
 import { useAuth } from '../store/auth';
 
+// Who sees each page. ADMIN is the owner; a BRANCH account only ever gets the
+// order desk (its own branch's orders and sold-out list). App.jsx enforces the
+// same split on the routes, so hiding a link here is never the only guard.
+const OWNER = ['ADMIN'];
+const STAFF = ['ADMIN', 'STAFF'];
+const DESK = ['ADMIN', 'STAFF', 'BRANCH'];
+
 const links = [
   // Relative paths: the admin is mounted under /r/:slug/admin, so absolute
   // "/admin/..." links would leave the restaurant behind.
-  { to: '', labelKey: 'admin.dashboard', end: true },
-  { to: 'menu', labelKey: 'admin.menu' },
-  { to: 'orders', labelKey: 'admin.orders' },
-  { to: 'media', labelKey: 'admin.media' },
-  { to: 'banners', labelKey: 'admin.banners' },
-  { to: 'promotions', labelKey: 'admin.promotions' },
-  { to: 'feedback', labelKey: 'admin.feedback' },
-  { to: 'users', labelKey: 'admin.users', adminOnly: true },
-  { to: 'settings', labelKey: 'admin.settings' },
+  { to: '', labelKey: 'admin.dashboard', end: true, roles: STAFF },
+  { to: 'menu', labelKey: 'admin.menu', roles: STAFF },
+  { to: 'orders', labelKey: 'admin.orders', roles: DESK },
+  { to: 'sold-out', labelKey: 'admin.soldOut', roles: DESK },
+  { to: 'media', labelKey: 'admin.media', roles: STAFF },
+  { to: 'banners', labelKey: 'admin.banners', roles: STAFF },
+  { to: 'promotions', labelKey: 'admin.promotions', roles: STAFF },
+  { to: 'feedback', labelKey: 'admin.feedback', roles: STAFF },
+  { to: 'zones', labelKey: 'admin.zones', roles: OWNER },
+  { to: 'users', labelKey: 'admin.users', roles: OWNER },
+  { to: 'settings', labelKey: 'admin.settings', roles: STAFF },
 ];
 
 export default function AdminLayout() {
@@ -27,6 +36,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [tenant, setTenant] = useState(null);
+  const [branch, setBranch] = useState(null);
 
   useEffect(() => {
     bootstrap();
@@ -41,6 +51,17 @@ export default function AdminLayout() {
       })
       .catch(() => {});
   }, [slug]);
+
+  // A branch account works under its branch's name. The public list is the one
+  // it can read, and its branch is always in it: an inactive branch's account
+  // cannot sign in at all.
+  useEffect(() => {
+    if (user?.role !== 'BRANCH' || !user.branchId) return setBranch(null);
+    api
+      .get('/pickup-locations')
+      .then(({ data }) => setBranch(data.find((b) => b.id === user.branchId) || null))
+      .catch(() => setBranch(null));
+  }, [user?.role, user?.branchId, slug]);
 
   useEffect(() => setOpen(false), [location.pathname]);
 
@@ -57,10 +78,10 @@ export default function AdminLayout() {
         }`}
       >
         <p className="text-xl font-extrabold leading-tight">{tenant ? localized(tenant, 'name', i18n.language) : 'Admin'}</p>
-        <p className="mb-6 text-xs text-white/70">{t('admin.dashboard')}</p>
+        <p className="mb-6 text-xs text-white/70">{branch ? localized(branch, 'name', i18n.language) : t('admin.dashboard')}</p>
         <nav className="space-y-1">
           {links
-            .filter((link) => !link.adminOnly || user.role === 'ADMIN')
+            .filter((link) => link.roles.includes(user.role))
             .map((link) => (
               <NavLink
                 key={link.to}
@@ -77,7 +98,7 @@ export default function AdminLayout() {
         <div className="mt-8 space-y-2 border-t border-white/20 pt-4 text-sm">
           <p className="font-semibold">{user.name}</p>
           <p className="text-white/70">
-            {user.tenantId === null ? 'Platform owner · all restaurants' : user.role}
+            {user.tenantId === null ? 'Platform owner · all restaurants' : t(`admin.roles.${user.role}`, user.role)}
           </p>
           <button type="button" onClick={logout} className="btn w-full bg-white/15 text-white hover:bg-white/25">
             {t('admin.signOut')}
@@ -91,6 +112,11 @@ export default function AdminLayout() {
             ☰
           </button>
           <div className="flex items-center gap-2">
+            {branch ? (
+              <span className="rounded-full bg-brand-light px-3 py-1 text-xs font-bold text-brand">
+                {t('admin.branch')}: {localized(branch, 'name', i18n.language)}
+              </span>
+            ) : null}
             <a href={`/r/${slug}`} className="btn-ghost">
               {t('admin.viewStore')}
             </a>

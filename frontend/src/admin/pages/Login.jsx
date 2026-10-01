@@ -34,7 +34,10 @@ export default function Login() {
       await login(form.email, form.password);
       navigate(`/r/${slug}/admin`, { replace: true });
     } catch (err) {
-      setError(apiError(err));
+      // A branch account signing in from outside its branch's static IPs. The
+      // server's wording is technical; this one tells staff what to do.
+      const blockedByIp = err?.response?.status === 403 && /branch itself/i.test(apiError(err));
+      setError(blockedByIp ? t('admin.branchIpBlocked') : apiError(err));
     } finally {
       setSubmitting(false);
     }

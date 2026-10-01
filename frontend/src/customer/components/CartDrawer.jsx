@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
@@ -31,6 +31,22 @@ export default function CartDrawer({ open, onClose, settings, suggestions, promo
   // Manual code entry is behind 'Add voucher'; the running offers show by default.
   const [manualOpen, setManualOpen] = useState(false);
   const [promoError, setPromoError] = useState(null);
+  // Delivery areas can have their own minimum; the exact one is enforced at checkout once the area is chosen.
+  const [zoneMinimums, setZoneMinimums] = useState([]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    let cancelled = false;
+    api
+      .get('/zones')
+      .then(({ data }) => {
+        if (!cancelled) setZoneMinimums((data || []).map((z) => z.minimumOrder).filter((m) => m !== null && m !== undefined).map(Number));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -41,7 +57,9 @@ export default function CartDrawer({ open, onClose, settings, suggestions, promo
   const serviceCharge = Number(((discounted * Number(settings?.serviceChargePercent || 0)) / 100).toFixed(3));
   const tax = Number((((discounted + serviceCharge) * Number(settings?.taxPercent || 0)) / 100).toFixed(3));
   const total = Number((discounted + deliveryFee + serviceCharge + tax).toFixed(3));
-  const minimum = Number(settings?.minimumOrder || 0);
+  // Block only below every minimum the customer could still meet (pickup and the restaurant default use
+  // Settings; each area may set its own). Checkout then enforces the minimum of the option actually chosen.
+  const minimum = Math.min(Number(settings?.minimumOrder || 0), ...zoneMinimums);
   const belowMinimum = sub < minimum;
 
   // Menu discounts plus any voucher — what the header bar brags about.

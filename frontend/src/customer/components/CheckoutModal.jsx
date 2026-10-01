@@ -39,11 +39,40 @@ const buildWhatsappMessage = ({ lines, order, settings, lang, t }) => {
     .join('\n');
 };
 
-// Order of progress, used to decide which steps on the tracker are done.
-const TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'];
+// Order of progress, used to decide which steps on the tracker are done. A
+// pickup order never goes out with a rider, so it skips those two steps.
+const TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'REACHED', 'DELIVERED'];
+const PICKUP_TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'];
 
-// Used by the location step when the map is unavailable.
+// Used by the location step when the map is unavailable and the restaurant
+// has not set up delivery zones of its own.
 const KUWAIT_AREAS = ['Salmiya', 'Jabriya', 'Hawally', 'Kuwait City', 'Farwaniya', 'Mangaf', 'Fahaheel', 'Jahra'];
+
+// Loose name match for a reverse-geocoded area against the zone list: case,
+// "Al-" prefixes and Arabic letter variants don't matter (as on the server).
+const normaliseArea = (text) =>
+  String(text || '')
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/^(ال|al[\s-]+|el[\s-]+)/, '')
+    .replace(/[^a-z0-9\u0600-\u06ff]+/g, '');
+
+/**
+ * "Closed now — opens at 11:00", for a branch whose public record says it is
+ * shut. nextOpen.daysAhead is 0 for later today, 1 for tomorrow, and so on.
+ */
+const opensText = (nextOpen, t, lang) => {
+  if (!nextOpen) return '';
+  if (!nextOpen.daysAhead) return t('checkout.opensAt', { time: nextOpen.time });
+  if (nextOpen.daysAhead === 1) return t('checkout.opensTomorrow', { time: nextOpen.time });
+  const day = new Date(Date.now() + nextOpen.daysAhead * 86400000).toLocaleDateString(lang === 'ar' ? 'ar-KW' : 'en-GB', {
+    weekday: 'long',
+  });
+  return t('checkout.opensOn', { day, time: nextOpen.time });
+};
+const closedText = (branch, t, lang, lead) => [lead, opensText(branch?.nextOpen, t, lang)].filter(Boolean).join(' — ');
 
 const SegButton = ({ active, disabled, onClick, icon, label, hint }) => (
   <button
@@ -97,6 +126,11 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   // pickup address in Settings.
   const [pickupLocations, setPickupLocations] = useState([]);
   const [pickupLocationId, setPickupLocationId] = useState(null);
+  // Delivery zones (Admin → Delivery zones). Once a restaurant has any, the
+  // customer picks one instead of typing an area: it decides the fee, the
+  // minimum order and which branch cooks. None keeps the old free-text area.
+  const [zones, setZones] = useState([]);
+  const [zoneId, setZoneId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [placed, setPlaced] = useState(null);
@@ -119,9 +153,14 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
       .get('/pickup-locations')
       .then(({ data }) => {
         setPickupLocations(data);
-        if (data.length === 1) setPickupLocationId(data[0].id);
+        // A closed branch is never pre-selected; the customer would only find out at the button.
+        if (data.length === 1 && data[0].openNow !== false) setPickupLocationId(data[0].id);
       })
       .catch(() => setPickupLocations([]));
+    api
+      .get('/zones')
+      .then(({ data }) => setZones(data))
+      .catch(() => setZones([]));
   }, []);
 
   useEffect(() => {
@@ -150,10 +189,18 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   const deliveryAllowed = settings?.deliveryEnabled === 'true';
   const pickupAllowed = settings?.pickupEnabled === 'true';
   const isPickup = orderType === 'PICKUP';
+  const hasZones = zones.length > 0;
+  const zone = hasZones ? zones.find((z) => z.id === zoneId) || null : null;
+  const zoneName = (z) => localized(z, 'name', lang);
+  // A zone with no fee or minimum of its own uses the restaurant-wide one.
+  const zoneFee = zone?.deliveryFee ?? Number(settings?.deliveryFee || 0);
+  const minimumOrder = !isPickup && zone ? Number(zone.minimumOrder ?? settings?.minimumOrder ?? 0) : 0;
+  const zoneClosed = !isPickup && zone?.branch?.openNow === false;
+  const pickupBranch = isPickup ? pickupLocations.find((b) => b.id === pickupLocationId) : null;
 
   const sub = subtotal();
   const discount = Number(promo?.discount || 0);
-  const deliveryFee = isPickup || promo?.freeDelivery ? 0 : Number(settings?.deliveryFee || 0);
+  const deliveryFee = isPickup || promo?.freeDelivery ? 0 : Number(zoneFee || 0);
   const discounted = Math.max(0, sub - discount);
   const serviceCharge = Number(((discounted * Number(settings?.serviceChargePercent || 0)) / 100).toFixed(3));
   const tax = Number((((discounted + serviceCharge) * Number(settings?.taxPercent || 0)) / 100).toFixed(3));
@@ -189,7 +236,7 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
     form.street,
     form.block,
     form.avenue,
-    form.area,
+    zone ? zoneName(zone) : form.area,
   ]
     .map((part) => String(part || '').trim())
     .filter(Boolean)
@@ -202,17 +249,35 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   const missingAddressFields = requiredAddressFields.filter((key) => !form[key].trim());
   const addressMissing = !isPickup && missingAddressFields.length > 0;
   const fieldError = (key) => addressTouched && missingAddressFields.includes(key);
+  const zoneMissing = !isPickup && hasZones && !zone;
   // Once the restaurant has set up named branches, "pickup" without saying
   // which one is not a complete order — there is nowhere for the kitchen to
   // hand it to.
   const branchMissing = isPickup && pickupLocations.length > 0 && !pickupLocationId;
-  const canSubmit = form.customerName.trim() && form.customerPhone.trim().length >= 6 && !branchMissing;
+  const belowMinimum = minimumOrder > 0 && sub < minimumOrder;
+  // Why the order can't go yet, shown right above the button that is disabled
+  // because of it. The server refuses all three anyway; this just says so first.
+  const blockedReason = zoneClosed
+    ? closedText(zone.branch, t, lang, t('checkout.zoneClosed'))
+    : pickupBranch?.openNow === false
+      ? closedText(pickupBranch, t, lang, t('checkout.closedNow'))
+      : belowMinimum
+        ? t('cart.minimumOrder', { amount: kwd(minimumOrder) })
+        : null;
+  const canSubmit =
+    form.customerName.trim() && form.customerPhone.trim().length >= 6 && !branchMissing && !blockedReason;
+
+  /** The zone a free-text or reverse-geocoded area name belongs to, if any. */
+  const matchZone = (name) => {
+    const key = normaliseArea(name);
+    return key ? zones.find((z) => [z.nameEn, z.nameAr].some((n) => n && normaliseArea(n) === key)) || null : null;
+  };
 
   const submit = async (viaWhatsapp) => {
     // A first tap with a required address field empty reveals exactly which
     // ones, the same way the reference address form does, rather than a
     // single generic error or a permanently disabled button.
-    if (addressMissing) return setAddressTouched(true);
+    if (addressMissing || zoneMissing) return setAddressTouched(true);
     setSubmitting(true);
     setError(null);
     try {
@@ -224,6 +289,13 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         paymentMethod: viaWhatsapp ? 'WHATSAPP' : form.paymentMethod,
         orderType,
         pickupLocationId: isPickup ? pickupLocationId : undefined,
+        // The zone decides fee, minimum and branch on the server; the parts
+        // let the kitchen and rider read the address without parsing it.
+        zoneId: isPickup || !zone ? undefined : zone.id,
+        area: isPickup ? undefined : zone?.nameEn || form.area || undefined,
+        block: isPickup ? undefined : form.block || undefined,
+        street: isPickup ? undefined : form.street || undefined,
+        building: isPickup ? undefined : form.building || undefined,
         deliveryLat: isPickup ? undefined : form.deliveryLat,
         deliveryLng: isPickup ? undefined : form.deliveryLng,
         promoCode: promo?.code,
@@ -272,8 +344,8 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         <div className="mt-8 w-full max-w-xs">
           <p className="text-xs font-bold uppercase tracking-wide text-ink-soft">{t('checkout.trackTitle')}</p>
           <ol className="mt-3 space-y-2.5">
-            {['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'].map((stage, index) => {
-              const reached = TRACK_STAGES.indexOf(tracked?.status || placed.status) >= index;
+            {(placed.orderType === 'PICKUP' ? PICKUP_TRACK_STAGES : TRACK_STAGES).map((stage, index, stages) => {
+              const reached = stages.indexOf(tracked?.status || placed.status) >= index;
               return (
                 <li key={stage} className="flex items-center gap-3 text-start">
                   <span
@@ -346,28 +418,41 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
           {isPickup && pickupLocations.length ? (
             <div className="mt-3 space-y-2">
               <p className="text-xs font-bold text-ink">{t('checkout.collectFrom')}</p>
-              {pickupLocations.map((branch) => (
-                <label
-                  key={branch.id}
-                  className={`flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 text-xs leading-relaxed transition ${
-                    pickupLocationId === branch.id ? 'border-brand bg-surface' : 'border-hairline'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="pickupLocation"
-                    className="mt-0.5 h-4 w-4 accent-brand"
-                    checked={pickupLocationId === branch.id}
-                    onChange={() => setPickupLocationId(branch.id)}
-                  />
-                  <span>
-                    <span className="block font-bold text-ink">{localized(branch, 'name', lang)}</span>
-                    {localized(branch, 'address', lang) ? (
-                      <span className="block text-ink-soft">{localized(branch, 'address', lang)}</span>
-                    ) : null}
-                  </span>
-                </label>
-              ))}
+              {pickupLocations.map((branch) => {
+                // openNow is absent on an older API; only an explicit false closes the branch.
+                const closed = branch.openNow === false;
+                return (
+                  <label
+                    key={branch.id}
+                    className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-xs leading-relaxed transition ${
+                      pickupLocationId === branch.id ? 'border-brand bg-surface' : 'border-hairline'
+                    } ${closed ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+                  >
+                    <input
+                      type="radio"
+                      name="pickupLocation"
+                      className="mt-0.5 h-4 w-4 accent-brand"
+                      checked={pickupLocationId === branch.id}
+                      disabled={closed}
+                      onChange={() => setPickupLocationId(branch.id)}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-ink">{localized(branch, 'name', lang)}</span>
+                        {branch.openNow === true ? (
+                          <span className="chip bg-discount/10 text-discount">{t('checkout.openNow')}</span>
+                        ) : null}
+                      </span>
+                      {localized(branch, 'address', lang) ? (
+                        <span className="block text-ink-soft">{localized(branch, 'address', lang)}</span>
+                      ) : null}
+                      {closed ? (
+                        <span className="block font-semibold text-brand">{closedText(branch, t, lang, t('checkout.closedNow'))}</span>
+                      ) : null}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           ) : isPickup ? (
             <p className="mt-3 rounded-xl bg-surface px-3 py-2.5 text-xs leading-relaxed text-ink-soft">
@@ -406,7 +491,50 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
               </div>
               <div className="mt-3 rounded-xl bg-surface px-3 py-2.5">
                 <label className="label">{t('checkout.area')}</label>
-                <input className="input" value={form.area} onChange={set('area')} />
+                {hasZones ? (
+                  <>
+                    <select
+                      className={`input ${addressTouched && zoneMissing ? 'border-brand' : ''}`}
+                      value={zoneId || ''}
+                      onChange={(event) => setZoneId(event.target.value || null)}
+                    >
+                      <option value="">{t('checkout.chooseArea')}</option>
+                      {zones.map((z) => (
+                        <option key={z.id} value={z.id}>
+                          {zoneName(z)}
+                        </option>
+                      ))}
+                    </select>
+                    {addressTouched && zoneMissing ? (
+                      <p className="mt-1 text-xs font-semibold text-brand">{t('checkout.areaRequired')}</p>
+                    ) : null}
+                    {zone ? (
+                      <div className="mt-2 space-y-1 text-xs">
+                        <p className="flex justify-between gap-2">
+                          <span className="text-ink-soft">{t('cart.deliveryFee')}</span>
+                          <span className="font-semibold">{zoneFee > 0 ? kwd(zoneFee) : t('store.freeDelivery')}</span>
+                        </p>
+                        {minimumOrder > 0 ? (
+                          <p className="flex justify-between gap-2">
+                            <span className="text-ink-soft">{t('checkout.minimumOrder')}</span>
+                            <span className="font-semibold">{kwd(minimumOrder)}</span>
+                          </p>
+                        ) : null}
+                        {zone.etaMinutes ? (
+                          <p className="flex justify-between gap-2">
+                            <span className="text-ink-soft">{t('checkout.deliveryTime')}</span>
+                            <span className="font-semibold">{t('checkout.etaMinutes', { minutes: zone.etaMinutes })}</span>
+                          </p>
+                        ) : null}
+                        {zoneClosed ? (
+                          <p className="pt-1 font-semibold text-brand">{closedText(zone.branch, t, lang, t('checkout.zoneClosed'))}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <input className="input" value={form.area} onChange={set('area')} />
+                )}
               </div>
 
               <div className="mt-3 flex gap-2">
@@ -561,6 +689,12 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
                 <span className="font-medium">{deliveryFee > 0 ? kwd(deliveryFee) : t('store.freeDelivery')}</span>
               </div>
             ) : null}
+            {!isPickup && zone?.etaMinutes ? (
+              <div className="flex justify-between">
+                <span className="text-ink-soft">{t('checkout.deliveryTime')}</span>
+                <span className="font-medium">{t('checkout.etaMinutes', { minutes: zone.etaMinutes })}</span>
+              </div>
+            ) : null}
             {serviceCharge > 0 ? (
               <div className="flex justify-between">
                 <span className="text-ink-soft">{t('cart.serviceCharge')}</span>
@@ -589,6 +723,7 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
 
       <div className="border-t border-hairline bg-white p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         {error ? <p className="mb-2 text-center text-xs font-semibold text-brand">{error}</p> : null}
+        {blockedReason && !error ? <p className="mb-2 text-center text-xs font-semibold text-brand">{blockedReason}</p> : null}
         <button
           type="button"
           className="btn-primary w-full justify-between py-4"
@@ -610,10 +745,12 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
 
       <LocationPicker
         open={locationOpen}
-        areas={KUWAIT_AREAS}
+        areas={hasZones ? zones.map(zoneName) : KUWAIT_AREAS}
         onClose={() => setLocationOpen(false)}
         onConfirm={async ({ area, lat, lng }) => {
-          if (area) setForm((current) => ({ ...current, area }));
+          // With zones, the no-map area list shows zone names; picking one picks that zone.
+          if (area && hasZones) setZoneId(zones.find((z) => zoneName(z) === area)?.id || zoneId);
+          else if (area) setForm((current) => ({ ...current, area }));
           setForm((current) => ({ ...current, deliveryLat: lat, deliveryLng: lng }));
           setLocationOpen(false);
           // Only a real map pin is worth looking up — the no-map fallback
@@ -621,6 +758,9 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
           // never actually placed anywhere meaningful.
           if (lat == null || lng == null) return;
           const found = await reverseGeocode(lat, lng);
+          // A pinned area that matches a zone fills the selector, unless one is already chosen.
+          const pinnedZone = hasZones ? matchZone(found.area) : null;
+          if (pinnedZone) setZoneId((current) => current || pinnedZone.id);
           setForm((current) => ({
             ...current,
             // Never overwrites something the customer already typed —

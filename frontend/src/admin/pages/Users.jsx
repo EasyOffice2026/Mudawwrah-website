@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from '../../components/Modal.jsx';
 import { api, apiError } from '../../lib/api';
-import { dateTime, kwd } from '../../lib/format';
+import { dateTime, kwd, localized } from '../../lib/format';
 
-const ROLES = ['ADMIN', 'STAFF', 'CUSTOMER'];
-const empty = { email: '', password: '', name: '', phone: '', role: 'STAFF', isActive: true };
+const ROLES = ['ADMIN', 'STAFF', 'BRANCH', 'CUSTOMER'];
+const empty = { email: '', password: '', name: '', phone: '', role: 'STAFF', branchId: '', isActive: true };
 
 export default function Users() {
   const { t, i18n } = useTranslation();
@@ -15,6 +15,17 @@ export default function Users() {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  // For BRANCH accounts, which must be tied to one branch.
+  const [branches, setBranches] = useState([]);
+  const lang = i18n.language;
+  const roleLabel = (role) => t(`admin.roles.${role}`, role);
+
+  useEffect(() => {
+    api
+      .get('/pickup-locations/all')
+      .then(({ data }) => setBranches(data))
+      .catch(() => setBranches([]));
+  }, []);
 
   const load = async () => {
     try {
@@ -37,7 +48,9 @@ export default function Users() {
     event.preventDefault();
     setSaving(true);
     try {
-      const { id, _count, createdAt, orders, ...rest } = form;
+      const { id, _count, createdAt, orders, branch, ...rest } = form;
+      // Only a branch account carries a branch; changing someone's role away from BRANCH clears it.
+      rest.branchId = rest.role === 'BRANCH' ? rest.branchId || null : null;
       if (id) {
         const payload = { ...rest };
         if (!payload.password) delete payload.password;
@@ -89,7 +102,7 @@ export default function Users() {
             <option value="">{t('common.all')}</option>
             {ROLES.map((role) => (
               <option key={role} value={role}>
-                {role}
+                {roleLabel(role)}
               </option>
             ))}
           </select>
@@ -106,9 +119,10 @@ export default function Users() {
         <table className="w-full text-sm">
           <thead className="text-xs uppercase text-gray-500">
             <tr>
-              <th className="py-2 text-start">Name</th>
-              <th className="py-2 text-start">Email</th>
+              <th className="py-2 text-start">{t('admin.name')}</th>
+              <th className="py-2 text-start">{t('admin.email')}</th>
               <th className="py-2 text-start">{t('admin.role')}</th>
+              <th className="py-2 text-start">{t('admin.branch')}</th>
               <th className="py-2 text-start">{t('admin.active')}</th>
               <th className="py-2 text-start">{t('admin.orders')}</th>
               <th />
@@ -119,7 +133,8 @@ export default function Users() {
               <tr key={user.id} className="border-t border-gray-100">
                 <td className="py-2 font-semibold">{user.name}</td>
                 <td className="py-2 text-gray-500">{user.email}</td>
-                <td className="py-2">{user.role}</td>
+                <td className="py-2">{roleLabel(user.role)}</td>
+                <td className="py-2">{user.branch ? localized(user.branch, 'name', lang) : '—'}</td>
                 <td className="py-2">{user.isActive ? t('common.yes') : t('common.no')}</td>
                 <td className="py-2">{user._count?.orders ?? 0}</td>
                 <td className="py-2 text-end">
@@ -127,7 +142,7 @@ export default function Users() {
                     <button type="button" className="underline" onClick={() => openDetail(user.id)}>
                       {t('admin.view')}
                     </button>
-                    <button type="button" className="underline" onClick={() => setForm({ ...user, password: '' })}>
+                    <button type="button" className="underline" onClick={() => setForm({ ...user, branchId: user.branchId || '', password: '' })}>
                       {t('common.edit')}
                     </button>
                     <button type="button" className="text-brand underline" onClick={() => remove(user.id)}>
@@ -139,7 +154,7 @@ export default function Users() {
             ))}
             {!users.length ? (
               <tr>
-                <td colSpan={6} className="py-6 text-center text-gray-500">
+                <td colSpan={7} className="py-6 text-center text-gray-500">
                   {t('common.noResults')}
                 </td>
               </tr>
@@ -161,7 +176,7 @@ export default function Users() {
         {form ? (
           <form id="user-form" onSubmit={save} className="space-y-3">
             <div>
-              <label className="label">Name</label>
+              <label className="label">{t('admin.name')}</label>
               <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
@@ -170,7 +185,7 @@ export default function Users() {
             </div>
             <div>
               <label className="label">
-                {t('admin.password')} {form.id ? '(leave blank to keep)' : ''}
+                {t('admin.password')} {form.id ? t('admin.passwordKeep') : ''}
               </label>
               <input
                 type="password"
@@ -181,7 +196,7 @@ export default function Users() {
               />
             </div>
             <div>
-              <label className="label">Phone</label>
+              <label className="label">{t('admin.phone')}</label>
               <input className="input" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </div>
             <div>
@@ -189,11 +204,30 @@ export default function Users() {
               <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
                 {ROLES.map((role) => (
                   <option key={role} value={role}>
-                    {role}
+                    {roleLabel(role)}
                   </option>
                 ))}
               </select>
             </div>
+            {form.role === 'BRANCH' ? (
+              <div>
+                <label className="label">{t('admin.branch')}</label>
+                <select
+                  className="input"
+                  required
+                  value={form.branchId || ''}
+                  onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+                >
+                  <option value="">{t('admin.chooseBranch')}</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {localized(branch, 'name', lang)}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">{t('admin.branchRequired')}</p>
+              </div>
+            ) : null}
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -211,7 +245,8 @@ export default function Users() {
         {detail ? (
           <div className="space-y-3 text-sm">
             <p className="text-gray-500">
-              {detail.email} · {detail.role}
+              {detail.email} · {roleLabel(detail.role)}
+              {detail.branch ? ` · ${localized(detail.branch, 'name', lang)}` : ''}
             </p>
             <h4 className="font-bold">{t('admin.orders')}</h4>
             {!detail.orders?.length ? (
@@ -222,7 +257,7 @@ export default function Users() {
                   <li key={order.id} className="flex justify-between py-2">
                     <span>
                       {order.orderNumber}
-                      <span className="ms-2 text-xs text-gray-500">{dateTime(order.createdAt, i18n.language)}</span>
+                      <span className="ms-2 text-xs text-gray-500">{dateTime(order.createdAt, lang)}</span>
                     </span>
                     <span className="font-semibold">{kwd(order.total)}</span>
                   </li>
