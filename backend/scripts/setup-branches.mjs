@@ -15,7 +15,7 @@ const week = (open, close) =>
 const ALL_DAY = week('00:00', '00:00');
 
 // Areas read off the delivery maps the client sent (only those labelled inside
-// each branch's red area). Sabah Al-Ahmad's areas are still to be confirmed.
+// each branch's red area), confirmed by the client; Moath may still add areas.
 const BRANCHES = [
   {
     name: 'Al Aqeelah',
@@ -56,7 +56,8 @@ const BRANCHES = [
       ['Sulaibiya', 'الصليبية'],
     ],
   },
-  { name: 'Sabah Al Ahmed', hours: week('04:00', '16:00'), areas: [] },
+  // Delivers to its own area only (client, 2 Oct).
+  { name: 'Sabah Al Ahmed', hours: week('04:00', '16:00'), areas: [['Sabah Al-Ahmad', 'صباح الأحمد']] },
 ];
 
 const args = process.argv.slice(2);
