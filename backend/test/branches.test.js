@@ -27,6 +27,8 @@ const fridayPrayer = { 5: { breaks: [{ from: '11:30', to: '13:00' }] } };
 const ALWAYS = week({ open: '00:00', close: '00:00' }, fridayPrayer); // 24h, closes for Jumu'ah
 const SABAH = week({ open: '04:00', close: '16:00' }, fridayPrayer);
 const NEVER = week({ open: '09:00', close: '23:00', closed: true });
+// Always open, with no break: the order tests must not depend on the day or time they run.
+const OPEN_24 = week({ open: '00:00', close: '00:00' });
 
 test('hours: 24h branches, Sabah Al-Ahmad 04:00–16:00 and the Friday prayer break, in Kuwait time', () => {
   assert.equal(isOpenAt(ALWAYS, kw('2026-10-01T03:00:00')), true, '24h on Thursday night');
@@ -74,8 +76,8 @@ before(async () => {
   const password = await bcrypt.hash('secret123', 4);
   await prisma.user.create({ data: { tenantId: t, email: 'owner@test.kw', password, name: 'Owner', role: 'ADMIN' } });
   const branch = (nameEn, hours, allowedIps = []) => prisma.pickupLocation.create({ data: { tenantId: t, nameEn, hours, allowedIps, prepMinutes: 20 } });
-  ids.jahra = (await branch('Al Jahra', ALWAYS, ['10.0.0.1'])).id;
-  ids.ardiya = (await branch('Al Ardiya', ALWAYS)).id;
+  ids.jahra = (await branch('Al Jahra', OPEN_24, ['10.0.0.1'])).id;
+  ids.ardiya = (await branch('Al Ardiya', OPEN_24)).id;
   ids.closed = (await branch('Closed Branch', NEVER)).id;
   const category = await prisma.category.create({ data: { tenantId: t, nameEn: 'Mains', nameAr: 'رئيسي', slug: 'mains' } });
   ids.shawarma = (await prisma.menuItem.create({ data: { tenantId: t, nameEn: 'Shawarma', price: 1.5, categoryId: category.id } })).id;
