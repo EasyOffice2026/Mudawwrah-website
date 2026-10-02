@@ -326,7 +326,7 @@
       "addBreak": "+ Break",
       "breakLabel": "Break",
       "removeBreak": "Remove break",
-      "fridayPrayer": "Add Friday prayer break 11:30–13:00",
+      "fridayPrayer": "Add Friday prayer break 11:00–12:00",
       "allowedIps": "Allowed IPs",
       "allowedIpsHint": "The branch's static internet addresses, one per line. Branch staff accounts can only sign in from these. Leave empty for no restriction.",
       "allowedIpsPlaceholder": "e.g. 37.39.10.20",

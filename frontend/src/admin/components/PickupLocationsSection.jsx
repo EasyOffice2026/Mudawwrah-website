@@ -6,7 +6,7 @@ import { useAuth } from '../../store/auth';
 const DAYS = [0, 1, 2, 3, 4, 5, 6];
 const FRIDAY = 5;
 // Friday prayer, when most branches here stop taking orders.
-const PRAYER_BREAK = { from: '11:30', to: '13:00' };
+const PRAYER_BREAK = { from: '11:00', to: '12:00' };
 // Equal open and close is how the API stores "open 24 hours".
 const ALL_DAY = '00:00';
 
