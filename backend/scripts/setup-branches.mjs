@@ -17,9 +17,11 @@ const ALL_DAY = week('00:00', '00:00');
 // Areas from the client's sheet "Modawarah-Delivery Areas Branches.xlsx" (3 Oct):
 // 52 + 39 + 23 + 1 = 115, plus Ardiya itself (client, 4 Oct). Arabic spellings tidied (e.g. محفظة → محافظة, الصيبية → الصبية).
 // Branch Arabic names and addresses are filled only where empty or saved as "???".
+// Static IPs (client, 4 Oct) replace the branch list when given; Sabah Al-Ahmad still to confirm.
 const BRANCHES = [
   {
     name: 'Al Ardiya',
+    allowedIps: ['188.71.216.23'],
     nameAr: 'العارضية',
     addressEn: 'Al-Ardiya Industrial – 5th Ring Road – Next to Shawarma Factory',
     addressAr: 'العارضية الصناعية – على الدائري الخامس – بجوار شاورما فاكتوري',
@@ -82,6 +84,7 @@ const BRANCHES = [
   },
   {
     name: 'Al Aqeelah',
+    allowedIps: ['188.71.248.76'],
     nameAr: 'العقيلة',
     addressEn: 'Wadha Complex, beside Sama Mall',
     addressAr: 'مجمع وضحة بجانب سما مول',
@@ -130,6 +133,7 @@ const BRANCHES = [
   },
   {
     name: 'Al Jahra',
+    allowedIps: ['37.231.157.252'],
     nameAr: 'الجهراء',
     addressEn: 'Al-Dana Complex, outside street after Shaker Shawarma',
     addressAr: 'مجمع الدانا، الشارع من برا بعد شاورما شاكر',
@@ -209,6 +213,10 @@ try {
     console.log(`${branch.nameEn}: hours ${sample}, Friday break ${FRIDAY_PRAYER.from}–${FRIDAY_PRAYER.to}`);
     const blank = (text) => !text || /^[?\s]+$/.test(text);
     const details = { hours: plan.hours };
+    if (plan.allowedIps) {
+      details.allowedIps = plan.allowedIps;
+      console.log(`  ips    ${plan.allowedIps.join(', ')}`);
+    }
     for (const key of ['nameAr', 'addressEn', 'addressAr']) {
       if (blank(branch[key]) && plan[key]) {
         details[key] = plan[key];
