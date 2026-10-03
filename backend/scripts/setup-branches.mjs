@@ -15,7 +15,7 @@ const week = (open, close) =>
 const ALL_DAY = week('00:00', '00:00');
 
 // Areas from the client's sheet "Modawarah-Delivery Areas Branches.xlsx" (3 Oct):
-// 52 + 39 + 23 + 1 = 115. Arabic spellings tidied (e.g. محفظة → محافظة, الصيبية → الصبية).
+// 52 + 39 + 23 + 1 = 115, plus Ardiya itself (client, 4 Oct). Arabic spellings tidied (e.g. محفظة → محافظة, الصيبية → الصبية).
 // Branch Arabic names and addresses are filled only where empty or saved as "???".
 const BRANCHES = [
   {
@@ -25,6 +25,7 @@ const BRANCHES = [
     addressAr: 'العارضية الصناعية – على الدائري الخامس – بجوار شاورما فاكتوري',
     hours: ALL_DAY,
     areas: [
+      ['Ardiya', 'العارضية'],
       ['Riggae', 'الرقعي'],
       ['Abdullah Al-Mubarak', 'عبدالله المبارك'],
       ['Al-Rai', 'الري'],
@@ -130,8 +131,8 @@ const BRANCHES = [
   {
     name: 'Al Jahra',
     nameAr: 'الجهراء',
-    addressEn: 'Al-Dana Complex',
-    addressAr: 'مجمع الدانا',
+    addressEn: 'Al-Dana Complex, outside street after Shaker Shawarma',
+    addressAr: 'مجمع الدانا، الشارع من برا بعد شاورما شاكر',
     hours: ALL_DAY,
     areas: [
       ['Naeem', 'النعيم'],
