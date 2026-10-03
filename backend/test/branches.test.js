@@ -86,6 +86,11 @@ before(async () => {
   ids.zJahra = (await zone('Jahra', 'الجهراء', ids.jahra, { deliveryFee: 0.5, minimumOrder: 2 })).id;
   ids.zArdiya = (await zone('Ardiya', 'العارضية', ids.ardiya, { deliveryFee: 0.75, minimumOrder: 4, etaMinutes: 40 })).id;
   ids.zClosed = (await zone('Qasr', 'القصر', ids.closed)).id;
+  // Areas listed under two branches: the first serves while open, the second covers when it is closed.
+  ids.zSabahOwn = (await zone('Sabah Al-Ahmad', 'صباح الأحمد', ids.closed, { displayOrder: 0 })).id;
+  ids.zSabahBackup = (await zone('Sabah Al-Ahmad', 'صباح الأحمد', ids.ardiya, { displayOrder: 1 })).id;
+  ids.zRiggaePrimary = (await zone('Riggae', 'الرقعي', ids.jahra, { displayOrder: 0 })).id;
+  await zone('Riggae', 'الرقعي', ids.ardiya, { displayOrder: 1 });
 
   // A second restaurant whose branch must stay invisible to the first.
   const other = await prisma.tenant.create({ data: { slug: 'othertest', nameEn: 'Other', nameAr: 'آخر' } });
@@ -132,6 +137,25 @@ test('delivery is refused for an uncovered area, a closed branch, or below the z
   const below = await call('POST', '/orders', { body: order({ orderType: 'DELIVERY', zoneId: ids.zArdiya }) });
   assert.equal(below.status, 422, 'Ardiya minimum is 4.000; 2 shawarma are 3.000');
   assert.match(below.body.error || below.body.message, /4\.000/);
+});
+
+test('an area listed under two branches goes to the first open one, and customers see it once', async () => {
+  const zones = (await call('GET', '/zones')).body;
+  const sabah = zones.filter((z) => z.nameEn === 'Sabah Al-Ahmad');
+  assert.equal(sabah.length, 1);
+  assert.equal(sabah[0].id, ids.zSabahBackup, 'own branch closed: the backup serves it');
+  assert.equal(sabah[0].branch.openNow, true);
+  assert.equal(zones.find((z) => z.nameEn === 'Riggae').id, ids.zRiggaePrimary, 'first branch open: it keeps the area');
+
+  const typed = await call('POST', '/orders', { body: order({ orderType: 'DELIVERY', area: 'صباح الاحمد' }) });
+  assert.equal(typed.status, 201, JSON.stringify(typed.body));
+  assert.equal(typed.body.branchId, ids.ardiya);
+  assert.equal(typed.body.zoneId, ids.zSabahBackup);
+  // A screen loaded while the own branch was open still lands on whoever serves it now.
+  const stale = await call('POST', '/orders', { body: order({ orderType: 'DELIVERY', zoneId: ids.zSabahOwn }) });
+  assert.equal(stale.body.branchId, ids.ardiya);
+  const riggae = await call('POST', '/orders', { body: order({ orderType: 'DELIVERY', area: 'Riggae' }) });
+  assert.equal(riggae.body.branchId, ids.jahra);
 });
 
 test('pickup needs a branch when branches exist, and a closed branch cannot take it', async () => {
@@ -233,7 +257,7 @@ test('public lists: branches with open status and no IPs; zones with their branc
   assert.equal(closed.openNow, false);
 
   const zones = (await call('GET', '/zones')).body;
-  assert.deepEqual(zones.map((z) => z.nameEn).sort(), ['Ardiya', 'Jahra', 'Qasr']);
+  assert.deepEqual(zones.map((z) => z.nameEn).sort(), ['Ardiya', 'Jahra', 'Qasr', 'Riggae', 'Sabah Al-Ahmad']);
   const ardiya = zones.find((z) => z.nameEn === 'Ardiya');
   assert.equal(ardiya.deliveryFee, 0.75);
   assert.equal(ardiya.etaMinutes, 40);

@@ -14,51 +14,172 @@ const week = (open, close) =>
   Array.from({ length: 7 }, (_, day) => ({ day, open, close, closed: false, breaks: day === 5 ? [FRIDAY_PRAYER] : [] }));
 const ALL_DAY = week('00:00', '00:00');
 
-// Areas read off the delivery maps the client sent (only those labelled inside
-// each branch's red area), confirmed by the client; Moath may still add areas.
+// Areas from the client's sheet "Modawarah-Delivery Areas Branches.xlsx" (3 Oct):
+// 52 + 39 + 23 + 1 = 115. Arabic spellings tidied (e.g. محفظة → محافظة, الصيبية → الصبية).
+// Branch Arabic names and addresses are filled only where empty or saved as "???".
 const BRANCHES = [
   {
+    name: 'Al Ardiya',
+    nameAr: 'العارضية',
+    addressEn: 'Al-Ardiya Industrial – 5th Ring Road – Next to Shawarma Factory',
+    addressAr: 'العارضية الصناعية – على الدائري الخامس – بجوار شاورما فاكتوري',
+    hours: ALL_DAY,
+    areas: [
+      ['Riggae', 'الرقعي'],
+      ['Abdullah Al-Mubarak', 'عبدالله المبارك'],
+      ['Al-Rai', 'الري'],
+      ['Andalous', 'الأندلس'],
+      ['Rihab', 'الرحاب'],
+      ['Firdous', 'الفردوس'],
+      ['Sabah Al-Nasser', 'صباح الناصر'],
+      ['Sulaibiya', 'الصليبية'],
+      ['Gharnata', 'غرناطة'],
+      ['Ministries Area', 'منطقة الوزارات'],
+      ['Sulaibikhat', 'الصليبيخات'],
+      ['Farwaniya', 'الفروانية'],
+      ['Shuwaikh Residential', 'الشويخ السكنية'],
+      ['Shuwaikh Industrial', 'الشويخ الصناعية'],
+      ['Shuwaikh Health', 'الشويخ الصحية'],
+      ['Jleeb Al-Shuyoukh', 'جليب الشيوخ'],
+      ['Mansouriya', 'المنصورية'],
+      ['Salmiya', 'السالمية'],
+      ['Bayan', 'بيان'],
+      ['Hawally', 'حولي'],
+      ['Bneid Al-Qar', 'بنيد القار'],
+      ['Khaldiya', 'الخالدية'],
+      ['Salhiya', 'الصالحية'],
+      ['West Abdullah Al-Mubarak', 'غرب عبدالله المبارك'],
+      ['South Abdullah Al-Mubarak', 'جنوب عبدالله المبارك'],
+      ['Faiha', 'الفيحاء'],
+      ['Siddiq', 'الصديق'],
+      ['Nuzha', 'النزهة'],
+      ['Nahda', 'النهضة'],
+      ['Dajeej', 'الضجيج'],
+      ['Qairawan', 'القيروان'],
+      ['Rawda', 'الروضة'],
+      ['Ishbiliya', 'إشبيلية'],
+      ['Kaifan', 'كيفان'],
+      ['Qurtuba', 'قرطبة'],
+      ['Omariya', 'العمرية'],
+      ['Northwest Sulaibikhat', 'شمال غرب الصليبيخات'],
+      ['Shuhada', 'الشهداء'],
+      ['Hateen', 'حطين'],
+      ['Shaab', 'الشعب'],
+      ['Rabiya', 'الرابية'],
+      ['Khaitan', 'خيطان'],
+      ['South Surra', 'جنوب السرة'],
+      ['Jabriya', 'الجابرية'],
+      ['Salam', 'السلام'],
+      ['Capital', 'العاصمة'],
+      ['Airport', 'المطار'],
+      ['Rumaithiya', 'الرميثية'],
+      ['Zahra', 'الزهراء'],
+      ['Qadsiya', 'القادسية'],
+      ['Qibla', 'القبلة'],
+      ['Sharq', 'شرق'],
+    ],
+  },
+  {
     name: 'Al Aqeelah',
+    nameAr: 'العقيلة',
+    addressEn: 'Wadha Complex, beside Sama Mall',
+    addressAr: 'مجمع وضحة بجانب سما مول',
     hours: ALL_DAY,
     areas: [
       ['Egaila', 'العقيلة'],
-      ['Sabah Al-Salem', 'صباح السالم'],
-      ['Al-Masayel', 'المسايل'],
-      ['Fnaitees', 'فنيطيس'],
-      ['Mubarak Al-Kabeer', 'مبارك الكبير'],
-      ['Daher', 'الظهر'],
+      ['Riqqah', 'الرقة'],
+      ['Fahd Al-Ahmad', 'فهد الأحمد'],
       ['Mahboula', 'المهبولة'],
+      ['Hadiya', 'هدية'],
+      ['Abu Halifa', 'أبو حليفة'],
+      ['Sabahiya', 'الصباحية'],
       ['Mangaf', 'المنقف'],
       ['Fahaheel', 'الفحيحيل'],
+      ['Fintas', 'الفنطاس'],
+      ['Daher', 'الظهر'],
+      ['Jaber Al-Ali', 'جابر العلي'],
+      ['North Ahmadi', 'شمال الأحمدي'],
+      ['Ahmadi', 'الأحمدي'],
+      ['Qusour', 'القصور'],
+      ['Adan', 'العدان'],
+      ['West Mishref', 'غرب مشرف'],
+      ['Abu Fatira', 'أبو فطيرة'],
+      ['Messila', 'المسيلة'],
+      ['Fnaitees', 'الفنيطيس'],
+      ['Umm Al-Haiman', 'أم الهيمان'],
+      ['Sabah Al-Salem', 'صباح السالم'],
+      ['Ali Sabah Al-Salem', 'علي صباح السالم'],
+      ['Mina Abdullah', 'ميناء عبدالله'],
+      ['Mina Abdullah Chalets', 'شاليهات ميناء عبدالله'],
+      ['Sabah Al-Ahmad', 'صباح الأحمد'],
+      ['Hateen', 'حطين'],
+      ['Al-Masayel', 'المسايل'],
+      ['South Ahmadi', 'جنوب الأحمدي'],
+      ['East Ahmadi', 'شرق الأحمدي'],
+      ['South Sabahiya', 'جنوب الصباحية'],
+      ['Mubarak Al-Kabeer', 'مبارك الكبير'],
+      ['Surra', 'السرة'],
+      ['Qadsiya', 'القادسية'],
+      ['Subhan', 'صبحان'],
+      ['Qurain', 'القرين'],
+      ['Mishref', 'مشرف'],
+      ['Salwa', 'سلوى'],
+      ['Ahmadi Stables', 'إسطبلات الأحمدي'],
     ],
   },
   {
     name: 'Al Jahra',
+    nameAr: 'الجهراء',
+    addressEn: 'Al-Dana Complex',
+    addressAr: 'مجمع الدانا',
     hours: ALL_DAY,
     areas: [
-      ['Jahra', 'الجهراء'],
-      ['Al-Waha', 'الواحة'],
+      ['Naeem', 'النعيم'],
+      ['Jahra Governorate', 'محافظة الجهراء'],
+      ['Naseem', 'النسيم'],
       ['Al-Qasr', 'القصر'],
+      ['Taima', 'تيماء'],
+      ['Old Jahra', 'الجهراء القديمة'],
       ['Jahra Industrial', 'الجهراء الصناعية'],
+      ['Oyoun', 'العيون'],
+      ['Al-Waha', 'الواحة'],
+      ['Othman Plots', 'قسائم العثمان'],
       ['Saad Al-Abdullah', 'سعد العبدالله'],
+      ['Amghara', 'أمغرة'],
+      ['Jaber Al-Ahmad', 'جابر الأحمد'],
+      ['Doha', 'الدوحة'],
+      ['Mutlaa', 'المطلاع'],
+      ['Jahra Stables', 'إسطبلات الجهراء'],
+      ['Riggae', 'الرقعي'],
+      ['Farwaniya', 'الفروانية'],
+      ['Kabd', 'كبد'],
+      ['East Taima', 'شرق تيماء'],
+      ['West Doha', 'الدوحة الغربية'],
+      ['Sabbiya', 'الصبية'],
+      ['Doha Port', 'ميناء الدوحة'],
     ],
   },
   {
-    name: 'Al Ardiya',
-    hours: ALL_DAY,
-    areas: [
-      ['Ardiya', 'العارضية'],
-      ['Firdous', 'الفردوس'],
-      ['Sabah Al-Nasser', 'صباح الناصر'],
-      ['Al-Rai', 'الري'],
-      ['Shuwaikh Industrial', 'الشويخ الصناعية'],
-      ['Farwaniya', 'الفروانية'],
-      ['Sulaibiya', 'الصليبية'],
-    ],
+    // All of Sabah Al-Ahmad City: blocks A–E, residential and government plots.
+    name: 'Sabah Al Ahmed',
+    nameAr: 'صباح الأحمد',
+    addressEn: 'Sabah Al-Ahmad City Cooperative Society – B2',
+    addressAr: 'جمعية مدينة صباح الأحمد التعاونية – قطاع B2',
+    hours: week('04:00', '16:00'),
+    areas: [['Sabah Al-Ahmad', 'صباح الأحمد']],
   },
-  // Delivers to its own area only (client, 2 Oct).
-  { name: 'Sabah Al Ahmed', hours: week('04:00', '16:00'), areas: [['Sabah Al-Ahmad', 'صباح الأحمد']] },
 ];
+
+// Areas the sheet lists under two branches: [first choice, cover when it is closed].
+// Sabah Al-Ahmad's own branch closes at 16:00, so Al Aqeelah takes the rest of the day;
+// the others go to the nearer branch (all three are open 24 hours).
+const SHARED = {
+  'Sabah Al-Ahmad': ['Sabah Al Ahmed', 'Al Aqeelah'],
+  Riggae: ['Al Ardiya', 'Al Jahra'],
+  Farwaniya: ['Al Ardiya', 'Al Jahra'],
+  Qadsiya: ['Al Ardiya', 'Al Aqeelah'],
+  Hateen: ['Al Ardiya', 'Al Aqeelah'],
+};
 
 const args = process.argv.slice(2);
 const apply = args.includes('--apply');
@@ -85,27 +206,40 @@ try {
     }
     const sample = plan.hours[0].open === plan.hours[0].close ? '24 hours' : `${plan.hours[0].open}–${plan.hours[0].close}`;
     console.log(`${branch.nameEn}: hours ${sample}, Friday break ${FRIDAY_PRAYER.from}–${FRIDAY_PRAYER.to}`);
-    if (apply) await prisma.pickupLocation.update({ where: { id: branch.id }, data: { hours: plan.hours } });
+    const blank = (text) => !text || /^[?\s]+$/.test(text);
+    const details = { hours: plan.hours };
+    for (const key of ['nameAr', 'addressEn', 'addressAr']) {
+      if (blank(branch[key]) && plan[key]) {
+        details[key] = plan[key];
+        console.log(`  set    ${key}: ${plan[key]}`);
+      }
+    }
+    if (apply) await prisma.pickupLocation.update({ where: { id: branch.id }, data: details });
 
     const zones = await prisma.deliveryZone.findMany({ where: { tenantId: tenant.id, branchId: branch.id } });
     for (const [nameEn, nameAr] of plan.areas) {
       const zone = zones.find((z) => loose(z.nameEn) === loose(nameEn));
-      console.log(`  ${zone ? 'update' : 'add   '} ${nameEn} / ${nameAr}`);
+      const shared = SHARED[nameEn];
+      const displayOrder = shared && loose(shared[0]) !== loose(plan.name) ? 1 : 0;
+      const note = !shared ? '' : displayOrder ? `  (covers when ${shared[0]} is closed)` : '  (first choice)';
+      console.log(`  ${zone ? 'update' : 'add   '} ${nameEn} / ${nameAr}${note}`);
       if (!apply) continue;
-      if (zone) await prisma.deliveryZone.update({ where: { id: zone.id }, data: { nameEn, nameAr, isActive: true } });
-      else await prisma.deliveryZone.create({ data: { tenantId: tenant.id, branchId: branch.id, nameEn, nameAr } });
+      const data = { nameEn, nameAr, isActive: true, displayOrder };
+      if (zone) await prisma.deliveryZone.update({ where: { id: zone.id }, data });
+      else await prisma.deliveryZone.create({ data: { tenantId: tenant.id, branchId: branch.id, ...data } });
     }
     const extra = zones.filter((z) => !plan.areas.some(([nameEn]) => loose(nameEn) === loose(z.nameEn)));
     for (const z of extra) console.log(`  keep   ${z.nameEn} (already there, not in this list)`);
     if (!plan.areas.length) console.log('  (no delivery areas yet)');
   }
 
-  // Another branch's area with the same name would make an address ambiguous.
+  // An area under two branches is fine when planned (SHARED); anything else is worth a look.
   const all = await prisma.deliveryZone.findMany({ where: { tenantId: tenant.id }, include: { branch: { select: { nameEn: true } } } });
   const seen = new Map();
   for (const z of all) {
     const key = loose(z.nameEn);
-    if (seen.has(key) && seen.get(key) !== z.branch.nameEn) console.log(`! "${z.nameEn}" is served by both ${seen.get(key)} and ${z.branch.nameEn}`);
+    const planned = Object.keys(SHARED).some((name) => loose(name) === key);
+    if (seen.has(key) && seen.get(key) !== z.branch.nameEn && !planned) console.log(`! "${z.nameEn}" is served by both ${seen.get(key)} and ${z.branch.nameEn}`);
     seen.set(key, z.branch.nameEn);
   }
   console.log(apply ? '\nDone.' : '\nNothing written (dry run).');
