@@ -17,7 +17,7 @@ const ALL_DAY = week('00:00', '00:00');
 // Areas from the client's sheet "Modawarah-Delivery Areas Branches.xlsx" (3 Oct):
 // 52 + 39 + 23 + 1 = 115, plus Ardiya itself (client, 4 Oct). Arabic spellings tidied (e.g. محفظة → محافظة, الصيبية → الصبية).
 // Branch Arabic names and addresses are filled only where empty or saved as "???".
-// Static IPs (client, 4 Oct) replace the branch list when given; Sabah Al-Ahmad still to confirm.
+// Static IPs (client, 4 Oct) replace the branch list when given.
 const BRANCHES = [
   {
     name: 'Al Ardiya',
@@ -167,6 +167,7 @@ const BRANCHES = [
   {
     // All of Sabah Al-Ahmad City: blocks A–E, residential and government plots.
     name: 'Sabah Al Ahmed',
+    allowedIps: ['188.71.233.10'],
     nameAr: 'صباح الأحمد',
     addressEn: 'Sabah Al-Ahmad City Cooperative Society – B2',
     addressAr: 'جمعية مدينة صباح الأحمد التعاونية – قطاع B2',
