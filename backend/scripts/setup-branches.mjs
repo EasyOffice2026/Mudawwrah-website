@@ -15,7 +15,7 @@ const week = (open, close) =>
 const ALL_DAY = week('00:00', '00:00');
 
 // Areas from the client's sheet "Modawarah-Delivery Areas Branches.xlsx" (3 Oct):
-// 52 + 39 + 23 + 1 = 115, plus Ardiya itself (client, 4 Oct). Arabic spellings tidied (e.g. محفظة → محافظة, الصيبية → الصبية).
+// 52 + 39 + 23 + 1 = 115, plus Ardiya itself (4 Oct), minus Sabah Al-Ahmad under Aqeelah (5 Oct) = 115. Arabic spellings tidied (e.g. محفظة → محافظة, الصيبية → الصبية).
 // Branch Arabic names and addresses are filled only where empty or saved as "???".
 // Static IPs (client, 4 Oct) replace the branch list when given.
 const BRANCHES = [
@@ -115,7 +115,6 @@ const BRANCHES = [
       ['Ali Sabah Al-Salem', 'علي صباح السالم'],
       ['Mina Abdullah', 'ميناء عبدالله'],
       ['Mina Abdullah Chalets', 'شاليهات ميناء عبدالله'],
-      ['Sabah Al-Ahmad', 'صباح الأحمد'],
       ['Hateen', 'حطين'],
       ['Al-Masayel', 'المسايل'],
       ['South Ahmadi', 'جنوب الأحمدي'],
@@ -177,10 +176,9 @@ const BRANCHES = [
 ];
 
 // Areas the sheet lists under two branches: [first choice, cover when it is closed].
-// Sabah Al-Ahmad's own branch closes at 16:00, so Al Aqeelah takes the rest of the day;
-// the others go to the nearer branch (all three are open 24 hours).
+// The client confirmed Al Ardiya for these (5 Oct); the backup only matters if it is closed.
+// Sabah Al-Ahmad is served by its own branch only: Al Aqeelah is too far (client, 5 Oct).
 const SHARED = {
-  'Sabah Al-Ahmad': ['Sabah Al Ahmed', 'Al Aqeelah'],
   Riggae: ['Al Ardiya', 'Al Jahra'],
   Farwaniya: ['Al Ardiya', 'Al Jahra'],
   Qadsiya: ['Al Ardiya', 'Al Aqeelah'],
