@@ -18,6 +18,7 @@ const { createApp } = await import('../src/app.js');
 const { prisma } = await import('../src/prisma.js');
 const { clearBranchAccessCache } = await import('../src/middleware/auth.js');
 const { isOpenAt, nextOpening } = await import('../src/services/branchHours.js');
+const { ipAllowed } = await import('../src/services/authService.js');
 const bcrypt = (await import('bcryptjs')).default;
 
 // Kuwait is UTC+3. 2026-10-02 is a Friday, 2026-10-01 a Thursday.
@@ -177,6 +178,16 @@ test('the owner creates branch accounts; a branch account needs one of this rest
   assert.equal(jahra.body.branch.nameEn, 'Al Jahra');
   const ardiya = await call('POST', '/users', { token: ids.owner, body: { email: 'ardiya@test.kw', password: 'secret123', name: 'Ardiya desk', role: 'BRANCH', branchId: ids.ardiya } });
   assert.equal(ardiya.status, 201);
+});
+
+test('IPv4 must match exactly; IPv6 only needs the same /64 network', () => {
+  const list = ['188.71.248.76', '2a00:1851:10:48cf:d37:5957:6499:98f'];
+  assert.equal(ipAllowed('188.71.248.76', list), true);
+  assert.equal(ipAllowed('188.71.248.77', list), false);
+  assert.equal(ipAllowed('2a00:1851:10:48cf:1:2:3:4', list), true, 'another device, or the same one a day later');
+  assert.equal(ipAllowed('2a00:1851:22:b693:7dc5:aa33:bb5c:673', list), false, 'another line');
+  assert.equal(ipAllowed('2a00:1851:10:48cf::9', ['2a00:1851:0010:48cf::']), true, 'short and padded forms');
+  assert.equal(ipAllowed('', list), false);
 });
 
 test('a branch account signs in only from its branch\'s static IP, and is re-checked on every request', async () => {

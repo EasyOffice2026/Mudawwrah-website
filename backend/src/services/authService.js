@@ -34,6 +34,28 @@ export const clientIp = (req) =>
     .trim()
     .replace(/^::ffff:/, '');
 
+/** The /64 network of an IPv6 address ("2a00:1851:10:48cf"), or null for anything else. */
+const ipv6Network = (ip) => {
+  const text = String(ip || '').toLowerCase().split('/')[0];
+  if (!text.includes(':')) return null;
+  const [head, tail] = text.split('::');
+  const left = head ? head.split(':') : [];
+  const right = tail ? tail.split(':') : [];
+  const groups = tail === undefined ? left : [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill('0'), ...right];
+  if (groups.length !== 8) return null;
+  return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, '')).join(':');
+};
+
+/**
+ * Whether an address is on a branch's list. IPv4 must match exactly. IPv6 only
+ * needs the same /64: a line gives every device its own address inside one
+ * network, and that address changes by itself, so the exact value never holds.
+ */
+export const ipAllowed = (ip, allowed) => {
+  const network = ipv6Network(ip);
+  return allowed.some((entry) => (network ? ipv6Network(entry) === network : String(entry).trim() === ip));
+};
+
 /**
  * A branch account may only be used at its branch: the branch must exist and be
  * active, and when it lists static IPs the request must come from one of them.
@@ -44,7 +66,9 @@ export const assertBranchAccess = async (user, ip) => {
   if (!user.branchId) throw new HttpError(403, 'This branch account is not linked to a branch');
   const branch = await prisma.pickupLocation.findFirst({ where: { id: user.branchId, tenantId: user.tenantId }, select: { isActive: true, allowedIps: true } });
   if (!branch || !branch.isActive) throw new HttpError(403, 'This branch is not active');
-  if (branch.allowedIps.length && !branch.allowedIps.includes(ip)) {
+  if (branch.allowedIps.length && !ipAllowed(ip, branch.allowedIps)) {
+    // The address is logged so a branch whose line changed can be fixed from the log.
+    console.warn(`[branch-access] refused ${user.email || user.branchId} from ${ip || 'unknown address'}`);
     throw new HttpError(403, 'This branch account can only be used from the branch itself');
   }
 };

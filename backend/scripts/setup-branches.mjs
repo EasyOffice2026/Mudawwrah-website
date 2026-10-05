@@ -21,12 +21,13 @@ const ALL_DAY = week('00:00', '00:00');
 // Branch Arabic names and addresses are filled only where empty or saved as "???".
 // One dashboard login per branch (client, 5 Oct): created once with a random password that is
 // printed here and nowhere else; an existing login is left alone.
-// Static IPs (client, 4 Oct) replace the branch list when given.
+// Static IPs (client, 4 Oct) replace the branch list when given. The IPv6 entries are the /64
+// networks seen on the same devices: a browser on those lines may well connect over IPv6.
 const BRANCHES = [
   {
     name: 'Al Ardiya',
     login: 'ardiya@madawarah.com',
-    allowedIps: ['188.71.216.23'],
+    allowedIps: ['188.71.216.23', '2a00:1851:22:b693::'],
     nameAr: 'العارضية',
     addressEn: 'Al-Ardiya Industrial – 5th Ring Road – Next to Shawarma Factory',
     addressAr: 'العارضية الصناعية – على الدائري الخامس – بجوار شاورما فاكتوري',
@@ -90,7 +91,7 @@ const BRANCHES = [
   {
     name: 'Al Aqeelah',
     login: 'aqeelah@madawarah.com',
-    allowedIps: ['188.71.248.76'],
+    allowedIps: ['188.71.248.76', '2a00:1851:10:48cf::'],
     nameAr: 'العقيلة',
     addressEn: 'Wadha Complex, beside Sama Mall',
     addressAr: 'مجمع وضحة بجانب سما مول',
