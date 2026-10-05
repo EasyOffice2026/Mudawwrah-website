@@ -7,6 +7,8 @@
 //
 // Fee and minimum stay empty on every area, so the Settings values apply
 // (1.000 KWD / 2.000 KWD, the same everywhere per the client).
+import { randomBytes } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 
 const FRIDAY_PRAYER = { from: '11:00', to: '12:00' };
@@ -17,10 +19,13 @@ const ALL_DAY = week('00:00', '00:00');
 // Areas from the client's sheet "Modawarah-Delivery Areas Branches.xlsx" (3 Oct):
 // 52 + 39 + 23 + 1 = 115, plus Ardiya itself (4 Oct), minus Sabah Al-Ahmad under Aqeelah (5 Oct) = 115. Arabic spellings tidied (e.g. محفظة → محافظة, الصيبية → الصبية).
 // Branch Arabic names and addresses are filled only where empty or saved as "???".
+// One dashboard login per branch (client, 5 Oct): created once with a random password that is
+// printed here and nowhere else; an existing login is left alone.
 // Static IPs (client, 4 Oct) replace the branch list when given.
 const BRANCHES = [
   {
     name: 'Al Ardiya',
+    login: 'ardiya@madawarah.com',
     allowedIps: ['188.71.216.23'],
     nameAr: 'العارضية',
     addressEn: 'Al-Ardiya Industrial – 5th Ring Road – Next to Shawarma Factory',
@@ -84,6 +89,7 @@ const BRANCHES = [
   },
   {
     name: 'Al Aqeelah',
+    login: 'aqeelah@madawarah.com',
     allowedIps: ['188.71.248.76'],
     nameAr: 'العقيلة',
     addressEn: 'Wadha Complex, beside Sama Mall',
@@ -132,6 +138,7 @@ const BRANCHES = [
   },
   {
     name: 'Al Jahra',
+    login: 'jahra@madawarah.com',
     allowedIps: ['37.231.157.252'],
     nameAr: 'الجهراء',
     addressEn: 'Al-Dana Complex, outside street after Shaker Shawarma',
@@ -166,6 +173,7 @@ const BRANCHES = [
   {
     // All of Sabah Al-Ahmad City: blocks A–E, residential and government plots.
     name: 'Sabah Al Ahmed',
+    login: 'sabahalahmad@madawarah.com',
     allowedIps: ['188.71.233.10'],
     nameAr: 'صباح الأحمد',
     addressEn: 'Sabah Al-Ahmad City Cooperative Society – B2',
@@ -223,6 +231,22 @@ try {
       }
     }
     if (apply) await prisma.pickupLocation.update({ where: { id: branch.id }, data: details });
+
+    if (plan.login) {
+      // Emails are unique across every restaurant, so this lookup is not tenant-scoped.
+      const user = await prisma.user.findUnique({ where: { email: plan.login } });
+      if (user) {
+        console.log(`  login  ${plan.login} already exists — left as it is`);
+      } else if (apply) {
+        const password = randomBytes(9).toString('base64url');
+        await prisma.user.create({
+          data: { tenantId: tenant.id, email: plan.login, password: await bcrypt.hash(password, 10), name: `${branch.nameEn} branch`, role: 'BRANCH', branchId: branch.id },
+        });
+        console.log(`  login  ${plan.login}  password: ${password}  (shown once — pass it to the branch)`);
+      } else {
+        console.log(`  login  ${plan.login} will be created`);
+      }
+    }
 
     const zones = await prisma.deliveryZone.findMany({ where: { tenantId: tenant.id, branchId: branch.id } });
     for (const [nameEn, nameAr] of plan.areas) {
