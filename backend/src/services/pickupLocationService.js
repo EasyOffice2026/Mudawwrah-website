@@ -69,7 +69,7 @@ export const listPublic = async () => {
     where: { isActive: true },
     orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
   });
-  return withOpenStatus(branches.map(({ allowedIps, ...branch }) => branch));
+  return withOpenStatus(branches.map(({ allowedIps, foodicsBranchId, ...branch }) => branch));
 };
 
 /** Admin: everything, including branches temporarily switched off. */

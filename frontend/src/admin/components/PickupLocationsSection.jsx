@@ -258,6 +258,17 @@ const BranchCard = ({ branch, canEdit, onSaved, onDeleted }) => {
           />
           <p className="mt-1 text-xs text-gray-500">{t('admin.branches.allowedIpsHint')}</p>
         </div>
+
+        <div>
+          <label className="label">{t('admin.branches.foodicsBranchId')}</label>
+          <input
+            className="input font-mono"
+            dir="ltr"
+            value={draft.foodicsBranchId || ''}
+            onChange={(e) => setDraft({ ...draft, foodicsBranchId: e.target.value })}
+          />
+          <p className="mt-1 text-xs text-gray-500">{t('admin.branches.foodicsBranchIdHint')}</p>
+        </div>
       </fieldset>
 
       {state.error ? <p className="text-sm font-semibold text-red-600">{state.error}</p> : null}

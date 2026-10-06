@@ -28,6 +28,7 @@ const emptyItem = {
   isFeatured: false,
   isTopRated: false,
   isCustomizable: false,
+  foodicsProductId: '',
   options: [],
 };
 
@@ -387,6 +388,11 @@ export default function MenuManager() {
               <label className="label">{t('admin.media')}</label>
               <ImagePicker value={itemForm.imageId} onChange={(imageId) => setItemForm({ ...itemForm, imageId })} />
             </div>
+            <Field
+              label="Foodics product ID (for POS sync)"
+              value={itemForm.foodicsProductId || ''}
+              onChange={(v) => setItemForm({ ...itemForm, foodicsProductId: v })}
+            />
             <div className="flex flex-wrap gap-4">
               <Checkbox label={t('admin.available')} value={itemForm.isAvailable} onChange={(v) => setItemForm({ ...itemForm, isAvailable: v })} />
               <Checkbox label={t('admin.outOfStock')} value={itemForm.isOutOfStock} onChange={(v) => setItemForm({ ...itemForm, isOutOfStock: v })} />
@@ -418,7 +424,7 @@ export default function MenuManager() {
                 </div>
                 <div className="space-y-2">
                   {(itemForm.options || []).map((option, index) => (
-                    <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_90px_70px_40px]">
+                    <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_1fr_90px_70px_40px]">
                       <input
                         className="input"
                         placeholder="Group (EN)"
@@ -436,6 +442,14 @@ export default function MenuManager() {
                         placeholder="Option (AR)"
                         value={option.nameAr || ''}
                         onChange={(event) => updateOption(itemForm, setItemForm, index, { nameAr: event.target.value })}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Foodics modifier option ID"
+                        value={option.foodicsModifierOptionId || ''}
+                        onChange={(event) =>
+                          updateOption(itemForm, setItemForm, index, { foodicsModifierOptionId: event.target.value })
+                        }
                       />
                       <input
                         className="input"

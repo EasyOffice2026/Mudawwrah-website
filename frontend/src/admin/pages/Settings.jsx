@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import BrandingSection from '../components/BrandingSection.jsx';
+import FoodicsSection from '../components/FoodicsSection.jsx';
 import PickupLocationsSection from '../components/PickupLocationsSection.jsx';
 
 const TEXT_FIELDS = [
@@ -102,6 +103,8 @@ export default function Settings() {
       </section>
 
       <PickupLocationsSection />
+
+      <FoodicsSection />
 
       <section className="card space-y-3">
         <h2 className="font-bold">Marketing &amp; tracking</h2>

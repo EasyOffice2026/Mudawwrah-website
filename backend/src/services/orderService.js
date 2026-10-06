@@ -3,6 +3,7 @@ import { prisma } from '../prisma.js';
 import { currentTenant } from '../tenantContext.js';
 import { resolve as resolvePromotion } from './promotionService.js';
 import { getAll as getSettings } from './settingService.js';
+import { pushIfDue as pushToFoodics } from './foodicsService.js';
 import { isOpenAt, nextOpening } from './branchHours.js';
 import { resolveForDelivery } from './zoneService.js';
 import { firstSoldOut } from './soldOutService.js';
@@ -177,6 +178,7 @@ export const create = async (payload) => {
   // Fire-and-forget: a slow or failed WhatsApp call must never delay the
   // order confirmation the customer is waiting on.
   notifyNewOrder(order, settings).catch((error) => console.error('[whatsapp] new-order notification failed', error));
+  pushToFoodics(order);
   return order;
 };
 
