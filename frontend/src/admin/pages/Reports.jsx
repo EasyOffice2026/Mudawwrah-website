@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api, apiError } from '../../lib/api';
 import { dateTime, kwd, localized } from '../../lib/format';
 import { buildWorkbook, downloadWorkbook, summaryText } from '../reports/reportExport.js';
@@ -9,6 +9,8 @@ import { buildWorkbook, downloadWorkbook, summaryText } from '../reports/reportE
 // One data hue for every single-series mark; the heatmap ramp steps it light
 // to dark. Both checked with the dataviz validator against the white card.
 const DATA = '#2a78d6';
+// Order counts get their own validated hue so the two charts read apart at a glance.
+const ORDERS = '#eb6834';
 const HEAT = ['#86b6ef', '#5598e7', '#2a78d6', '#1c5cab', '#0d366b'];
 const NO_ORDERS = '#eef0f3';
 const PRESETS = ['today', 'yesterday', 'week', '7d', 'month', '30d', 'custom'];
@@ -336,53 +338,49 @@ const ChartTip = ({ active, payload, label, metric, t }) => {
 /* -------------------------------------------------------------- sections */
 
 function SalesSection({ r, t, lang, nameOf }) {
-  // One measure per chart: revenue and order counts live on different scales,
-  // so they take turns on one axis instead of sharing a misleading second one.
-  const [metric, setMetric] = useState('revenue');
+  // Revenue and order counts both stay on screen: two charts on the same days,
+  // never one chart with two y-scales (its bars would line up by accident of scale).
   const rtl = lang === 'ar';
   const data = useMemo(
     () => r.sales.series.points.map((p) => ({ ...p, label: r.sales.series.unit === 'hour' ? `${p.key}:00` : shortDay(p.key, lang) })),
     [r, lang],
   );
+  // A count on every bar while they fit (a month of days, or a day of hours);
+  // past that the tooltip and the Excel export carry the numbers.
+  const labelBars = data.length <= 31;
   const best = Math.max(...r.sales.branches.map((b) => b.revenue), 0) || 1;
+  const chart = (metric, colour, height, labelled) => (
+    <div className={height}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} syncId="report-series" margin={{ top: labelled ? 16 : 8, right: 4, bottom: 0, left: 4 }}>
+          <CartesianGrid vertical={false} stroke="#e5e7eb" />
+          <XAxis dataKey="label" reversed={rtl} tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} minTickGap={14} />
+          <YAxis
+            orientation={rtl ? 'right' : 'left'}
+            tick={{ fontSize: 11, fill: '#6b7280' }}
+            tickLine={false}
+            axisLine={false}
+            width={44}
+            allowDecimals={metric === 'revenue'}
+            tickFormatter={(v) => (metric === 'revenue' ? Number(v).toLocaleString('en-GB', { maximumFractionDigits: 0 }) : v)}
+          />
+          <Tooltip cursor={{ fill: 'rgba(42,120,214,0.08)' }} content={<ChartTip metric={metric} t={t} />} />
+          <Bar dataKey={metric} fill={colour} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false}>
+            {labelled ? <LabelList dataKey={metric} position="top" fontSize={10} fill="#374151" /> : null}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
   return (
     <Section title={t('admin.reports.sections.sales')}>
       <Card>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-bold">{t('admin.reports.sales.overTime')}</h3>
-          <div className="no-print flex gap-1" role="group" aria-label={t('admin.reports.sales.overTime')}>
-            {['revenue', 'orders'].map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={metric === value}
-                onClick={() => setMetric(value)}
-                className={`rounded-lg px-3 py-1 text-xs font-semibold ${metric === value ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'}`}
-              >
-                {t(`admin.reports.sales.${value}`)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: 4 }}>
-              <CartesianGrid vertical={false} stroke="#e5e7eb" />
-              <XAxis dataKey="label" reversed={rtl} tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} minTickGap={14} />
-              <YAxis
-                orientation={rtl ? 'right' : 'left'}
-                tick={{ fontSize: 11, fill: '#6b7280' }}
-                tickLine={false}
-                axisLine={false}
-                width={44}
-                allowDecimals={metric === 'revenue'}
-                tickFormatter={(v) => (metric === 'revenue' ? Number(v).toLocaleString('en-GB', { maximumFractionDigits: 0 }) : v)}
-              />
-              <Tooltip cursor={{ fill: 'rgba(42,120,214,0.08)' }} content={<ChartTip metric={metric} t={t} />} />
-              <Bar dataKey={metric} fill={DATA} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <h3 className="mb-3 font-bold">
+          {t('admin.reports.sales.overTime')} · {t('admin.reports.sales.revenue')}
+        </h3>
+        {chart('revenue', DATA, 'h-64', false)}
+        <h3 className="mb-2 mt-5 font-bold">{t('admin.reports.sales.orders')}</h3>
+        {chart('orders', ORDERS, 'h-48', labelBars)}
       </Card>
 
       <Card title={t('admin.reports.sales.byBranch')}>

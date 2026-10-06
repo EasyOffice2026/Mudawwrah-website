@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api, apiError } from '../../lib/api';
 import { dateTime, kwd, localized } from '../../lib/format';
 import BranchAnalytics from '../components/BranchAnalytics.jsx';
@@ -11,9 +11,6 @@ export default function Dashboard() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const [range, setRange] = useState('daily');
-  // Revenue and order counts take turns on one axis: two y-scales on one
-  // plot would make their lines' crossings mean nothing.
-  const [metric, setMetric] = useState('revenue');
   // '' = every branch; a branch id narrows the whole overview to that branch.
   const [branchId, setBranchId] = useState('');
   const [view, setView] = useState('overview');
@@ -106,21 +103,12 @@ export default function Dashboard() {
         <Kpi label={t('admin.kpi.totalCustomers')} value={stats.kpis.totalCustomers} />
       </div>
 
+      {/* Revenue and order counts, both always visible: two charts on the
+          same days rather than one chart with two y-scales, whose bars would
+          line up by accident of scale, not meaning. */}
       <section className="card">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-1" role="group" aria-label={t('admin.revenue')}>
-            {['revenue', 'orders'].map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={metric === value}
-                onClick={() => setMetric(value)}
-                className={`rounded-lg px-3 py-1 text-sm font-bold ${metric === value ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'}`}
-              >
-                {t(`admin.${value}`)}
-              </button>
-            ))}
-          </div>
+          <h2 className="font-bold">{t('admin.revenue')}</h2>
           <div className="flex gap-1">
             {ranges.map((value) => (
               <button
@@ -136,17 +124,30 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
-        <div className="h-64">
+        <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stats.revenueSeries}>
+            <BarChart data={stats.revenueSeries} syncId="dashboard-series">
               <CartesianGrid vertical={false} stroke="#e5e7eb" />
               <XAxis dataKey="period" fontSize={11} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
-              <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={metric === 'revenue'} />
-              <Tooltip
-                cursor={{ fill: 'rgba(42,120,214,0.08)' }}
-                formatter={(value, key) => [key === 'revenue' ? kwd(value) : value, t(`admin.${key}`)]}
-              />
-              <Bar dataKey={metric} fill="#2a78d6" radius={[4, 4, 0, 0]} maxBarSize={24} />
+              <YAxis fontSize={11} tickLine={false} axisLine={false} width={44} />
+              <Tooltip cursor={{ fill: 'rgba(42,120,214,0.08)' }} content={<SeriesTip t={t} />} />
+              <Bar dataKey="revenue" fill="#2a78d6" radius={[4, 4, 0, 0]} maxBarSize={24} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <h2 className="mb-2 mt-5 font-bold">{t('admin.orders')}</h2>
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={stats.revenueSeries} syncId="dashboard-series" margin={{ top: 16 }}>
+              <CartesianGrid vertical={false} stroke="#e5e7eb" />
+              <XAxis dataKey="period" fontSize={11} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
+              <YAxis fontSize={11} tickLine={false} axisLine={false} width={44} allowDecimals={false} />
+              <Tooltip cursor={{ fill: 'rgba(235,104,52,0.08)' }} content={<SeriesTip t={t} />} />
+              <Bar dataKey="orders" fill="#eb6834" radius={[4, 4, 0, 0]} maxBarSize={24}>
+                {/* The count written on each bar, as asked: no hovering needed to read it. */}
+                <LabelList dataKey="orders" position="top" fontSize={10} fill="#374151" />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -201,3 +202,18 @@ const Kpi = ({ label, value }) => (
     <p className="mt-2 text-2xl font-extrabold text-brand">{value}</p>
   </div>
 );
+
+/** One tooltip for both charts: the day's revenue and its number of orders. */
+const SeriesTip = ({ active, payload, label, t }) => {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-sm">
+      <p className="text-sm font-bold text-gray-900">{kwd(p.revenue)}</p>
+      <p className="text-gray-600">
+        {p.orders} {t('admin.orders')}
+      </p>
+      <p className="text-gray-400">{label}</p>
+    </div>
+  );
+};
