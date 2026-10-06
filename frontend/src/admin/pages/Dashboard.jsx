@@ -2,28 +2,99 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api, apiError } from '../../lib/api';
-import { dateTime, kwd } from '../../lib/format';
+import { dateTime, kwd, localized } from '../../lib/format';
+import BranchAnalytics from '../components/BranchAnalytics.jsx';
 
 const ranges = ['daily', 'weekly', 'monthly'];
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [range, setRange] = useState('daily');
+  // '' = every branch; a branch id narrows the whole overview to that branch.
+  const [branchId, setBranchId] = useState('');
+  const [view, setView] = useState('overview');
+  const [branches, setBranches] = useState([]);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     api
-      .get('/dashboard/stats', { params: { range } })
+      .get('/pickup-locations/all')
+      .then(({ data }) => setBranches(data))
+      .catch(() => setBranches([]));
+  }, []);
+
+  useEffect(() => {
+    setError(null);
+    api
+      .get('/dashboard/stats', { params: { range, branchId: branchId || undefined } })
       .then(({ data }) => setStats(data))
       .catch((err) => setError(apiError(err)));
-  }, [range]);
+  }, [range, branchId]);
 
-  if (error) return <p className="text-sm font-semibold text-brand">{error}</p>;
+  const pickBranch = (id) => {
+    setBranchId(id);
+    setView('overview');
+  };
+
+  const toolbar = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h1 className="text-xl font-extrabold">{t('admin.dashboard')}</h1>
+      {branches.length ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {view === 'overview' ? (
+            <select
+              className="input w-auto py-1.5 text-sm"
+              aria-label={t('admin.branch')}
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+            >
+              <option value="">{t('admin.allBranches')}</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {localized(b, 'name', lang)}
+                </option>
+              ))}
+              <option value="none">{t('admin.analytics.beforeBranches')}</option>
+            </select>
+          ) : null}
+          <button
+            type="button"
+            aria-pressed={view === 'branches'}
+            onClick={() => setView(view === 'branches' ? 'overview' : 'branches')}
+            className={`rounded-lg px-4 py-1.5 text-sm font-bold ${
+              view === 'branches' ? 'bg-brand text-white' : 'bg-white text-brand ring-1 ring-brand'
+            }`}
+          >
+            {view === 'branches' ? t('admin.analytics.backToOverview') : t('admin.analytics.branchesButton')}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  if (view === 'branches') {
+    return (
+      <div className="space-y-4">
+        {toolbar}
+        <BranchAnalytics onPick={pickBranch} />
+      </div>
+    );
+  }
+
+  if (error)
+    return (
+      <div className="space-y-4">
+        {toolbar}
+        <p className="text-sm font-semibold text-brand">{error}</p>
+      </div>
+    );
   if (!stats) return <p className="text-sm text-gray-500">{t('common.loading')}</p>;
 
   return (
     <div className="space-y-4">
+      {toolbar}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi label={t('admin.kpi.todayOrders')} value={stats.kpis.todayOrders} />
         <Kpi label={t('admin.kpi.todayRevenue')} value={kwd(stats.kpis.todayRevenue)} />

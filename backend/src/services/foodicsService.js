@@ -225,11 +225,28 @@ const mappings = async (order) => {
   };
 };
 
+const ONLINE_METHODS = ['KNET', 'CARD', 'APPLE_PAY'];
+
+/**
+ * Whether the order is waiting on an online payment the customer hasn't made.
+ *
+ * KNET does not by itself mean "paid online": the website never takes payment
+ * up front, so a website KNET order is paid on the card machine at delivery or
+ * at the counter — exactly like cash. Only a payment link that was actually
+ * started (PENDING / FAILED), or a WhatsApp order that chose to pay online and
+ * is about to be sent its link, is still waiting.
+ */
+export const awaitingOnlinePayment = (order) =>
+  ONLINE_METHODS.includes(order.paymentMethod) &&
+  order.paymentStatus !== 'PAID' &&
+  (['PENDING', 'FAILED'].includes(order.paymentStatus) || order.channel === 'WHATSAPP');
+
 /**
  * Online payments are only pushed once paid, so an abandoned checkout never
- * reaches the kitchen. Cash / card-on-delivery goes straight away.
+ * reaches the kitchen. Everything paid on delivery — cash, or KNET on the
+ * card machine — goes straight away.
  */
-export const shouldPushNow = (order) => order.paymentStatus === 'PAID' || !['KNET', 'CARD', 'APPLE_PAY'].includes(order.paymentMethod);
+export const shouldPushNow = (order) => order.paymentStatus === 'PAID' || !awaitingOnlinePayment(order);
 
 /**
  * Creates the order in Foodics and records the result on our order. Never

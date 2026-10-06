@@ -164,6 +164,13 @@ export const pickupLocationSchema = z.object({
   isActive: z.coerce.boolean().optional(),
   /// Static IPs branch staff may sign in from; empty means unrestricted.
   allowedIps: z.array(z.string().trim().regex(/^[0-9a-fA-F:.]{2,45}$/, 'Expected an IP address like 37.39.10.20')).max(10).optional(),
+  /// Starts this branch's order numbers (SAB20261006-0001); empty derives one from the name.
+  orderCode: z
+    .preprocess(
+      (value) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
+      z.union([z.literal(''), z.string().regex(/^[A-Z][A-Z0-9]{2,4}$/, 'Order code: 3–5 letters or digits, starting with a letter (e.g. SAB)')]).nullable().optional(),
+    )
+    .transform((value) => value || null),
   /// The Foodics branch this branch's orders go to; empty uses Settings → Foodics.
   foodicsBranchId: z
     .string()

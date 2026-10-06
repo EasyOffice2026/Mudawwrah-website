@@ -269,6 +269,20 @@ const BranchCard = ({ branch, canEdit, onSaved, onDeleted }) => {
           />
           <p className="mt-1 text-xs text-gray-500">{t('admin.branches.foodicsBranchIdHint')}</p>
         </div>
+
+        <div>
+          <label className="label">{t('admin.branches.orderCode')}</label>
+          <input
+            className="input w-32 font-mono uppercase"
+            dir="ltr"
+            maxLength={5}
+            value={draft.orderCode || ''}
+            onChange={(e) => setDraft({ ...draft, orderCode: e.target.value.toUpperCase() })}
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            {t('admin.branches.orderCodeHint', { example: `${draft.orderCode || 'SAB'}20261006-0001` })}
+          </p>
+        </div>
       </fieldset>
 
       {state.error ? <p className="text-sm font-semibold text-red-600">{state.error}</p> : null}

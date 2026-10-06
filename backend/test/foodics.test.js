@@ -82,6 +82,17 @@ test('shouldPushNow waits for online payment but not for cash', () => {
   assert.equal(shouldPushNow({ paymentMethod: 'APPLE_PAY', paymentStatus: 'FAILED' }), false);
 });
 
+test('a website KNET order is paid on delivery, so it goes to the kitchen straight away', () => {
+  // With cash switched off every website order is KNET/UNPAID; holding these
+  // "until paid online" would mean no website order ever reached Foodics.
+  assert.equal(shouldPushNow({ channel: 'WEB', paymentMethod: 'KNET', paymentStatus: 'UNPAID' }), true);
+  assert.equal(shouldPushNow({ channel: 'WEB', paymentMethod: 'CARD', paymentStatus: 'UNPAID' }), true);
+  // A WhatsApp order that chose to pay online waits for its payment link.
+  assert.equal(shouldPushNow({ channel: 'WHATSAPP', paymentMethod: 'KNET', paymentStatus: 'UNPAID' }), false);
+  assert.equal(shouldPushNow({ channel: 'WHATSAPP', paymentMethod: 'KNET', paymentStatus: 'PAID' }), true);
+  assert.equal(shouldPushNow({ channel: 'WHATSAPP', paymentMethod: 'CASH', paymentStatus: 'UNPAID' }), true);
+});
+
 test('mapStatus handles numeric and named Foodics statuses', () => {
   assert.equal(mapStatus(2), 'PREPARING');
   assert.equal(mapStatus('4'), 'DELIVERED');
