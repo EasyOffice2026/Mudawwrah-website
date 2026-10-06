@@ -87,6 +87,7 @@
     "title": "إتمام الطلب",
     "name": "الاسم الكامل",
     "phone": "رقم الهاتف",
+    "phoneInvalid": "أدخل رقماً من 8 أرقام يبدأ بـ ٩ أو ٦ أو ٥ أو ٤",
     "address": "عنوان التوصيل",
     "notes": "ملاحظات الطلب",
     "paymentMethod": "طريقة الدفع",
@@ -176,6 +177,7 @@
       "todayOrders": "طلبات اليوم",
       "todayRevenue": "إيرادات اليوم",
       "pendingOrders": "طلبات معلقة",
+      "cancelledOrders": "الملغاة اليوم",
       "totalCustomers": "إجمالي العملاء"
     },
     "revenue": "الإيرادات",

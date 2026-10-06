@@ -37,8 +37,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && !window.location.pathname.endsWith('/admin/login')) {
+    const { pathname } = window.location;
+    if (error.response?.status === 401 && !pathname.endsWith('/admin/login')) {
       localStorage.removeItem(tokenKey(currentTenantSlug()));
+      // An expired session must not leave the dashboard on screen: the order
+      // desk would keep showing old orders, silently, with no chime. Send it
+      // to the login page instead so staff see they have to sign in again.
+      if (/\/admin(\/|$)/.test(pathname)) window.location.assign(pathname.replace(/\/admin(\/.*)?$/, '/admin/login'));
     }
     return Promise.reject(error);
   },

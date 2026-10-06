@@ -42,6 +42,12 @@ const buildWhatsappMessage = ({ lines, order, settings, lang, t }) => {
 // Order of progress, used to decide which steps on the tracker are done. A
 // pickup order never goes out with a rider, so it skips those two steps.
 const TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'REACHED', 'DELIVERED'];
+
+// Kuwait mobile: exactly 8 digits starting with 9, 6, 5 or 4. Spaces, dashes
+// and a pasted +965 / 965 country code are tolerated and stripped first, so
+// what is validated — and sent — is always the bare 8-digit number.
+const normalisePhone = (value) => value.replace(/[\s-]/g, '').replace(/^\+?965/, '');
+const phoneValid = (value) => /^[4569]\d{7}$/.test(normalisePhone(value));
 const PICKUP_TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'];
 
 // Used by the location step when the map is unavailable and the restaurant
@@ -119,6 +125,7 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   // never on first load, which would greet the customer with a form full of
   // errors before they have typed anything.
   const [addressTouched, setAddressTouched] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
   // Delivery orders confirm a map location before filling in the address.
   const [locationOpen, setLocationOpen] = useState(false);
   // Branches the restaurant has set up under Settings → Pickup locations. A
@@ -264,8 +271,8 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
       : belowMinimum
         ? t('cart.minimumOrder', { amount: kwd(minimumOrder) })
         : null;
-  const canSubmit =
-    form.customerName.trim() && form.customerPhone.trim().length >= 6 && !branchMissing && !blockedReason;
+  const phoneOk = phoneValid(form.customerPhone);
+  const canSubmit = form.customerName.trim() && phoneOk && !branchMissing && !blockedReason;
 
   /** The zone a free-text or reverse-geocoded area name belongs to, if any. */
   const matchZone = (name) => {
@@ -277,13 +284,15 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
     // A first tap with a required address field empty reveals exactly which
     // ones, the same way the reference address form does, rather than a
     // single generic error or a permanently disabled button.
-    if (addressMissing || zoneMissing) return setAddressTouched(true);
+    if (!phoneOk) setPhoneTouched(true);
+    if (addressMissing || zoneMissing) setAddressTouched(true);
+    if (!phoneOk || addressMissing || zoneMissing) return;
     setSubmitting(true);
     setError(null);
     try {
       const payload = {
         customerName: form.customerName,
-        customerPhone: form.customerPhone,
+        customerPhone: normalisePhone(form.customerPhone),
         address: isPickup ? undefined : composedAddress,
         notes: note || undefined,
         paymentMethod: viaWhatsapp ? 'WHATSAPP' : form.paymentMethod,
@@ -471,7 +480,16 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
             </div>
             <div>
               <label className="label">{t('checkout.phone')}</label>
-              <input className="input" inputMode="tel" value={form.customerPhone} onChange={set('customerPhone')} required />
+              <input
+                className={`input ${phoneTouched && !phoneOk ? 'border-brand' : ''}`}
+                inputMode="tel"
+                value={form.customerPhone}
+                onChange={set('customerPhone')}
+                required
+              />
+              {phoneTouched && !phoneOk ? (
+                <p className="mt-1 text-xs font-semibold text-brand">{t('checkout.phoneInvalid')}</p>
+              ) : null}
             </div>
           </div>
         </section>

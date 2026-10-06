@@ -3,6 +3,15 @@ import { z } from 'zod';
 const price = z.coerce.number().min(0);
 const optionalString = z.string().trim().optional().nullable();
 
+// A Kuwait mobile number: exactly 8 digits starting with 9, 6, 5 or 4.
+// Spaces, dashes and a leading +965 / 965 the customer may paste are stripped
+// first, so what reaches the database is always the bare 8-digit number.
+const kuwaitPhone = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/[\s-]/g, '').replace(/^\+?965/, ''))
+  .refine((value) => /^[4569]\d{7}$/.test(value), 'Phone must be 8 digits starting with 9, 6, 5 or 4');
+
 // A utm value is whatever was in the query string, so it is capped and trimmed
 // before it can reach the database or the admin order list.
 const attribution = z.string().trim().max(200).nullable().optional();
@@ -78,7 +87,7 @@ export const registerSchema = z.object({
 
 export const orderSchema = z.object({
   customerName: z.string().trim().min(1),
-  customerPhone: z.string().trim().min(6),
+  customerPhone: kuwaitPhone,
   address: optionalString,
   notes: optionalString,
   paymentMethod: z.enum(['CASH', 'KNET', 'CARD', 'APPLE_PAY', 'WHATSAPP']).optional(),

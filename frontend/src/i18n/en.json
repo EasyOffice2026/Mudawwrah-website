@@ -80,6 +80,7 @@
     "title": "Checkout",
     "name": "Full name",
     "phone": "Phone number",
+    "phoneInvalid": "Enter an 8-digit number starting with 9, 6, 5 or 4",
     "address": "Delivery address",
     "notes": "Order notes",
     "paymentMethod": "Payment method",
@@ -169,6 +170,7 @@
       "todayOrders": "Today's orders",
       "todayRevenue": "Today's revenue",
       "pendingOrders": "Pending orders",
+      "cancelledOrders": "Cancelled today",
       "totalCustomers": "Total customers"
     },
     "revenue": "Revenue",
