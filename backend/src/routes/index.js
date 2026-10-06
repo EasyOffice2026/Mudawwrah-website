@@ -11,10 +11,12 @@ import * as orders from '../controllers/orderController.js';
 import * as payments from '../controllers/paymentController.js';
 import * as pickupLocations from '../controllers/pickupLocationController.js';
 import * as promotions from '../controllers/promotionController.js';
+import * as reports from '../controllers/reportController.js';
 import * as settings from '../controllers/settingController.js';
 import * as soldOut from '../controllers/soldOutController.js';
 import * as tenants from '../controllers/tenantController.js';
 import * as users from '../controllers/userController.js';
+import * as visits from '../controllers/visitController.js';
 import * as whatsapp from '../controllers/whatsappController.js';
 import * as zones from '../controllers/zoneController.js';
 import {
@@ -75,6 +77,8 @@ scoped.delete('/items/:id', requireAdmin, h(items.remove));
 
 // Orders
 scoped.post('/orders', optionalAuth, h(orders.create));
+// One per storefront browser session, for the visitors-to-orders conversion rate.
+scoped.post('/visits', h(visits.record));
 // Above /orders/:id and public: the uuid in the link is the credential.
 // Customer accounts. Signup is tenant-scoped: an account belongs to the
 // restaurant it was created on.
@@ -169,6 +173,7 @@ router.post('/payments/:provider/callback', h(payments.callback));
 // Dashboard
 scoped.get('/dashboard/stats', requireStaff, h(dashboard.stats));
 scoped.get('/dashboard/branches', requireStaff, h(dashboard.branches));
+scoped.get('/reports', requireStaff, h(reports.report));
 
 // A restaurant's own name, banner and logo — the fields the storefront
 // header and the platform picker actually display. requireAdmin, not just

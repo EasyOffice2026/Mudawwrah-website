@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS = {
   pickupAddressEn: '',
   pickupAddressAr: '',
   pickupWaitMinutes: '15',
+  // An order not delivered within this many minutes of being placed counts as late in Reports.
+  lateAfterMinutes: '45',
   // Which payment methods the checkout offers, in the order shown. Cash is
   // off by default at the client's request; a restaurant that wants it back
   // adds CASH here from Admin -> Settings rather than needing a code change.

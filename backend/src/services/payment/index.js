@@ -1,6 +1,7 @@
 import { config } from '../../config.js';
 import { HttpError } from '../../middleware/error.js';
 import { prisma } from '../../prisma.js';
+import { statusStamp } from '../statusTimes.js';
 import * as mock from './mock.js';
 import * as myfatoorah from './myfatoorah.js';
 
@@ -67,7 +68,11 @@ export const handleCallback = async (providerName, query) => {
   const updated = await prisma.order.update({
     where: { id: order.id },
     data: status.paid
-      ? { paymentStatus: 'PAID', paidAt: new Date(), status: order.status === 'PENDING' ? 'CONFIRMED' : order.status }
+      ? {
+          paymentStatus: 'PAID',
+          paidAt: new Date(),
+          ...(order.status === 'PENDING' ? { status: 'CONFIRMED', ...statusStamp(order, 'CONFIRMED') } : {}),
+        }
       : { paymentStatus: 'FAILED' },
     include: { items: true },
   });

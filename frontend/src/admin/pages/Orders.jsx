@@ -8,6 +8,8 @@ import OrderReceipt from '../components/OrderReceipt.jsx';
 import { useOrderFeed } from '../OrderFeed.jsx';
 
 const STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
+// Asked for on every cancellation, so Reports can show why orders are lost.
+const CANCEL_REASONS = ['CUSTOMER_REQUEST', 'OUT_OF_STOCK', 'BRANCH_BUSY', 'NO_DRIVER', 'ADDRESS_ISSUE', 'DUPLICATE', 'TEST', 'OTHER'];
 // The rider's step means nothing for an order collected at the counter.
 const RIDER_STATUSES = ['OUT_FOR_DELIVERY'];
 const statusesFor = (order) =>
@@ -94,9 +96,22 @@ export default function Orders() {
     lastVersion.current = version;
   }, [feed?.version, live]);
 
-  const setStatus = async (id, status) => {
+  const [cancelling, setCancelling] = useState(null);
+  const [cancelForm, setCancelForm] = useState({ reason: '', note: '' });
+
+  /** Every status change goes through here; cancelling first asks why. */
+  const requestStatus = (order, status) => {
+    if (status === 'CANCELLED' && order.status !== 'CANCELLED') {
+      setCancelForm({ reason: '', note: '' });
+      setCancelling(order);
+      return;
+    }
+    setStatus(order.id, status);
+  };
+
+  const setStatus = async (id, status, extra = {}) => {
     try {
-      const { data } = await api.patch(`/orders/${id}/status`, { status });
+      const { data } = await api.patch(`/orders/${id}/status`, { status, ...extra });
       setDetail((current) => (current?.id === id ? data : current));
       await load();
     } catch (err) {
@@ -230,7 +245,7 @@ export default function Orders() {
                   </span>
                 </td>
                 <td className="py-2">
-                  <select className="input py-1 text-xs" value={order.status} onChange={(e) => setStatus(order.id, e.target.value)}>
+                  <select className="input py-1 text-xs" value={order.status} onChange={(e) => requestStatus(order, e.target.value)}>
                     {statusesFor(order).map((status) => (
                       <option key={status} value={status}>
                         {statusLabel(status)}
@@ -395,7 +410,7 @@ export default function Orders() {
                 <button
                   key={status}
                   type="button"
-                  onClick={() => setStatus(detail.id, status)}
+                  onClick={() => requestStatus(detail, status)}
                   className={`rounded-full px-3 py-1 text-xs font-semibold ${
                     detail.status === status ? 'bg-brand text-white' : 'bg-gray-100 text-gray-600'
                   }`}
@@ -408,6 +423,64 @@ export default function Orders() {
               </button>
             </div>
           </div>
+        ) : null}
+      </Modal>
+
+      {/* After the order detail, so it opens on top of it when cancelling from there. */}
+      <Modal open={Boolean(cancelling)} onClose={() => setCancelling(null)} title={t('admin.reports.cancel.title', { number: cancelling?.orderNumber })}>
+        {cancelling ? (
+          <form
+            className="space-y-4 text-sm"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const order = cancelling;
+              setCancelling(null);
+              await setStatus(order.id, 'CANCELLED', {
+                cancelReason: cancelForm.reason,
+                ...(cancelForm.note.trim() ? { cancelNote: cancelForm.note.trim() } : {}),
+              });
+            }}
+          >
+            <fieldset>
+              <legend className="label">{t('admin.reports.cancel.reason')}</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {CANCEL_REASONS.map((reason) => (
+                  <label
+                    key={reason}
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 ${cancelForm.reason === reason ? 'border-brand bg-brand-light' : 'border-gray-200'}`}
+                  >
+                    <input
+                      type="radio"
+                      name="cancelReason"
+                      value={reason}
+                      required
+                      checked={cancelForm.reason === reason}
+                      onChange={() => setCancelForm((f) => ({ ...f, reason }))}
+                    />
+                    {t(`admin.reports.reasons.${reason}`)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <label className="block">
+              <span className="label">{t('admin.reports.cancel.note')}</span>
+              <textarea
+                className="input"
+                rows={2}
+                maxLength={300}
+                value={cancelForm.note}
+                onChange={(e) => setCancelForm((f) => ({ ...f, note: e.target.value }))}
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn-ghost" onClick={() => setCancelling(null)}>
+                {t('admin.reports.cancel.keep')}
+              </button>
+              <button type="submit" className="btn-primary" disabled={!cancelForm.reason}>
+                {t('admin.reports.cancel.confirm')}
+              </button>
+            </div>
+          </form>
         ) : null}
       </Modal>
 

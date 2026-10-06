@@ -31,8 +31,10 @@ export const feed = async (req, res) => {
   res.json(await service.feed({ since: since && !Number.isNaN(since.getTime()) ? since : null }, req.user));
 };
 
-export const updateStatus = async (req, res) =>
-  res.json(await service.updateStatus(req.params.id, orderStatusSchema.parse(req.body).status, req.user));
+export const updateStatus = async (req, res) => {
+  const { status, cancelReason, cancelNote } = orderStatusSchema.parse(req.body);
+  res.json(await service.updateStatus(req.params.id, status, req.user, { cancelReason, cancelNote }));
+};
 
 /** Public status lookup for the tracking link handed out at checkout. */
 export const track = async (req, res) => res.json(await service.track(req.params.id));

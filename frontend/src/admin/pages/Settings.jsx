@@ -17,6 +17,8 @@ const NUMBER_FIELDS = [
   ['minimumOrder', 'Minimum order (KWD)'],
   ['serviceChargePercent', 'Service charge (%)'],
   ['taxPercent', 'Tax (%)'],
+  // Reports count a delivery as late past this many minutes after the order was placed.
+  ['lateAfterMinutes', 'Late delivery after (minutes)'],
 ];
 
 // Each pairs the settings key with what a customer of that platform actually

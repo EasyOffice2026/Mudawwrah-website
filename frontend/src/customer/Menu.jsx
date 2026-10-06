@@ -104,6 +104,19 @@ export default function Menu() {
     captureAttribution();
   }, []);
 
+  // One visit per browser session per restaurant, for the visitors-to-orders
+  // conversion rate in Reports. Only a count is kept, and a failure is ignored.
+  useEffect(() => {
+    const key = `mdawra_visit:${slug}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      /* storage blocked: count this page load and carry on */
+    }
+    api.post('/visits').catch(() => {});
+  }, [slug]);
+
   useEffect(() => {
     // Each restaurant keeps its own isolated cart — switching slugs never
     // touches another restaurant's items.

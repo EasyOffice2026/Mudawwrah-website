@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
 import { currentTenant, currentTenantId, runWithTenant } from '../tenantContext.js';
+import { statusStamp } from './statusTimes.js';
 import { notifyStatusChange } from './whatsapp/notifications.js';
 
 const API_URL = (process.env.FOODICS_API_URL || 'https://api.foodics.com/v5').replace(/\/$/, '');
@@ -362,7 +363,12 @@ export const applyWebhook = async (event) => {
 
   const updated = await prisma.order.update({
     where: { id: order.id },
-    data: { status, ...(foodicsOrderId && !order.foodicsOrderId ? { foodicsOrderId } : {}) },
+    data: {
+      status,
+      ...statusStamp(order, status),
+      ...(status === 'CANCELLED' ? { cancelReason: 'POS_DECLINED' } : {}),
+      ...(foodicsOrderId && !order.foodicsOrderId ? { foodicsOrderId } : {}),
+    },
     include: { items: true },
   });
   await notifyStatusChange(updated).catch((error) => console.error('[whatsapp] status notification failed', error));

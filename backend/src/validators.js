@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CANCEL_REASONS } from './services/statusTimes.js';
 
 const price = z.coerce.number().min(0);
 const optionalString = z.string().trim().optional().nullable();
@@ -227,6 +228,9 @@ export const promotionSchema = z.object({
 
 export const orderStatusSchema = z.object({
   status: z.enum(['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'REACHED', 'DELIVERED', 'CANCELLED']),
+  /// Only read when cancelling: why, from a fixed list so reports can group it, plus an optional note.
+  cancelReason: z.enum(CANCEL_REASONS).optional(),
+  cancelNote: z.string().trim().max(300).optional(),
 });
 
 export const bannerSchema = z.object({

@@ -65,7 +65,9 @@ const login = async (email, ip) => (await call('POST', '/auth/login', { body: { 
 const order = (extra) => ({
   customerName: 'Sara',
   customerPhone: '96550001111',
-  paymentMethod: 'CASH',
+  // The test restaurant keeps the default payment methods (KNET, card), which
+  // don't include cash — a switched-off method is refused, see the pickup test.
+  paymentMethod: 'KNET',
   items: [{ menuItemId: ids.shawarma, quantity: 2 }],
   ...extra,
 });
@@ -162,8 +164,16 @@ test('an area listed under two branches goes to the first open one, and customer
 test('pickup needs a branch when branches exist, and a closed branch cannot take it', async () => {
   assert.equal((await call('POST', '/orders', { body: order({ orderType: 'PICKUP' }) })).status, 422);
   assert.equal((await call('POST', '/orders', { body: order({ orderType: 'PICKUP', pickupLocationId: ids.closed }) })).status, 409);
+  // Cash isn't among this restaurant's payment methods, so the server refuses it too.
+  const cash = await call('POST', '/orders', { body: order({ orderType: 'PICKUP', pickupLocationId: ids.ardiya, paymentMethod: 'CASH' }) });
+  assert.equal(cash.status, 400);
+  assert.match(cash.body.error, /CASH is not accepted/);
   const ok = await call('POST', '/orders', { body: order({ orderType: 'PICKUP', pickupLocationId: ids.ardiya }) });
   assert.equal(ok.status, 201);
+  // No method named: the restaurant's first accepted one, never cash by default.
+  const unnamed = await call('POST', '/orders', { body: order({ orderType: 'PICKUP', pickupLocationId: ids.ardiya, paymentMethod: undefined }) });
+  assert.equal(unnamed.status, 201);
+  assert.equal(unnamed.body.paymentMethod, 'KNET');
   assert.equal(ok.body.branchId, ids.ardiya);
   assert.equal(ok.body.zoneId, null);
 });

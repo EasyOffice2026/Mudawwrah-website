@@ -5,6 +5,7 @@ import { resolve as resolvePromotion } from './promotionService.js';
 import { getAll as getSettings } from './settingService.js';
 import { pushIfDue as pushToFoodics } from './foodicsService.js';
 import { nextOrderNumber } from './orderNumber.js';
+import { statusStamp } from './statusTimes.js';
 import { isOpenAt, nextOpening } from './branchHours.js';
 import { resolveForDelivery } from './zoneService.js';
 import { firstSoldOut } from './soldOutService.js';
@@ -35,13 +36,16 @@ export const create = async (payload) => {
   // makes the server agree, so one can't be used by calling the API directly.
   // "Order via WhatsApp" (WHATSAPP) hands the order over rather than paying
   // for it, and the WhatsApp bot (channel WHATSAPP) has its own payment step.
-  const paymentMethod = payload.paymentMethod || 'CASH';
-  if ((payload.channel || 'WEB') === 'WEB' && paymentMethod !== 'WHATSAPP') {
-    const accepted = String(settings.paymentMethods || 'KNET,CARD')
-      .split(',')
-      .map((method) => method.trim())
-      .filter(Boolean);
-    if (!accepted.includes(paymentMethod)) throw new HttpError(400, `${paymentMethod} is not accepted by this restaurant`);
+  // An order that names no method takes the restaurant's first accepted one —
+  // never cash by default, which a restaurant may have switched off.
+  const accepted = String(settings.paymentMethods || 'KNET,CARD')
+    .split(',')
+    .map((method) => method.trim())
+    .filter(Boolean);
+  const isWeb = (payload.channel || 'WEB') === 'WEB';
+  const paymentMethod = payload.paymentMethod || (isWeb && accepted[0]) || 'CASH';
+  if (isWeb && paymentMethod !== 'WHATSAPP' && !accepted.includes(paymentMethod)) {
+    throw new HttpError(400, `${paymentMethod} is not accepted by this restaurant`);
   }
 
   const menuItems = await prisma.menuItem.findMany({ where: { id: { in: payload.items.map((i) => i.menuItemId) } } });
@@ -151,7 +155,7 @@ export const create = async (payload) => {
       deliveryLng: orderType === 'PICKUP' ? null : payload.deliveryLng ?? null,
       notes: payload.notes,
       channel: payload.channel || 'WEB',
-      paymentMethod: payload.paymentMethod || 'CASH',
+      paymentMethod,
       orderType,
       subtotal,
       deliveryFee,
@@ -260,10 +264,21 @@ export const getById = async (id, viewer = null) => {
   return order;
 };
 
-export const updateStatus = async (id, status, viewer = null) => {
+export const updateStatus = async (id, status, viewer = null, { cancelReason, cancelNote } = {}) => {
   const current = await getById(id, viewer);
   if (current.status === status) return current;
-  const order = await prisma.order.update({ where: { id }, data: { status }, include });
+  const restored = current.status === 'CANCELLED' && status !== 'CANCELLED';
+  const order = await prisma.order.update({
+    where: { id },
+    data: {
+      status,
+      ...statusStamp(current, status),
+      ...(status === 'CANCELLED' ? { cancelReason: cancelReason || null, cancelNote: cancelNote || null } : {}),
+      // A restored order isn't cancelled any more; a later cancellation records afresh.
+      ...(restored ? { cancelReason: null, cancelNote: null, cancelledAt: null } : {}),
+    },
+    include,
+  });
   // A WhatsApp hiccup is not worth failing an admin's status update over —
   // the change has already been saved above by the time this runs.
   await notifyStatusChange(order).catch((error) => console.error('[whatsapp] status notification failed', error));

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api, apiError } from '../../lib/api';
 import { dateTime, kwd, localized } from '../../lib/format';
 import BranchAnalytics from '../components/BranchAnalytics.jsx';
@@ -11,6 +11,9 @@ export default function Dashboard() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const [range, setRange] = useState('daily');
+  // Revenue and order counts take turns on one axis: two y-scales on one
+  // plot would make their lines' crossings mean nothing.
+  const [metric, setMetric] = useState('revenue');
   // '' = every branch; a branch id narrows the whole overview to that branch.
   const [branchId, setBranchId] = useState('');
   const [view, setView] = useState('overview');
@@ -104,8 +107,20 @@ export default function Dashboard() {
       </div>
 
       <section className="card">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-bold">{t('admin.revenue')}</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex gap-1" role="group" aria-label={t('admin.revenue')}>
+            {['revenue', 'orders'].map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={metric === value}
+                onClick={() => setMetric(value)}
+                className={`rounded-lg px-3 py-1 text-sm font-bold ${metric === value ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'}`}
+              >
+                {t(`admin.${value}`)}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-1">
             {ranges.map((value) => (
               <button
@@ -124,14 +139,14 @@ export default function Dashboard() {
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={stats.revenueSeries}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="period" fontSize={11} />
-              <YAxis yAxisId="revenue" fontSize={11} />
-              <YAxis yAxisId="orders" orientation="right" allowDecimals={false} fontSize={11} />
-              <Tooltip formatter={(value, name) => (name === t('admin.revenue') ? kwd(value) : value)} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar yAxisId="revenue" dataKey="revenue" name={t('admin.revenue')} fill="#B00020" radius={[4, 4, 0, 0]} />
-              <Bar yAxisId="orders" dataKey="orders" name={t('admin.orders')} fill="#FF6B00" radius={[4, 4, 0, 0]} />
+              <CartesianGrid vertical={false} stroke="#e5e7eb" />
+              <XAxis dataKey="period" fontSize={11} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
+              <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={metric === 'revenue'} />
+              <Tooltip
+                cursor={{ fill: 'rgba(42,120,214,0.08)' }}
+                formatter={(value, key) => [key === 'revenue' ? kwd(value) : value, t(`admin.${key}`)]}
+              />
+              <Bar dataKey={metric} fill="#2a78d6" radius={[4, 4, 0, 0]} maxBarSize={24} />
             </BarChart>
           </ResponsiveContainer>
         </div>

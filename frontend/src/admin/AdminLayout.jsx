@@ -29,6 +29,8 @@ const links = [
   // Relative paths: the admin is mounted under /r/:slug/admin, so absolute
   // "/admin/..." links would leave the restaurant behind.
   { to: '', labelKey: 'admin.dashboard', end: true, roles: STAFF },
+  // Sales figures, like the dashboard: never shown to branch accounts.
+  { to: 'reports', labelKey: 'admin.reports.title', roles: STAFF },
   { to: 'menu', labelKey: 'admin.menu', roles: STAFF },
   { to: 'orders', labelKey: 'admin.orders', roles: DESK },
   { to: 'sold-out', labelKey: 'admin.soldOut', roles: DESK },

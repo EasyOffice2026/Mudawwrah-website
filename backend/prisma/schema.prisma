@@ -127,6 +127,7 @@ model Tenant {
   promotions Promotion[]
   pickupLocations PickupLocation[]
   orderCounters   OrderCounter[]
+  siteVisits      SiteVisit[]
   deliveryZones   DeliveryZone[]
   branchSoldOut   BranchSoldOut[]
 }
@@ -286,6 +287,17 @@ model Order {
   /// failed so staff can see it on the ticket and retry.
   foodicsOrderId  String?
   foodicsError    String?
+  /// When the order first reached each step, so reports can measure how long
+  /// the kitchen and the rider take. Set once; never moved by a later change.
+  confirmedAt      DateTime?
+  preparingAt      DateTime?
+  readyAt          DateTime?
+  outForDeliveryAt DateTime?
+  deliveredAt      DateTime?
+  cancelledAt      DateTime?
+  /// Why it was cancelled (CUSTOMER_REQUEST, OUT_OF_STOCK, ...) and any note.
+  cancelReason     String?
+  cancelNote       String?
   paidAt          DateTime?
   /// Structured address parts, collected step by step by the WhatsApp flow.
   area          String?
@@ -566,4 +578,16 @@ model OrderCounter {
   value    Int    @default(0)
 
   @@id([tenantId, prefix])
+}
+
+/// Storefront visits per day (one per browser session), so reports can show
+/// how many visitors became orders. Counts only; nothing about who visited.
+model SiteVisit {
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// The restaurant's calendar date, YYYYMMDD.
+  day      String
+  sessions Int    @default(0)
+
+  @@id([tenantId, day])
 }

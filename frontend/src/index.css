@@ -172,14 +172,15 @@ body {
  * one rule that can't be defeated by a nesting change elsewhere later.
  */
 @media print {
-  body * {
+  /* Receipt mode, the default: only the 80mm ticket prints. */
+  body:not(.print-report) * {
     visibility: hidden;
   }
-  .print-receipt,
-  .print-receipt * {
+  body:not(.print-report) .print-receipt,
+  body:not(.print-report) .print-receipt * {
     visibility: visible;
   }
-  .print-receipt {
+  body:not(.print-report) .print-receipt {
     /* Overrides the `hidden` (display:none) Tailwind class it carries on
        screen — visibility alone can never reveal a display:none element. */
     display: block !important;
@@ -187,5 +188,19 @@ body {
     inset: 0;
     width: 80mm;
     margin: 0 auto;
+  }
+
+  /* Report mode: Reports puts .print-report on <body> for "Print / PDF", so
+     the page prints as it reads — without the admin chrome or the controls. */
+  body.print-report {
+    background: #fff;
+  }
+  body.print-report aside,
+  body.print-report main > header,
+  body.print-report .no-print {
+    display: none !important;
+  }
+  body.print-report .print-avoid-break {
+    break-inside: avoid;
   }
 }
