@@ -346,6 +346,8 @@
       "allowedIpsHint": "The branch's static internet addresses, one per line. Branch staff accounts can only sign in from these. Leave empty for no restriction.",
       "foodicsBranchId": "Foodics branch ID",
       "foodicsBranchIdHint": "Orders this branch handles are sent to this Foodics branch. Leave empty to use the one in Settings → Foodics.",
+      "orderCode": "Order number code",
+      "orderCodeHint": "This branch numbers its own orders from 0001 each day, e.g. {{example}}. 3–5 letters. Set automatically from the name on the first order.",
       "allowedIpsPlaceholder": "e.g. 37.39.10.20",
       "saved": "Saved.",
       "addBranch": "Add branch",

@@ -4,6 +4,7 @@ import { currentTenant } from '../tenantContext.js';
 import { resolve as resolvePromotion } from './promotionService.js';
 import { getAll as getSettings } from './settingService.js';
 import { pushIfDue as pushToFoodics } from './foodicsService.js';
+import { nextOrderNumber } from './orderNumber.js';
 import { isOpenAt, nextOpening } from './branchHours.js';
 import { resolveForDelivery } from './zoneService.js';
 import { firstSoldOut } from './soldOutService.js';
@@ -25,16 +26,6 @@ const include = {
 const viewerScope = (viewer) => (viewer?.role === 'BRANCH' ? { branchId: viewer.branchId || '00000000-0000-0000-0000-000000000000' } : {});
 
 const round3 = (value) => Number(Number(value).toFixed(3));
-
-// The count is already confined to the current tenant, so two restaurants can
-// each run their own MD20260811-0001 without colliding.
-const generateOrderNumber = async () => {
-  const today = new Date();
-  const code = (currentTenant()?.slug || 'md').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || 'MD';
-  const prefix = `${code}${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-  const count = await prisma.order.count({ where: { orderNumber: { startsWith: prefix } } });
-  return `${prefix}-${String(count + 1).padStart(4, '0')}`;
-};
 
 export const create = async (payload) => {
   const settings = await getSettings();
@@ -144,7 +135,7 @@ export const create = async (payload) => {
 
   const order = await prisma.order.create({
     data: {
-      orderNumber: await generateOrderNumber(),
+      orderNumber: await nextOrderNumber({ tenant: currentTenant(), branchId, timeZone: timezone }),
       userId: payload.userId || null,
       customerName: payload.customerName,
       customerPhone: payload.customerPhone,

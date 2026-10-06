@@ -126,6 +126,7 @@ model Tenant {
   settings   Setting[]
   promotions Promotion[]
   pickupLocations PickupLocation[]
+  orderCounters   OrderCounter[]
   deliveryZones   DeliveryZone[]
   branchSoldOut   BranchSoldOut[]
 }
@@ -452,6 +453,9 @@ model PickupLocation {
   /// The Foodics branch this branch's orders are pushed to. Null falls back to
   /// the restaurant-wide Tenant.foodicsBranchId.
   foodicsBranchId String?
+  /// Starts this branch's order numbers (SAB20261006-0001), so each branch
+  /// counts its own orders. Null derives one from the name.
+  orderCode       String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   orders       Order[]  @relation("OrderPickupLocation")
@@ -550,4 +554,16 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@id([tenantId, key])
+}
+
+/// The last order number handed out for each prefix (a restaurant or branch
+/// code plus the Kuwait date, e.g. SAB20261006). Incremented atomically, so two
+/// orders placed at the same moment can never be given the same number.
+model OrderCounter {
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prefix   String
+  value    Int    @default(0)
+
+  @@id([tenantId, prefix])
 }

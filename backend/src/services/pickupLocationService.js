@@ -82,10 +82,24 @@ export const getById = async (id) => {
   return location;
 };
 
-export const create = (data) => prisma.pickupLocation.create({ data: shape({ ...data, hours: data.hours ?? [] }) });
+/** Two branches sharing an order code would share one run of order numbers. */
+const assertCodeFree = async (orderCode, exceptId = null) => {
+  if (!orderCode) return;
+  const clash = await prisma.pickupLocation.findFirst({
+    where: { orderCode, ...(exceptId ? { NOT: { id: exceptId } } : {}) },
+    select: { nameEn: true },
+  });
+  if (clash) throw new HttpError(409, `Order code ${orderCode} is already used by ${clash.nameEn}`);
+};
+
+export const create = async (data) => {
+  await assertCodeFree(data.orderCode);
+  return prisma.pickupLocation.create({ data: shape({ ...data, hours: data.hours ?? [] }) });
+};
 
 export const update = async (id, data) => {
   await getById(id); // 404 rather than a Prisma error, and confirms the tenant owns it
+  await assertCodeFree(data.orderCode, id);
   return prisma.pickupLocation.update({ where: { id }, data: shape(data) });
 };
 
