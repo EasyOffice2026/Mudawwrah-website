@@ -6,23 +6,28 @@ export const create = async (req, res) => {
   res.status(201).json(await service.create({ ...data, userId: req.user?.sub }));
 };
 
+// req.user is passed along so branch accounts only ever see their own branch's orders.
 export const list = async (req, res) =>
   res.json(
-    await service.list({
-      status: req.query.status,
-      channel: req.query.channel,
-      from: req.query.from,
-      to: req.query.to,
-      search: req.query.search,
-      page: req.query.page || 1,
-      pageSize: req.query.pageSize || 20,
-    }),
+    await service.list(
+      {
+        status: req.query.status,
+        channel: req.query.channel,
+        from: req.query.from,
+        to: req.query.to,
+        search: req.query.search,
+        branchId: req.query.branchId,
+        page: req.query.page || 1,
+        pageSize: req.query.pageSize || 20,
+      },
+      req.user,
+    ),
   );
 
-export const getById = async (req, res) => res.json(await service.getById(req.params.id));
+export const getById = async (req, res) => res.json(await service.getById(req.params.id, req.user));
 
 export const updateStatus = async (req, res) =>
-  res.json(await service.updateStatus(req.params.id, orderStatusSchema.parse(req.body).status));
+  res.json(await service.updateStatus(req.params.id, orderStatusSchema.parse(req.body).status, req.user));
 
 /** Public status lookup for the tracking link handed out at checkout. */
 export const track = async (req, res) => res.json(await service.track(req.params.id));

@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminOnly from './admin/AdminOnly.jsx';
+import StaffOnly from './admin/StaffOnly.jsx';
 import Menu from './customer/Menu.jsx';
 import RootRoute, { RootAdminRoute } from './platform/RootRoute.jsx';
 
@@ -16,7 +17,9 @@ const MenuManager = lazy(() => import('./admin/pages/MenuManager.jsx'));
 const Orders = lazy(() => import('./admin/pages/Orders.jsx'));
 const Promotions = lazy(() => import('./admin/pages/Promotions.jsx'));
 const Settings = lazy(() => import('./admin/pages/Settings.jsx'));
+const SoldOut = lazy(() => import('./admin/pages/SoldOut.jsx'));
 const Users = lazy(() => import('./admin/pages/Users.jsx'));
+const Zones = lazy(() => import('./admin/pages/Zones.jsx'));
 // Operator-only, so it stays out of the bundle a customer downloads.
 const PlatformConsole = lazy(() => import('./platform/PlatformConsole.jsx'));
 const PlatformLogin = lazy(() => import('./platform/PlatformLogin.jsx'));
@@ -38,22 +41,34 @@ export default function App() {
       <Route path="/r/:slug" element={<Menu />} />
       <Route path="/r/:slug/admin/login" element={<Login />} />
       <Route path="/r/:slug/admin" element={<AdminLayout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="menu" element={<MenuManager />} />
+        {/* The order desk: the only pages a branch account can open. */}
         <Route path="orders" element={<Orders />} />
-        <Route path="media" element={<MediaLibrary />} />
-        <Route path="banners" element={<Banners />} />
-        <Route path="promotions" element={<Promotions />} />
-        <Route path="feedback" element={<Feedback />} />
-        <Route
-          path="users"
-          element={
-            <AdminOnly>
-              <Users />
-            </AdminOnly>
-          }
-        />
-        <Route path="settings" element={<Settings />} />
+        <Route path="sold-out" element={<SoldOut />} />
+        <Route element={<StaffOnly />}>
+          <Route index element={<Dashboard />} />
+          <Route path="menu" element={<MenuManager />} />
+          <Route path="media" element={<MediaLibrary />} />
+          <Route path="banners" element={<Banners />} />
+          <Route path="promotions" element={<Promotions />} />
+          <Route path="feedback" element={<Feedback />} />
+          <Route
+            path="users"
+            element={
+              <AdminOnly>
+                <Users />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="zones"
+            element={
+              <AdminOnly>
+                <Zones />
+              </AdminOnly>
+            }
+          />
+          <Route path="settings" element={<Settings />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

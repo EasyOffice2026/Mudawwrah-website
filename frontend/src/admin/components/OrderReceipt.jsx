@@ -29,6 +29,8 @@ export default function OrderReceipt({ order, restaurantName, lang = 'en' }) {
 
       <p className="font-bold">{order.orderType === 'PICKUP' ? 'PICKUP' : 'DELIVERY'}</p>
       <p>{address}</p>
+      {order.orderType !== 'PICKUP' && (order.zone || order.area) && <p>Area: {order.zone?.nameEn || order.area}</p>}
+      {order.orderType !== 'PICKUP' && order.branch && <p>Branch: {order.branch.nameEn}</p>}
       {order.deliveryNote ? <p>Note: {order.deliveryNote}</p> : null}
       <p className="mt-1">
         {order.customerName} · {order.customerPhone}

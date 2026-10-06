@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api, apiError } from '../../lib/api';
 import { dateTime, kwd } from '../../lib/format';
 
@@ -24,10 +24,11 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi label={t('admin.kpi.todayOrders')} value={stats.kpis.todayOrders} />
         <Kpi label={t('admin.kpi.todayRevenue')} value={kwd(stats.kpis.todayRevenue)} />
         <Kpi label={t('admin.kpi.pendingOrders')} value={stats.kpis.pendingOrders} />
+        <Kpi label={t('admin.kpi.cancelledOrders')} value={stats.kpis.cancelledOrders} />
         <Kpi label={t('admin.kpi.totalCustomers')} value={stats.kpis.totalCustomers} />
       </div>
 
@@ -54,9 +55,12 @@ export default function Dashboard() {
             <BarChart data={stats.revenueSeries}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="period" fontSize={11} />
-              <YAxis fontSize={11} />
-              <Tooltip formatter={(value, key) => (key === 'revenue' ? kwd(value) : value)} />
-              <Bar dataKey="revenue" fill="#B00020" radius={[4, 4, 0, 0]} />
+              <YAxis yAxisId="revenue" fontSize={11} />
+              <YAxis yAxisId="orders" orientation="right" allowDecimals={false} fontSize={11} />
+              <Tooltip formatter={(value, name) => (name === t('admin.revenue') ? kwd(value) : value)} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar yAxisId="revenue" dataKey="revenue" name={t('admin.revenue')} fill="#B00020" radius={[4, 4, 0, 0]} />
+              <Bar yAxisId="orders" dataKey="orders" name={t('admin.orders')} fill="#FF6B00" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

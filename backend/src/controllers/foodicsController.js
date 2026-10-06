@@ -2,7 +2,7 @@ import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
 import * as foodics from '../services/foodicsService.js';
 import * as orderService from '../services/orderService.js';
-import { runWithTenant } from '../tenantContext.js';
+import { currentTenantId, runWithTenant } from '../tenantContext.js';
 import { foodicsSettingsSchema } from '../validators.js';
 
 export const getSettings = async (req, res) => res.json(await foodics.getSettings());
@@ -14,11 +14,14 @@ export const branches = async (req, res) => res.json(await foodics.listBranches(
 
 /** Staff retry for an order whose push failed (or that pre-dates the mapping). */
 export const pushOrder = async (req, res) => {
-  await orderService.getById(req.params.id);
+  // Scoped to the viewer, so a branch account can only retry its own branch's orders.
+  await orderService.getById(req.params.id, req.user);
+  const tenant = await prisma.tenant.findUnique({ where: { id: currentTenantId() } });
+  if (!foodics.isConfigured(tenant)) throw new HttpError(409, 'Foodics is not configured for this restaurant');
   const order = await foodics.pushOrder(req.params.id);
-  if (!order) throw new HttpError(409, 'Foodics is not configured for this restaurant');
+  if (!order) throw new HttpError(409, 'This order is already being sent to Foodics — try again in a moment');
   if (!order.foodicsOrderId) throw new HttpError(502, order.foodicsError || 'Foodics push failed');
-  res.json(await orderService.getById(req.params.id));
+  res.json(await orderService.getById(req.params.id, req.user));
 };
 
 /**

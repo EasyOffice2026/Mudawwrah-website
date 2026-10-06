@@ -72,7 +72,7 @@ export const stats = async ({ range = 'daily' } = {}) => {
   else if (range === 'weekly') since.setUTCDate(since.getUTCDate() - 7 * 11);
   else since.setUTCDate(since.getUTCDate() - 29);
 
-  const [todayOrders, todayRevenue, pendingOrders, totalCustomers, periodOrders, recentOrders, topItems] =
+  const [todayOrders, todayRevenue, pendingOrders, cancelledToday, totalCustomers, periodOrders, recentOrders, topItems] =
     await Promise.all([
       prisma.order.count({ where: { createdAt: { gte: today }, status: { not: 'CANCELLED' } } }),
       prisma.order.aggregate({
@@ -80,6 +80,7 @@ export const stats = async ({ range = 'daily' } = {}) => {
         where: { createdAt: { gte: today }, status: { not: 'CANCELLED' } },
       }),
       prisma.order.count({ where: { status: 'PENDING' } }),
+      prisma.order.count({ where: { createdAt: { gte: today }, status: 'CANCELLED' } }),
       prisma.user.count({ where: { role: 'CUSTOMER' } }),
       prisma.order.findMany({
         where: { createdAt: { gte: since }, status: { not: 'CANCELLED' } },
@@ -108,6 +109,7 @@ export const stats = async ({ range = 'daily' } = {}) => {
       todayOrders,
       todayRevenue: Number(todayRevenue._sum.total || 0),
       pendingOrders,
+      cancelledOrders: cancelledToday,
       totalCustomers,
     },
     revenueSeries: [...buckets.values()].sort((a, b) => a.period.localeCompare(b.period)),

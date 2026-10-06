@@ -2,10 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from '../../components/Modal.jsx';
 import { api, apiError } from '../../lib/api';
-import { dateTime, kwd } from '../../lib/format';
+import { dateTime, kwd, localized } from '../../lib/format';
+import { useAuth } from '../../store/auth';
 import OrderReceipt from '../components/OrderReceipt.jsx';
 
-const STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED'];
+const STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
+// The rider's step means nothing for an order collected at the counter.
+const RIDER_STATUSES = ['OUT_FOR_DELIVERY'];
+const statusesFor = (order) =>
+  order.orderType === 'PICKUP' ? STATUSES.filter((s) => !RIDER_STATUSES.includes(s) || s === order.status) : STATUSES;
 const POLL_MS = 15000;
 
 /** Two-tone chime, synthesised so the build needs no audio asset. */
@@ -36,7 +41,12 @@ const playChime = () => {
 
 export default function Orders() {
   const { t, i18n } = useTranslation();
-  const [filters, setFilters] = useState({ status: '', channel: '', from: '', to: '', search: '' });
+  const { user } = useAuth();
+  // A branch account is confined to its own branch by the server, so it gets
+  // no branch filter; the owner and staff can narrow the list to one.
+  const canPickBranch = user?.role !== 'BRANCH';
+  const [branches, setBranches] = useState([]);
+  const [filters, setFilters] = useState({ status: '', channel: '', branchId: '', from: '', to: '', search: '' });
   const [result, setResult] = useState({ data: [], total: 0, page: 1, pageSize: 20 });
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
@@ -52,6 +62,23 @@ export default function Orders() {
       .then(({ data }) => setRestaurantName(data.nameEn))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!canPickBranch) return;
+    api
+      .get('/pickup-locations/all')
+      .then(({ data }) => setBranches(data))
+      .catch(() => setBranches([]));
+  }, [canPickBranch]);
+
+  const lang = i18n.language;
+  const statusLabel = (status) => t(`admin.statuses.${status}`, status);
+  // Delivery orders name their zone; older ones, and restaurants without zones, the typed area.
+  const areaOf = (order) => (order.zone ? localized(order.zone, 'name', lang) : order.area || '—');
+  const branchOf = (order) => {
+    const branch = order.branch || order.pickupLocation;
+    return branch ? localized(branch, 'name', lang) : '—';
+  };
 
   const load = async () => {
     try {
@@ -123,7 +150,7 @@ export default function Orders() {
               onClick={() => setNewIds(new Set())}
               className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-white"
             >
-              {newIds.size} new · {t('admin.markSeen')}
+              {t('admin.newCount', { count: newIds.size })} · {t('admin.markSeen')}
             </button>
           ) : null}
           <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-gray-600">
@@ -134,14 +161,14 @@ export default function Orders() {
         </div>
       </div>
 
-      <div className="card grid gap-3 sm:grid-cols-5">
+      <div className={`card grid gap-3 ${canPickBranch && branches.length ? 'sm:grid-cols-3 lg:grid-cols-6' : 'sm:grid-cols-5'}`}>
         <div>
           <label className="label">{t('admin.status')}</label>
           <select className="input" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
             <option value="">{t('common.all')}</option>
             {STATUSES.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {statusLabel(status)}
               </option>
             ))}
           </select>
@@ -154,12 +181,25 @@ export default function Orders() {
             <option value="WHATSAPP">WHATSAPP</option>
           </select>
         </div>
+        {canPickBranch && branches.length ? (
+          <div>
+            <label className="label">{t('admin.branch')}</label>
+            <select className="input" value={filters.branchId} onChange={(e) => setFilters({ ...filters, branchId: e.target.value })}>
+              <option value="">{t('admin.allBranches')}</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {localized(branch, 'name', lang)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div>
-          <label className="label">From</label>
+          <label className="label">{t('admin.from')}</label>
           <input type="date" className="input" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} />
         </div>
         <div>
-          <label className="label">To</label>
+          <label className="label">{t('admin.to')}</label>
           <input type="date" className="input" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} />
         </div>
         <div>
@@ -176,6 +216,8 @@ export default function Orders() {
             <tr>
               <th className="py-2 text-start">{t('admin.orderNumber')}</th>
               <th className="py-2 text-start">{t('admin.customer')}</th>
+              <th className="py-2 text-start">{t('admin.area')}</th>
+              <th className="py-2 text-start">{t('admin.branch')}</th>
               <th className="py-2 text-start">{t('admin.placedAt')}</th>
               <th className="py-2 text-start">{t('admin.channel')}</th>
               <th className="py-2 text-start">{t('admin.status')}</th>
@@ -189,14 +231,18 @@ export default function Orders() {
                 <td className="py-2 font-semibold">
                   {order.orderNumber}
                   {newIds.has(order.id) ? (
-                    <span className="ms-2 rounded bg-accent px-1.5 py-0.5 text-[10px] font-bold text-white">NEW</span>
+                    <span className="ms-2 rounded bg-accent px-1.5 py-0.5 text-[10px] font-bold text-white">{t('admin.newBadge')}</span>
                   ) : null}
                 </td>
                 <td className="py-2">
                   {order.customerName}
                   <span className="block text-xs text-gray-500">{order.customerPhone}</span>
                 </td>
-                <td className="py-2 text-gray-500">{dateTime(order.createdAt, i18n.language)}</td>
+                <td className="py-2">
+                  {order.orderType === 'PICKUP' ? <span className="text-gray-500">{t('checkout.pickup')}</span> : areaOf(order)}
+                </td>
+                <td className="py-2">{branchOf(order)}</td>
+                <td className="py-2 text-gray-500">{dateTime(order.createdAt, lang)}</td>
                 <td className="py-2">
                   <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">{order.channel}</span>
                   <span className="block text-xs text-gray-500">
@@ -205,9 +251,9 @@ export default function Orders() {
                 </td>
                 <td className="py-2">
                   <select className="input py-1 text-xs" value={order.status} onChange={(e) => setStatus(order.id, e.target.value)}>
-                    {STATUSES.map((status) => (
+                    {statusesFor(order).map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {statusLabel(status)}
                       </option>
                     ))}
                   </select>
@@ -222,7 +268,7 @@ export default function Orders() {
             ))}
             {!result.data.length ? (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-gray-500">
+                <td colSpan={9} className="py-6 text-center text-gray-500">
                   {t('common.noResults')}
                 </td>
               </tr>
@@ -274,12 +320,16 @@ export default function Orders() {
               ) : null}
               {detail.pickupLocation ? (
                 <p>
-                  <span className="text-gray-500">Pickup branch:</span> {detail.pickupLocation.nameEn}
+                  <span className="text-gray-500">{t('admin.pickupBranch')}:</span> {localized(detail.pickupLocation, 'name', lang)}
+                </p>
+              ) : detail.branch ? (
+                <p>
+                  <span className="text-gray-500">{t('admin.branch')}:</span> {localized(detail.branch, 'name', lang)}
                 </p>
               ) : null}
               {detail.utmSource || detail.utmMedium || detail.utmCampaign || detail.referrer ? (
                 <p className="sm:col-span-2">
-                  <span className="text-gray-500">Came from:</span>{' '}
+                  <span className="text-gray-500">{t('admin.cameFrom')}:</span>{' '}
                   {[detail.utmSource, detail.utmMedium, detail.utmCampaign, detail.utmTerm, detail.utmContent]
                     .filter(Boolean)
                     .join(' / ') || detail.referrer}
@@ -291,21 +341,39 @@ export default function Orders() {
                   {detail.feedback.comment || ''}
                 </p>
               ) : null}
+              {detail.orderType !== 'PICKUP' && (detail.zone || detail.area) ? (
+                <p>
+                  <span className="text-gray-500">{t('admin.area')}:</span> {areaOf(detail)}
+                </p>
+              ) : null}
               {detail.address ? (
                 <p>
                   <span className="text-gray-500">{t('checkout.address')}:</span> {detail.address}
                 </p>
               ) : null}
+              {/* The structured parts, so a rider can read them without parsing the line above. */}
+              {detail.block || detail.street || detail.building ? (
+                <p>
+                  {[
+                    [t('checkout.block'), detail.block],
+                    [t('checkout.street'), detail.street],
+                    [t('checkout.building'), detail.building],
+                  ]
+                    .filter(([, value]) => value)
+                    .map(([label, value]) => `${label}: ${value}`)
+                    .join(' · ')}
+                </p>
+              ) : null}
               {detail.deliveryLat && detail.deliveryLng ? (
                 <p>
-                  <span className="text-gray-500">Pinned location:</span>{' '}
+                  <span className="text-gray-500">{t('admin.pinnedLocation')}:</span>{' '}
                   <a
                     className="text-brand underline"
                     target="_blank"
                     rel="noreferrer"
                     href={`https://www.google.com/maps/search/?api=1&query=${detail.deliveryLat},${detail.deliveryLng}`}
                   >
-                    Open in Google Maps
+                    {t('admin.openInMaps')}
                   </a>
                 </p>
               ) : null}
@@ -343,7 +411,7 @@ export default function Orders() {
               <Row label={t('cart.total')} value={kwd(detail.total)} bold />
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {STATUSES.map((status) => (
+              {statusesFor(detail).map((status) => (
                 <button
                   key={status}
                   type="button"
@@ -352,11 +420,11 @@ export default function Orders() {
                     detail.status === status ? 'bg-brand text-white' : 'bg-gray-100 text-gray-600'
                   }`}
                 >
-                  {status}
+                  {statusLabel(status)}
                 </button>
               ))}
               <button type="button" className="btn-ghost ms-auto" onClick={() => window.print()}>
-                🖨️ Print ticket
+                🖨️ {t('admin.printTicket')}
               </button>
             </div>
           </div>
@@ -365,7 +433,7 @@ export default function Orders() {
 
       {/* Off-screen until printed — index.css's print rule hides everything
           else on the page and reveals only this. */}
-      <OrderReceipt order={detail} restaurantName={restaurantName} lang={i18n.language} />
+      <OrderReceipt order={detail} restaurantName={restaurantName} lang={lang} />
     </div>
   );
 }

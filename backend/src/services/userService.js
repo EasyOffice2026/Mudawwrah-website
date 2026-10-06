@@ -11,6 +11,8 @@ const select = {
   phone: true,
   role: true,
   isActive: true,
+  branchId: true,
+  branch: { select: { id: true, nameEn: true, nameAr: true } },
   createdAt: true,
   _count: { select: { orders: true } },
 };
@@ -46,12 +48,25 @@ export const getById = async (id) => {
   return user;
 };
 
-export const create = async ({ email, password, ...rest }) => {
+/**
+ * A BRANCH account must name one of this restaurant's branches (tenant-scoped
+ * read, so another restaurant's branch is not found); other roles carry none.
+ */
+const branchFields = async (role, branchId) => {
+  if (role !== 'BRANCH') return { branchId: null };
+  if (!branchId) throw new HttpError(400, 'Choose the branch this account works at');
+  const branch = await prisma.pickupLocation.findUnique({ where: { id: branchId }, select: { id: true } });
+  if (!branch) throw new HttpError(400, 'That branch does not exist');
+  return { branchId };
+};
+
+export const create = async ({ email, password, branchId, ...rest }) => {
   const exists = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
   if (exists) throw new HttpError(409, 'A user with this email already exists');
   return prisma.user.create({
     data: {
       ...rest,
+      ...(await branchFields(rest.role, branchId)),
       ...scope(),
       email: email.toLowerCase(),
       password: await bcrypt.hash(password, 10),
@@ -60,12 +75,15 @@ export const create = async ({ email, password, ...rest }) => {
   });
 };
 
-export const update = async (id, { password, email, ...rest }) => {
-  await getById(id);
+export const update = async (id, { password, email, branchId, ...rest }) => {
+  const current = await getById(id);
+  const role = rest.role || current.role;
+  const nextBranch = branchId !== undefined || rest.role ? await branchFields(role, branchId ?? current.branchId) : {};
   return prisma.user.update({
     where: { id },
     data: {
       ...rest,
+      ...nextBranch,
       ...(email ? { email: email.toLowerCase() } : {}),
       ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
     },

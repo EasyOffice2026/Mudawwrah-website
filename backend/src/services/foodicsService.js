@@ -46,10 +46,19 @@ const credentials = (tenant = currentTenant()) => ({
   branchId: tenant?.foodicsBranchId || '',
 });
 
-export const isConfigured = (tenant) => {
-  const { token, branchId } = credentials(tenant);
-  return Boolean(token && branchId);
-};
+/**
+ * A token is what switches the integration on. The Foodics branch is resolved
+ * per order (see foodicsBranchFor), since a restaurant may map each of its own
+ * branches separately and leave the restaurant-wide default empty.
+ */
+export const isConfigured = (tenant) => Boolean(credentials(tenant).token);
+
+/**
+ * Where an order goes in Foodics: the Foodics branch mapped on the Mdawra
+ * branch handling it, else the restaurant-wide default. Null means nowhere —
+ * pushing anyway would land a Sabah Al-Ahmad order on another branch's KDS.
+ */
+export const foodicsBranchFor = (order, tenant) => order?.branch?.foodicsBranchId || tenant?.foodicsBranchId || null;
 
 /** The full tenant row, since the request context only carries public fields. */
 const loadTenant = async () => {
@@ -227,17 +236,38 @@ export const shouldPushNow = (order) => order.paymentStatus === 'PAID' || !['KNE
  * throws — a POS outage must not break the customer's checkout — but returns
  * the updated order so callers (and the retry endpoint) can surface errors.
  */
+// Orders mid-push. A payment provider can hit both its callback and its
+// redirect for the same payment; without this, two concurrent pushes both see
+// no foodicsOrderId yet and Foodics gets the order twice. The API runs as a
+// single process, so an in-memory claim is enough.
+const inFlight = new Set();
+
 export const pushOrder = async (orderId) => {
+  if (inFlight.has(orderId)) return null;
+  inFlight.add(orderId);
+  try {
+    return await pushOrderOnce(orderId);
+  } finally {
+    inFlight.delete(orderId);
+  }
+};
+
+const pushOrderOnce = async (orderId) => {
   // Keyed by id, so this also works from payment callbacks that arrive
   // without a tenant in context; the tenant is taken from the order itself.
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true, branch: { select: { nameEn: true, foodicsBranchId: true } } },
+  });
   if (!order) return null;
   const tenant = await prisma.tenant.findUnique({ where: { id: order.tenantId } });
   if (!isConfigured(tenant)) return null;
   if (order.foodicsOrderId) return order;
   return runWithTenant(tenant, async () => {
     try {
-      const payload = buildOrderPayload(order, { branchId: tenant.foodicsBranchId, ...(await mappings(order)) });
+      const branchId = foodicsBranchFor(order, tenant);
+      if (!branchId) throw new Error(`No Foodics branch mapped for ${order.branch?.nameEn || 'this restaurant'}`);
+      const payload = buildOrderPayload(order, { branchId, ...(await mappings(order)) });
       const json = await request(tenant.foodicsAccessToken, 'POST', '/orders', payload);
       const foodicsOrderId = json?.data?.id || json?.id;
       if (!foodicsOrderId) throw new Error('Foodics did not return an order id');
@@ -282,6 +312,18 @@ export const verifyWebhook = (tenant, { rawBody, secretHeader, signatureHeader }
   return false;
 };
 
+// How far along an order is. Foodics only knows pending/active/closed, while
+// staff here also move orders to Ready and Out for Delivery — so a webhook
+// that arrives late must never pull an order back to an earlier step.
+const STAGE = { PENDING: 0, CONFIRMED: 1, PREPARING: 2, READY: 3, OUT_FOR_DELIVERY: 4, REACHED: 5, DELIVERED: 6 };
+
+/** Whether a Foodics status should replace ours: forward only, finished orders stay put. */
+export const advances = (current, next) => {
+  if (current === next || ['DELIVERED', 'CANCELLED'].includes(current)) return false;
+  if (next === 'CANCELLED') return true;
+  return (STAGE[next] ?? -1) > (STAGE[current] ?? -1);
+};
+
 /**
  * Applies a Foodics order event to our order. Matches by the Foodics order id
  * we stored on push, falling back to our order number in `reference` for
@@ -299,7 +341,7 @@ export const applyWebhook = async (event) => {
     include: { items: true },
   });
   if (!order) return { ignored: true, reason: 'order not found' };
-  if (order.status === status || ['DELIVERED', 'CANCELLED'].includes(order.status)) return { orderNumber: order.orderNumber, status: order.status, unchanged: true };
+  if (!advances(order.status, status)) return { orderNumber: order.orderNumber, status: order.status, unchanged: true };
 
   const updated = await prisma.order.update({
     where: { id: order.id },

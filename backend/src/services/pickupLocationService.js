@@ -1,5 +1,7 @@
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
+import { isOpenAt, nextOpening } from './branchHours.js';
+import { getAll as getSettings } from './settingService.js';
 
 /**
  * Branches a customer can collect from, and when each one is open.
@@ -30,21 +32,45 @@ export const normaliseHours = (input) => {
     const close = HHMM.test(row.close) ? row.close : '23:00';
     // A window that ends before it starts is a branch trading past midnight,
     // which is normal here — it is stored as given and read as wrapping.
-    return { day, closed, open, close };
+    // Equal open and close means open all day.
+    // Breaks close the branch for part of the day (Friday prayer); malformed ones are dropped.
+    const breaks = (Array.isArray(row.breaks) ? row.breaks : [])
+      .filter((b) => HHMM.test(b?.from) && HHMM.test(b?.to) && b.from !== b.to)
+      .slice(0, 4)
+      .map((b) => ({ from: b.from, to: b.to }));
+    return { day, closed, open, close, breaks };
   });
 };
+
+/** Static IPs, trimmed and de-duplicated; IPv4 or IPv6 literals only. */
+const normaliseIps = (ips) => [
+  ...new Set((Array.isArray(ips) ? ips : []).map((ip) => String(ip).trim()).filter((ip) => /^[0-9a-fA-F:.]{2,45}$/.test(ip))),
+];
 
 const shape = (data) => ({
   ...data,
   ...(data.hours !== undefined ? { hours: normaliseHours(data.hours) } : {}),
+  ...(data.allowedIps !== undefined ? { allowedIps: normaliseIps(data.allowedIps) } : {}),
 });
 
-/** Public: only branches a customer could actually collect from today. */
-export const listPublic = () =>
-  prisma.pickupLocation.findMany({
+/** Adds openNow and nextOpen ({ time, daysAhead }) in the restaurant's timezone. */
+export const withOpenStatus = async (branches, now = new Date()) => {
+  const { timezone } = await getSettings();
+  return branches.map((branch) => ({
+    ...branch,
+    openNow: isOpenAt(branch.hours, now, timezone || 'Asia/Kuwait'),
+    nextOpen: isOpenAt(branch.hours, now, timezone || 'Asia/Kuwait') ? null : nextOpening(branch.hours, now, timezone || 'Asia/Kuwait'),
+  }));
+};
+
+/** Public: active branches with their open status. Staff IP lists never leave the server here. */
+export const listPublic = async () => {
+  const branches = await prisma.pickupLocation.findMany({
     where: { isActive: true },
     orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
   });
+  return withOpenStatus(branches.map(({ allowedIps, foodicsBranchId, ...branch }) => branch));
+};
 
 /** Admin: everything, including branches temporarily switched off. */
 export const listAll = () =>

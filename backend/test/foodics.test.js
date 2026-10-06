@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { test } from 'node:test';
-import { buildOrderPayload, mapStatus, shouldPushNow, verifyWebhook } from '../src/services/foodicsService.js';
+import { advances, buildOrderPayload, foodicsBranchFor, mapStatus, shouldPushNow, verifyWebhook } from '../src/services/foodicsService.js';
 
 const order = {
   id: 'o1',
@@ -101,4 +101,22 @@ test('verifyWebhook accepts the shared secret or an HMAC of the body', () => {
   assert.equal(verifyWebhook(tenant, { rawBody, signatureHeader: `sha256=${sig}` }), true);
   assert.equal(verifyWebhook(tenant, { rawBody, signatureHeader: 'deadbeef' }), false);
   assert.equal(verifyWebhook({ foodicsWebhookSecret: null }, { secretHeader: 's3cret' }), false);
+});
+
+test('foodicsBranchFor routes to the branch handling the order, else the restaurant default', () => {
+  const tenant = { foodicsBranchId: 'default-branch' };
+  assert.equal(foodicsBranchFor({ branch: { foodicsBranchId: 'sabah' } }, tenant), 'sabah');
+  assert.equal(foodicsBranchFor({ branch: { foodicsBranchId: null } }, tenant), 'default-branch');
+  assert.equal(foodicsBranchFor({ branch: null }, tenant), 'default-branch');
+  assert.equal(foodicsBranchFor({ branch: null }, { foodicsBranchId: null }), null);
+});
+
+test('a Foodics webhook only ever moves an order forward', () => {
+  assert.equal(advances('PENDING', 'PREPARING'), true);
+  assert.equal(advances('OUT_FOR_DELIVERY', 'PREPARING'), false); // late "active" event
+  assert.equal(advances('OUT_FOR_DELIVERY', 'DELIVERED'), true);
+  assert.equal(advances('READY', 'CANCELLED'), true); // declined/void at the POS
+  assert.equal(advances('DELIVERED', 'CANCELLED'), false); // finished orders stay put
+  assert.equal(advances('CANCELLED', 'PREPARING'), false);
+  assert.equal(advances('PREPARING', 'PREPARING'), false);
 });

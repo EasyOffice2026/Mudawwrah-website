@@ -5,9 +5,18 @@ import * as payment from '../payment/index.js';
 import { getAll as getSettings } from '../settingService.js';
 import { categoryName, itemName, money, t } from './copy.js';
 import * as sessions from './sessionStore.js';
-import { sendButtons, sendList, sendText } from './waClient.js';
+import { sendButtons, sendImage, sendList, sendText } from './waClient.js';
 
 const PAGE_SIZE = 8;
+/**
+ * How many photos open the menu.
+ *
+ * Kept deliberately small. WhatsApp delivers each image as its own message, so
+ * a catalogue the length of the menu buries the category list the customer
+ * actually has to tap and reads as spam on a phone. Four is enough to show the
+ * food is real without pushing the list off screen.
+ */
+const CATALOGUE_SIZE = 4;
 const round3 = (value) => Number(Number(value).toFixed(3));
 
 const KEYWORDS = {
@@ -83,6 +92,54 @@ const showMainMenu = async (session) => {
   await sessions.save(session.phone, { state: 'MENU' });
 };
 
+/** A menu item's photo, if it has one Meta can fetch. */
+const itemPhoto = (item) => item?.image?.url || null;
+
+/**
+ * Sends a short photo catalogue, then lets the caller show the list.
+ *
+ * Featured items come first, then top-rated, then menu order — so a restaurant
+ * controls what a new customer sees first from the admin console rather than it
+ * being whatever happens to sort first.
+ *
+ * A failed image never blocks ordering: Meta fetches the link itself, so a slow
+ * or unreachable host is a real possibility, and the category list matters more
+ * than the pictures. Each send is caught individually and the flow continues.
+ */
+const showCatalogue = async (session) => {
+  const copy = t(session.lang);
+  const candidates = await prisma.menuItem.findMany({
+    where: { isAvailable: true, isOutOfStock: false, imageId: { not: null }, category: { isVisible: true } },
+    orderBy: [{ isFeatured: 'desc' }, { isTopRated: 'desc' }, { displayOrder: 'asc' }],
+    take: CATALOGUE_SIZE * 4,
+    include: { image: true },
+  });
+
+  // One dish can sit in more than one category — a bestseller listed under both
+  // "Breakfast" and "Favourites" is deliberate on the menu, but sending its photo
+  // twice makes the catalogue look broken. Dedupe on the image, which is what the
+  // customer actually sees.
+  const photos = [];
+  const usedImages = new Set();
+  for (const item of candidates) {
+    const url = itemPhoto(item);
+    if (!url || usedImages.has(url)) continue;
+    usedImages.add(url);
+    photos.push(item);
+    if (photos.length === CATALOGUE_SIZE) break;
+  }
+  if (!photos.length) return;
+
+  await sendText(session.phone, copy.catalogueIntro);
+  for (const item of photos) {
+    try {
+      await sendImage(session.phone, itemPhoto(item), copy.itemCaption(itemName(session.lang, item), money(item.price)));
+    } catch (error) {
+      console.error('[whatsapp] catalogue photo failed, continuing', item.id, error.message);
+    }
+  }
+};
+
 const showCategories = async (session) => {
   const copy = t(session.lang);
   const categories = await prisma.category.findMany({
@@ -93,6 +150,9 @@ const showCategories = async (session) => {
     await sendText(session.phone, copy.fallback);
     return showMainMenu(session);
   }
+  // Photos first, then the list — so the list is the last thing on screen and
+  // stays the obvious next tap.
+  await showCatalogue(session);
   await sendList(session.phone, {
     text: copy.pickCategory,
     buttonLabel: copy.categories,
@@ -131,7 +191,7 @@ const showItems = async (session, categoryId, page = 0) => {
 
 const startItem = async (session, itemId) => {
   const copy = t(session.lang);
-  const item = await prisma.menuItem.findUnique({ where: { id: itemId }, include: { options: true } });
+  const item = await prisma.menuItem.findUnique({ where: { id: itemId }, include: { options: true, image: true } });
   if (!item || !item.isAvailable || item.isOutOfStock) {
     await sendText(session.phone, copy.fallback);
     return showCategories(session);
@@ -140,6 +200,17 @@ const startItem = async (session, itemId) => {
     ...session.draft,
     pending: { menuItemId: item.id, quantity: 1, optionIds: [], groupIndex: 0 },
   };
+  // The photo is confirmation that the right thing was tapped, so it goes before
+  // the quantity question. Caught separately: a missing photo must not stop an
+  // order, and the quantity prompt below repeats the name and price anyway.
+  const photo = itemPhoto(item);
+  if (photo) {
+    try {
+      await sendImage(session.phone, photo, copy.itemCaption(itemName(session.lang, item), money(item.price)));
+    } catch (error) {
+      console.error('[whatsapp] item photo failed, continuing', item.id, error.message);
+    }
+  }
   await sendText(session.phone, copy.chooseQuantity(itemName(session.lang, item), money(item.price)));
   return sessions.save(session.phone, { state: 'QTY', draft });
 };

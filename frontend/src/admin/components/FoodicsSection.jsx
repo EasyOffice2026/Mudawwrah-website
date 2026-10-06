@@ -50,7 +50,7 @@ export default function FoodicsSection() {
     try {
       const { data } = await api.get('/foodics/branches');
       setBranches(data);
-      setStatus(data.length ? 'Connected — pick the branch that should receive orders.' : 'Connected, but no branches were returned.');
+      setStatus(data.length ? "Connected — pick the default branch, and set each branch's own Foodics branch under Pickup branches." : 'Connected, but no branches were returned.');
     } catch (err) {
       setError(apiError(err));
     } finally {
@@ -69,7 +69,7 @@ export default function FoodicsSection() {
         </span>
       </div>
       <p className="-mt-1 text-xs text-gray-500">
-        Every website and WhatsApp order is sent to this Foodics branch as it comes in (online payments once paid).
+        Every website and WhatsApp order is sent to Foodics as it comes in (online payments once paid) — to the Foodics branch set on the Mdawra branch handling it under Pickup branches, or to the default below when that is empty.
         Each menu item needs its Foodics product ID filled in under Menu for the push to succeed.
       </p>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -88,7 +88,7 @@ export default function FoodicsSection() {
           />
         </div>
         <div>
-          <label className="label">Branch ID</label>
+          <label className="label">Default branch ID</label>
           {branches?.length ? (
             <select className="input" value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}>
               <option value="">—</option>

@@ -3,11 +3,11 @@ import { registerSchema, loginSchema } from '../validators.js';
 
 export const login = async (req, res) => {
   const data = loginSchema.parse(req.body);
-  res.json(await authService.login(data));
+  res.json(await authService.login(data, { ip: authService.clientIp(req) }));
 };
 
 export const refresh = async (req, res) => {
-  res.json(await authService.refresh(req.body?.refreshToken));
+  res.json(await authService.refresh(req.body?.refreshToken, { ip: authService.clientIp(req) }));
 };
 
 export const me = async (req, res) => {

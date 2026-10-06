@@ -12,14 +12,17 @@ import * as payments from '../controllers/paymentController.js';
 import * as pickupLocations from '../controllers/pickupLocationController.js';
 import * as promotions from '../controllers/promotionController.js';
 import * as settings from '../controllers/settingController.js';
+import * as soldOut from '../controllers/soldOutController.js';
 import * as tenants from '../controllers/tenantController.js';
 import * as users from '../controllers/userController.js';
 import * as whatsapp from '../controllers/whatsappController.js';
+import * as zones from '../controllers/zoneController.js';
 import {
   authenticate,
   optionalAuth,
   requireAdmin,
   requireCustomer,
+  requireOrderDesk,
   requirePlatformAdmin,
   requireStaff,
 } from '../middleware/auth.js';
@@ -78,9 +81,23 @@ scoped.post('/orders', optionalAuth, h(orders.create));
 scoped.post('/auth/register', h(auth.register));
 scoped.get('/orders/mine', requireCustomer, h(orders.mine));
 scoped.get('/orders/track/:id', h(orders.track));
-scoped.get('/orders', requireStaff, h(orders.list));
-scoped.get('/orders/:id', requireStaff, h(orders.getById));
-scoped.patch('/orders/:id/status', requireStaff, h(orders.updateStatus));
+// Order desk: owner, staff and branch accounts. Branch accounts see and update only their branch's orders.
+scoped.get('/orders', requireOrderDesk, h(orders.list));
+scoped.get('/orders/:id', requireOrderDesk, h(orders.getById));
+scoped.patch('/orders/:id/status', requireOrderDesk, h(orders.updateStatus));
+
+// Items sold out at one branch only. Branch accounts manage their own branch.
+scoped.get('/branch-sold-out', requireOrderDesk, h(soldOut.list));
+scoped.put('/branch-sold-out', requireOrderDesk, h(soldOut.set));
+
+// Delivery zones: the public list feeds checkout and WhatsApp; editing them (fees,
+// minimums, which branch serves an area) is the owner's alone.
+scoped.get('/zones', h(zones.listPublic));
+scoped.get('/zones/all', requireStaff, h(zones.listAll));
+scoped.get('/zones/:id', requireStaff, h(zones.getById));
+scoped.post('/zones', requireAdmin, h(zones.create));
+scoped.put('/zones/:id', requireAdmin, h(zones.update));
+scoped.delete('/zones/:id', requireAdmin, h(zones.remove));
 
 // Banners
 // Pickup branches. The public list is what the checkout offers; everything
@@ -89,8 +106,9 @@ scoped.get('/pickup-locations', h(pickupLocations.listPublic));
 scoped.get('/pickup-locations/all', requireStaff, h(pickupLocations.listAll));
 scoped.post('/pickup-locations/reorder', requireStaff, h(pickupLocations.reorder));
 scoped.get('/pickup-locations/:id', requireStaff, h(pickupLocations.getById));
-scoped.post('/pickup-locations', requireStaff, h(pickupLocations.create));
-scoped.put('/pickup-locations/:id', requireStaff, h(pickupLocations.update));
+// Owner only: these set opening hours and the static IPs branch accounts are confined to.
+scoped.post('/pickup-locations', requireAdmin, h(pickupLocations.create));
+scoped.put('/pickup-locations/:id', requireAdmin, h(pickupLocations.update));
 scoped.delete('/pickup-locations/:id', requireAdmin, h(pickupLocations.remove));
 
 scoped.get('/banners', h(banners.listPublic));
@@ -104,8 +122,9 @@ scoped.delete('/banners/:id', requireStaff, h(banners.remove));
 scoped.get('/promotions', h(promotions.listPublic));
 scoped.post('/promotions/preview', h(promotions.preview));
 scoped.get('/promotions/all', requireStaff, h(promotions.listAll));
-scoped.post('/promotions', requireStaff, h(promotions.create));
-scoped.put('/promotions/:id', requireStaff, h(promotions.update));
+// Discount codes are the owner's alone (client requirement).
+scoped.post('/promotions', requireAdmin, h(promotions.create));
+scoped.put('/promotions/:id', requireAdmin, h(promotions.update));
 scoped.delete('/promotions/:id', requireAdmin, h(promotions.remove));
 
 // Media
@@ -122,7 +141,8 @@ scoped.delete('/users/:id', requireAdmin, h(users.remove));
 
 // Settings
 scoped.get('/settings', h(settings.get));
-scoped.put('/settings', requireStaff, h(settings.update));
+// Fees, minimum order, tax and payment methods: owner only (client requirement).
+scoped.put('/settings', requireAdmin, h(settings.update));
 
 // Feedback (WhatsApp after-sale ratings)
 router.get('/feedback', requireStaff, h(feedback.list));
@@ -137,7 +157,7 @@ router.post('/foodics/webhook/:slug', h(foodics.webhook));
 scoped.get('/foodics/settings', requireAdmin, h(foodics.getSettings));
 scoped.put('/foodics/settings', requireAdmin, h(foodics.updateSettings));
 scoped.get('/foodics/branches', requireAdmin, h(foodics.branches));
-scoped.post('/orders/:id/foodics', requireStaff, h(foodics.pushOrder));
+scoped.post('/orders/:id/foodics', requireOrderDesk, h(foodics.pushOrder));
 
 // Payment gateway callbacks
 router.get('/payments/mock/pay', h(payments.mockPay));

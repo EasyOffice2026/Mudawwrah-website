@@ -23,6 +23,9 @@ const SCOPED = new Set([
   'WhatsappSession',
   'WhatsappMessage',
   'CustomerAddress',
+  // Branch delivery areas and per-branch sold-out flags: every write resolves the row first or keys on id.
+  'DeliveryZone',
+  'BranchSoldOut',
 ]);
 
 // Operations whose `where` is a plain filter, so tenantId can be merged in.

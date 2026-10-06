@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
+import { assertBranchAccess, clientIp } from '../services/authService.js';
 import { HttpError } from './error.js';
 
 export const authenticate = (req, res, next) => {
@@ -74,5 +75,35 @@ export const requirePlatformAdmin = (req, res, next) => {
   next();
 };
 
+/**
+ * A branch account is re-checked on every request, not only at login: the
+ * branch must still be active and the request must still come from one of its
+ * static IPs, so a token copied off the branch PC is useless elsewhere.
+ * Results are cached briefly per account and address to keep requests fast.
+ */
+const branchChecks = new Map();
+export const requireBranchAccess = async (req, res, next) => {
+  if (req.user?.role !== 'BRANCH') return next();
+  const ip = clientIp(req);
+  const key = `${req.user.sub}|${ip}`;
+  const cached = branchChecks.get(key);
+  if (cached && cached.expires > Date.now()) return cached.error ? next(cached.error) : next();
+  try {
+    await assertBranchAccess({ role: 'BRANCH', branchId: req.user.branchId, tenantId: req.user.tenantId }, ip);
+    branchChecks.set(key, { expires: Date.now() + 60_000 });
+    next();
+  } catch (error) {
+    branchChecks.set(key, { expires: Date.now() + 60_000, error });
+    next(error);
+  }
+};
+export const clearBranchAccessCache = () => branchChecks.clear();
+
 export const requireStaff = [authenticate, requireRole('ADMIN', 'STAFF'), requireTenantAccess];
 export const requireAdmin = [authenticate, requireRole('ADMIN'), requireTenantAccess];
+/**
+ * Order handling and per-branch sold-out flags: the owner, staff and branch
+ * accounts. Nothing financial or administrative sits behind this — promotions,
+ * settings, users, zones and the sales dashboard stay requireStaff/requireAdmin.
+ */
+export const requireOrderDesk = [authenticate, requireRole('ADMIN', 'STAFF', 'BRANCH'), requireTenantAccess, requireBranchAccess];

@@ -68,8 +68,12 @@ export default function LocationPicker({ open, areas = [], onClose, onConfirm })
     };
   }, [open]);
 
+  // The real map has its own recovery — drag it to the right spot — which is
+  // not what the no-map fallback's "pick your area" message describes at all.
+  const deniedMessage = () => t(mapState === 'ready' ? 'checkout.locationDeniedMapReady' : 'checkout.locationDenied');
+
   const useMyLocation = () => {
-    if (!navigator.geolocation) return setGeoError(t('checkout.locationDenied'));
+    if (!navigator.geolocation) return setGeoError(deniedMessage());
     setLocating(true);
     setGeoError(null);
     navigator.geolocation.getCurrentPosition(
@@ -78,7 +82,7 @@ export default function LocationPicker({ open, areas = [], onClose, onConfirm })
         setLocating(false);
       },
       () => {
-        setGeoError(t('checkout.locationDenied'));
+        setGeoError(deniedMessage());
         setLocating(false);
       },
       { enableHighAccuracy: true, timeout: 8000 },
