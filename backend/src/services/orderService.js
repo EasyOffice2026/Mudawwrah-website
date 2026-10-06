@@ -40,6 +40,19 @@ export const create = async (payload) => {
   const settings = await getSettings();
   if (settings.isOpen !== 'true') throw new HttpError(409, 'The restaurant is currently closed for orders');
 
+  // The website hides payment methods the restaurant has switched off; this
+  // makes the server agree, so one can't be used by calling the API directly.
+  // "Order via WhatsApp" (WHATSAPP) hands the order over rather than paying
+  // for it, and the WhatsApp bot (channel WHATSAPP) has its own payment step.
+  const paymentMethod = payload.paymentMethod || 'CASH';
+  if ((payload.channel || 'WEB') === 'WEB' && paymentMethod !== 'WHATSAPP') {
+    const accepted = String(settings.paymentMethods || 'KNET,CARD')
+      .split(',')
+      .map((method) => method.trim())
+      .filter(Boolean);
+    if (!accepted.includes(paymentMethod)) throw new HttpError(400, `${paymentMethod} is not accepted by this restaurant`);
+  }
+
   const menuItems = await prisma.menuItem.findMany({ where: { id: { in: payload.items.map((i) => i.menuItemId) } } });
   const options = await prisma.customizationOption.findMany({
     where: { menuItemId: { in: menuItems.map((i) => i.id) } },
