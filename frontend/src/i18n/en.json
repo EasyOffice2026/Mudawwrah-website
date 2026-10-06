@@ -186,6 +186,16 @@
       "beforeBranches": "Older orders (before branches)",
       "removedBranch": "Removed branch"
     },
+    "notifications": {
+      "title": "Notifications",
+      "unseen": "{{count}} new orders",
+      "markAllRead": "Mark all as read",
+      "enableAlerts": "Turn on sound and pop-up alerts",
+      "blocked": "Pop-up alerts are blocked in this browser’s settings. The sound and red count still work.",
+      "newOrder": "New order {{number}}",
+      "empty": "No orders yet",
+      "viewAll": "View all orders"
+    },
     "revenue": "Revenue",
     "daily": "Daily",
     "weekly": "Weekly",

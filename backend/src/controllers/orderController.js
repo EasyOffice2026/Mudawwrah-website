@@ -26,6 +26,11 @@ export const list = async (req, res) =>
 
 export const getById = async (req, res) => res.json(await service.getById(req.params.id, req.user));
 
+export const feed = async (req, res) => {
+  const since = req.query.since ? new Date(req.query.since) : null;
+  res.json(await service.feed({ since: since && !Number.isNaN(since.getTime()) ? since : null }, req.user));
+};
+
 export const updateStatus = async (req, res) =>
   res.json(await service.updateStatus(req.params.id, orderStatusSchema.parse(req.body).status, req.user));
 

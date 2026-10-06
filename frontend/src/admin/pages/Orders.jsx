@@ -5,39 +5,13 @@ import { api, apiError } from '../../lib/api';
 import { dateTime, kwd, localized } from '../../lib/format';
 import { useAuth } from '../../store/auth';
 import OrderReceipt from '../components/OrderReceipt.jsx';
+import { useOrderFeed } from '../OrderFeed.jsx';
 
 const STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
 // The rider's step means nothing for an order collected at the counter.
 const RIDER_STATUSES = ['OUT_FOR_DELIVERY'];
 const statusesFor = (order) =>
   order.orderType === 'PICKUP' ? STATUSES.filter((s) => !RIDER_STATUSES.includes(s) || s === order.status) : STATUSES;
-const POLL_MS = 15000;
-
-/** Two-tone chime, synthesised so the build needs no audio asset. */
-const playChime = () => {
-  try {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    [880, 1320].forEach((freq, index) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      const start = ctx.currentTime + index * 0.18;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
-      osc.start(start);
-      osc.stop(start + 0.18);
-    });
-    setTimeout(() => ctx.close().catch(() => {}), 800);
-  } catch {
-    /* audio is a nicety, never a failure */
-  }
-};
 
 export default function Orders() {
   const { t, i18n } = useTranslation();
@@ -55,6 +29,8 @@ export default function Orders() {
   const [newIds, setNewIds] = useState(() => new Set());
   const [restaurantName, setRestaurantName] = useState('');
   const seenIds = useRef(null);
+  const feed = useOrderFeed();
+  const lastVersion = useRef(null);
 
   useEffect(() => {
     api
@@ -90,10 +66,7 @@ export default function Orders() {
       const ids = new Set(data.data.map((order) => order.id));
       if (seenIds.current) {
         const fresh = data.data.filter((order) => !seenIds.current.has(order.id)).map((order) => order.id);
-        if (fresh.length) {
-          setNewIds((current) => new Set([...current, ...fresh]));
-          playChime();
-        }
+        if (fresh.length) setNewIds((current) => new Set([...current, ...fresh]));
       }
       seenIds.current = ids;
 
@@ -111,11 +84,15 @@ export default function Orders() {
     load();
   }, [filters, page]);
 
+  // The feed's version moves whenever an order arrives or changes status, so the
+  // list reloads only then — no fixed-interval refreshing of an unchanged page.
+  // While paused the last version is kept, so resuming catches up on whatever changed meanwhile.
   useEffect(() => {
-    if (!live) return undefined;
-    const id = setInterval(load, POLL_MS);
-    return () => clearInterval(id);
-  }, [live, filters, page]);
+    const version = feed?.version || null;
+    if (!live) return;
+    if (lastVersion.current && version && version !== lastVersion.current) load();
+    lastVersion.current = version;
+  }, [feed?.version, live]);
 
   const setStatus = async (id, status) => {
     try {
@@ -147,7 +124,10 @@ export default function Orders() {
           {newIds.size ? (
             <button
               type="button"
-              onClick={() => setNewIds(new Set())}
+              onClick={() => {
+                setNewIds(new Set());
+                feed?.markAllSeen();
+              }}
               className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-white"
             >
               {t('admin.newCount', { count: newIds.size })} · {t('admin.markSeen')}

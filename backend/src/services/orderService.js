@@ -186,6 +186,38 @@ export const create = async (payload) => {
   return order;
 };
 
+/**
+ * What the admin polls every few seconds to notice new orders without
+ * reloading anything: the latest orders in a few fields each, how many arrived
+ * since the viewer last looked, and a version that moves whenever any order is
+ * added or changes status — so a page only refetches when something changed.
+ * A branch account sees only its own branch, exactly as in the order list.
+ */
+export const feed = async ({ since } = {}, viewer = null) => {
+  const scope = viewerScope(viewer);
+  const [orders, latest, unseen] = await Promise.all([
+    prisma.order.findMany({
+      where: scope,
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: {
+        id: true,
+        orderNumber: true,
+        customerName: true,
+        total: true,
+        status: true,
+        orderType: true,
+        channel: true,
+        createdAt: true,
+        branch: { select: { nameEn: true, nameAr: true } },
+      },
+    }),
+    prisma.order.aggregate({ where: scope, _max: { updatedAt: true } }),
+    since ? prisma.order.count({ where: { ...scope, createdAt: { gt: since } } }) : 0,
+  ]);
+  return { orders, unseen, version: latest._max.updatedAt, now: new Date() };
+};
+
 export const list = ({ status, channel, from, to, search, branchId, page = 1, pageSize = 20 } = {}, viewer = null) => {
   const where = {
     ...(branchId ? { branchId } : {}),

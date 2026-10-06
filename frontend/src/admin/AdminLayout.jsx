@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { localized } from '../lib/format';
 import { applyTheme } from '../lib/theme';
 import { useAuth } from '../store/auth';
+import { NotificationBell, OrderFeedProvider, useOrderFeed } from './OrderFeed.jsx';
 
 // Who sees each page. ADMIN is the owner; a BRANCH account only ever gets the
 // order desk (its own branch's orders and sold-out list). App.jsx enforces the
@@ -12,6 +13,17 @@ import { useAuth } from '../store/auth';
 const OWNER = ['ADMIN'];
 const STAFF = ['ADMIN', 'STAFF'];
 const DESK = ['ADMIN', 'STAFF', 'BRANCH'];
+
+/** Unread new orders on the Orders link, so the sidebar alone shows something came in. */
+const UnseenCount = () => {
+  const feed = useOrderFeed();
+  if (!feed?.unseen) return null;
+  return (
+    <span className="ms-auto min-w-[1.25rem] rounded-full bg-red-600 px-1.5 text-center text-[11px] font-bold leading-5 text-white">
+      {feed.unseen > 99 ? '99+' : feed.unseen}
+    </span>
+  );
+};
 
 const links = [
   // Relative paths: the admin is mounted under /r/:slug/admin, so absolute
@@ -71,6 +83,7 @@ export default function AdminLayout() {
   const base = `/r/${slug}/admin`;
 
   return (
+    <OrderFeedProvider slug={slug} user={user}>
     <div className="flex min-h-screen bg-gray-50">
       <aside
         className={`fixed inset-y-0 z-40 w-60 shrink-0 bg-brand p-4 text-white transition-transform lg:static lg:translate-x-0 ${
@@ -88,10 +101,11 @@ export default function AdminLayout() {
                 to={link.to ? `${base}/${link.to}` : base}
                 end={link.end}
                 className={({ isActive }) =>
-                  `block rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-white text-brand' : 'text-white/90 hover:bg-white/10'}`
+                  `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-white text-brand' : 'text-white/90 hover:bg-white/10'}`
                 }
               >
                 {t(link.labelKey)}
+                {link.to === 'orders' ? <UnseenCount /> : null}
               </NavLink>
             ))}
         </nav>
@@ -112,6 +126,7 @@ export default function AdminLayout() {
             ☰
           </button>
           <div className="flex items-center gap-2">
+            <NotificationBell base={base} />
             {branch ? (
               <span className="rounded-full bg-brand-light px-3 py-1 text-xs font-bold text-brand">
                 {t('admin.branch')}: {localized(branch, 'name', i18n.language)}
@@ -142,5 +157,6 @@ export default function AdminLayout() {
         </div>
       </main>
     </div>
+    </OrderFeedProvider>
   );
 }

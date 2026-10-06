@@ -83,6 +83,8 @@ scoped.get('/orders/mine', requireCustomer, h(orders.mine));
 scoped.get('/orders/track/:id', h(orders.track));
 // Order desk: owner, staff and branch accounts. Branch accounts see and update only their branch's orders.
 scoped.get('/orders', requireOrderDesk, h(orders.list));
+// Before /orders/:id, which would otherwise read "feed" as an order id.
+scoped.get('/orders/feed', requireOrderDesk, h(orders.feed));
 scoped.get('/orders/:id', requireOrderDesk, h(orders.getById));
 scoped.patch('/orders/:id/status', requireOrderDesk, h(orders.updateStatus));
 
