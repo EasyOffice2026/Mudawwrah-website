@@ -6,9 +6,9 @@ import { dateTime, kwd, localized } from '../../lib/format';
 import { useAuth } from '../../store/auth';
 import OrderReceipt from '../components/OrderReceipt.jsx';
 
-const STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'REACHED', 'DELIVERED', 'CANCELLED'];
-// The rider's steps mean nothing for an order collected at the counter.
-const RIDER_STATUSES = ['OUT_FOR_DELIVERY', 'REACHED'];
+const STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
+// The rider's step means nothing for an order collected at the counter.
+const RIDER_STATUSES = ['OUT_FOR_DELIVERY'];
 const statusesFor = (order) =>
   order.orderType === 'PICKUP' ? STATUSES.filter((s) => !RIDER_STATUSES.includes(s) || s === order.status) : STATUSES;
 const POLL_MS = 15000;

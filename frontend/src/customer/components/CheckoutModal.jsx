@@ -41,7 +41,7 @@ const buildWhatsappMessage = ({ lines, order, settings, lang, t }) => {
 
 // Order of progress, used to decide which steps on the tracker are done. A
 // pickup order never goes out with a rider, so it skips those two steps.
-const TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'REACHED', 'DELIVERED'];
+const TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 
 // Kuwait mobile: exactly 8 digits starting with 9, 6, 5 or 4. Spaces, dashes
 // and a pasted +965 / 965 country code are tolerated and stripped first, so
