@@ -166,6 +166,7 @@ router.post('/payments/:provider/callback', h(payments.callback));
 
 // Dashboard
 scoped.get('/dashboard/stats', requireStaff, h(dashboard.stats));
+scoped.get('/dashboard/branches', requireStaff, h(dashboard.branches));
 
 // A restaurant's own name, banner and logo — the fields the storefront
 // header and the platform picker actually display. requireAdmin, not just

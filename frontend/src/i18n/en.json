@@ -173,6 +173,19 @@
       "cancelledOrders": "Cancelled today",
       "totalCustomers": "Total customers"
     },
+    "analytics": {
+      "branchesButton": "Branches",
+      "backToOverview": "Back to overview",
+      "title": "Branch performance",
+      "hint": "Every branch side by side. Tap a branch to see its own dashboard.",
+      "period": "Period",
+      "periods": { "today": "Today", "7d": "Last 7 days", "30d": "Last 30 days" },
+      "orders": "Orders",
+      "averageOrder": "Avg. order",
+      "cancelled": "Cancelled",
+      "beforeBranches": "Older orders (before branches)",
+      "removedBranch": "Removed branch"
+    },
     "revenue": "Revenue",
     "daily": "Daily",
     "weekly": "Weekly",

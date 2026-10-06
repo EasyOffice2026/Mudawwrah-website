@@ -180,6 +180,19 @@
       "cancelledOrders": "الملغاة اليوم",
       "totalCustomers": "إجمالي العملاء"
     },
+    "analytics": {
+      "branchesButton": "الفروع",
+      "backToOverview": "رجوع للملخص",
+      "title": "أداء الفروع",
+      "hint": "كل الفروع جنب بعض. اضغط على أي فرع عشان تشوف لوحته الخاصة.",
+      "period": "الفترة",
+      "periods": { "today": "اليوم", "7d": "آخر ٧ أيام", "30d": "آخر ٣٠ يوم" },
+      "orders": "الطلبات",
+      "averageOrder": "متوسط الطلب",
+      "cancelled": "الملغاة",
+      "beforeBranches": "طلبات قديمة (قبل إضافة الفروع)",
+      "removedBranch": "فرع محذوف"
+    },
     "revenue": "الإيرادات",
     "daily": "يومي",
     "weekly": "أسبوعي",
