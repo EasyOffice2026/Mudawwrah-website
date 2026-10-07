@@ -16,8 +16,11 @@ const itemInclude = {
   orderBy: { displayOrder: 'asc' },
 };
 
-export const listPublic = () =>
-  prisma.category.findMany({
+/** The "Picks for you" category, recognised by its slug ("picks-for-you", "top-picks", ...). */
+const isPicks = (category) => /(^|-)picks?(-|$)/.test(category.slug);
+
+export const listPublic = async () => {
+  const categories = await prisma.category.findMany({
     where: { isVisible: true },
     orderBy: { displayOrder: 'asc' },
     include: {
@@ -27,6 +30,24 @@ export const listPublic = () =>
       },
     },
   });
+
+  // "Featured in picks" on an item in any category also shows it under Picks,
+  // after the picks' own items. Picks often hold their own copy of an item
+  // (same name, separate row), so a featured item already there by name is
+  // not added twice.
+  const picks = categories.find(isPicks);
+  if (!picks) return categories;
+  const names = new Set(picks.items.map((item) => item.nameEn.trim().toLowerCase()));
+  const featured = [];
+  for (const item of categories.filter((category) => category !== picks).flatMap((category) => category.items)) {
+    const name = item.nameEn.trim().toLowerCase();
+    if (!item.isFeatured || names.has(name)) continue;
+    names.add(name);
+    featured.push(item);
+  }
+  picks.items = [...picks.items, ...featured];
+  return categories;
+};
 
 export const listAll = () =>
   prisma.category.findMany({
