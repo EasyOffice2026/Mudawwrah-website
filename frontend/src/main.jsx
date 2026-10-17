@@ -4,6 +4,9 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import './i18n/index.js';
 import './index.css';
+import { installStaleChunkReload } from './lib/version.js';
+
+installStaleChunkReload();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

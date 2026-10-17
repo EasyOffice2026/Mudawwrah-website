@@ -207,7 +207,7 @@ export default function Reports() {
           <OrdersSection r={r} t={t} lang={lang} />
           <MenuSection r={r} t={t} lang={lang} />
           <CustomersSection r={r} t={t} lang={lang} />
-          <PaymentsMarketingSection r={r} t={t} lang={lang} />
+          <PaymentsMarketingSection r={r} t={t} />
           <OperationsSection r={r} t={t} nameOf={nameOf} />
         </div>
       ) : null}
@@ -600,7 +600,7 @@ function CustomersSection({ r, t, lang }) {
   );
 }
 
-function PaymentsMarketingSection({ r, t, lang }) {
+function PaymentsMarketingSection({ r, t }) {
   const p = r.payments;
   const mk = r.marketing;
   const conv = mk.conversion;

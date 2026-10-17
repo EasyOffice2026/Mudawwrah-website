@@ -23,6 +23,29 @@ export const unlockAudio = () => {
   }
 };
 
+/**
+ * Tells `callback` whether the browser currently lets this page make sound —
+ * once now and again whenever that changes. A page that has just (re)loaded
+ * stays silent until someone clicks it, which on a branch screen means the
+ * first new order of the day can arrive unheard.
+ */
+export const watchAudio = (callback) => {
+  let audio = null;
+  try {
+    audio = context();
+  } catch {
+    /* no Web Audio at all */
+  }
+  if (!audio) {
+    callback(true); // nothing to warn about
+    return () => {};
+  }
+  const report = () => callback(audio.state === 'running');
+  report();
+  audio.addEventListener('statechange', report);
+  return () => audio.removeEventListener('statechange', report);
+};
+
 export const playChime = () => {
   try {
     const audio = context();

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
+import BuildLabel from '../../components/BuildLabel.jsx';
 import { api, apiError } from '../../lib/api';
 import { localized } from '../../lib/format';
 import { applyTheme } from '../../lib/theme';
@@ -76,6 +77,7 @@ export default function Login() {
         <button type="submit" className="btn-primary w-full" disabled={submitting}>
           {submitting ? t('common.loading') : t('admin.signIn')}
         </button>
+        <BuildLabel className="text-center text-[11px] text-gray-500" />
       </form>
     </div>
   );

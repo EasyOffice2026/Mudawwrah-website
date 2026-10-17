@@ -5,7 +5,9 @@ import { api } from '../lib/api';
 import { localized } from '../lib/format';
 import { applyTheme } from '../lib/theme';
 import { useAuth } from '../store/auth';
-import { NotificationBell, OrderFeedProvider, useOrderFeed } from './OrderFeed.jsx';
+import BuildLabel from '../components/BuildLabel.jsx';
+import { NotificationBell, OrderFeedProvider, SoundOffPill, useOrderFeed } from './OrderFeed.jsx';
+import UpdateBanner from './UpdateBanner.jsx';
 
 // Who sees each page. ADMIN is the owner; a BRANCH account only ever gets the
 // order desk (its own branch's orders and sold-out list). App.jsx enforces the
@@ -119,15 +121,18 @@ export default function AdminLayout() {
           <button type="button" onClick={logout} className="btn w-full bg-white/15 text-white hover:bg-white/25">
             {t('admin.signOut')}
           </button>
+          <BuildLabel className="pt-1 text-[11px] text-white/80" />
         </div>
       </aside>
 
       <main className="min-w-0 flex-1">
+        <UpdateBanner />
         <header className="flex items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-3">
           <button type="button" className="btn-ghost lg:hidden" onClick={() => setOpen((value) => !value)}>
             ☰
           </button>
           <div className="flex items-center gap-2">
+            <SoundOffPill />
             <NotificationBell base={base} />
             {branch ? (
               <span className="rounded-full bg-brand-light px-3 py-1 text-xs font-bold text-brand">

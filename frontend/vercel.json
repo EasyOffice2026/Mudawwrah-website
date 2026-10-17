@@ -5,6 +5,9 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/uploads/:file*", "destination": "/api/image?file=:file*" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    { "source": "/version.json", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] }
   ]
 }

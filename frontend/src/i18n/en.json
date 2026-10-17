@@ -194,7 +194,19 @@
       "blocked": "Pop-up alerts are blocked in this browser’s settings. The sound and red count still work.",
       "newOrder": "New order {{number}}",
       "empty": "No orders yet",
-      "viewAll": "View all orders"
+      "viewAll": "View all orders",
+      "soundOff": "Sound is off",
+      "soundOffHint": "After a page loads, browsers keep sound off until you click. Click here to turn on the new-order chime."
+    },
+    "update": {
+      "banner": "A new version is available.",
+      "hint": "Refresh to get the latest changes. It takes a second and you stay signed in.",
+      "refresh": "Refresh now"
+    },
+    "version": {
+      "label": "Version",
+      "unsaved": "Built from changes that were not committed to git",
+      "dev": "development build"
     },
     "reports": {
       "title": "Reports",

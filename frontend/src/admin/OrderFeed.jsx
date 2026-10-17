@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import { playChime, unlockAudio } from '../lib/chime';
+import { playChime, unlockAudio, watchAudio } from '../lib/chime';
 import { dateTime, kwd, localized } from '../lib/format';
 
 // Small and cheap (a few KB), so polling often costs nothing: this is what
@@ -53,8 +53,11 @@ export function OrderFeedProvider({ slug, user, children }) {
   });
   const [feed, setFeed] = useState({ orders: [], unseen: 0, version: null });
   const [permission, setPermission] = useState(() => (canNotify() ? Notification.permission : 'unsupported'));
+  // The latest value for the polling callback, which must not be re-created on every change.
   const lastSeenRef = useRef(lastSeen);
-  lastSeenRef.current = lastSeen;
+  useEffect(() => {
+    lastSeenRef.current = lastSeen;
+  }, [lastSeen]);
   // Orders this tab already knows about; null until the first load, which only
   // sets the baseline — opening the dashboard shouldn't chime for old orders.
   const known = useRef(null);
@@ -121,6 +124,14 @@ export function OrderFeedProvider({ slug, user, children }) {
     setFeed((current) => ({ ...current, unseen: 0 }));
   }, [feed.orders, key]);
 
+  // Whether the browser lets this page chime right now (see watchAudio).
+  const [soundOn, setSoundOn] = useState(true);
+  useEffect(() => watchAudio(setSoundOn), []);
+  const enableSound = useCallback(() => {
+    unlockAudio();
+    playChime(); // so they hear what an alert sounds like
+  }, []);
+
   const enableAlerts = useCallback(async () => {
     unlockAudio();
     playChime(); // so they hear what an alert sounds like
@@ -130,9 +141,29 @@ export function OrderFeedProvider({ slug, user, children }) {
   const isUnseen = useCallback((order) => new Date(order.createdAt) > new Date(lastSeen), [lastSeen]);
 
   return (
-    <FeedContext.Provider value={{ ...feed, isUnseen, markAllSeen, enableAlerts, permission, reload: load }}>
+    <FeedContext.Provider value={{ ...feed, isUnseen, markAllSeen, enableAlerts, enableSound, soundOn, permission, reload: load }}>
       {children}
     </FeedContext.Provider>
+  );
+}
+
+/**
+ * Shown only while the browser is keeping this page silent. One click turns the
+ * chime on; the first click anywhere does too, so it disappears on its own.
+ */
+export function SoundOffPill() {
+  const { t } = useTranslation();
+  const feed = useOrderFeed();
+  if (!feed || feed.soundOn) return null;
+  return (
+    <button
+      type="button"
+      onClick={feed.enableSound}
+      title={t('admin.notifications.soundOffHint')}
+      className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-200"
+    >
+      <span aria-hidden="true">🔇</span> {t('admin.notifications.soundOff')}
+    </button>
   );
 }
 
