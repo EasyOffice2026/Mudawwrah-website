@@ -12,6 +12,7 @@ const Banners = lazy(() => import('./admin/pages/Banners.jsx'));
 const Dashboard = lazy(() => import('./admin/pages/Dashboard.jsx'));
 const Feedback = lazy(() => import('./admin/pages/Feedback.jsx'));
 const Login = lazy(() => import('./admin/pages/Login.jsx'));
+const LegalPage = lazy(() => import('./customer/LegalPage.jsx'));
 const MediaLibrary = lazy(() => import('./admin/pages/MediaLibrary.jsx'));
 const MenuManager = lazy(() => import('./admin/pages/MenuManager.jsx'));
 const Orders = lazy(() => import('./admin/pages/Orders.jsx'));
@@ -40,6 +41,10 @@ export default function App() {
       {/* One restaurant. In production this is also reachable at
           <slug>.yourplatform.com or the restaurant's own domain. */}
       <Route path="/r/:slug" element={<Menu />} />
+      {/* The restaurant's own About Us / Terms / Refund text; see customer/legal. */}
+      <Route path="/r/:slug/about" element={<LegalPage page="about" />} />
+      <Route path="/r/:slug/terms" element={<LegalPage page="terms" />} />
+      <Route path="/r/:slug/refund-policy" element={<LegalPage page="refund" />} />
       <Route path="/r/:slug/admin/login" element={<Login />} />
       <Route path="/r/:slug/admin" element={<AdminLayout />}>
         {/* The order desk: the only pages a branch account can open. */}

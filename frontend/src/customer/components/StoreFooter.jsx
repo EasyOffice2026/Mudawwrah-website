@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { tenantPath } from '../../lib/tenant';
+import { legalFor, PAGE_ORDER, PAGE_PATH, pageIn } from '../legal/index.js';
 
 /**
  * Contact details at the bottom of the menu, and a way in for staff.
@@ -10,7 +11,10 @@ import { tenantPath } from '../../lib/tenant';
  * already know to look for it can still find it without memorising a URL.
  */
 export default function StoreFooter({ slug, settings }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language === 'ar' ? 'ar' : 'en';
+  // Only a restaurant that has supplied its own pages gets links to them.
+  const legal = legalFor(slug);
 
   return (
     <footer className="mt-8 border-t border-hairline px-4 py-6 text-center text-sm text-ink-soft">
@@ -22,6 +26,15 @@ export default function StoreFooter({ slug, settings }) {
             {settings.contactPhone}
           </a>
         </p>
+      ) : null}
+      {legal ? (
+        <nav aria-label={t('legal.navLabel')} className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1">
+          {PAGE_ORDER.filter((key) => pageIn(legal, key, lang)).map((key) => (
+            <Link key={key} to={tenantPath(slug, PAGE_PATH[key])} className="underline-offset-2 hover:underline">
+              {pageIn(legal, key, lang).title}
+            </Link>
+          ))}
+        </nav>
       ) : null}
       <Link to={tenantPath(slug, '/admin/login')} className="mt-4 inline-block text-xs text-ink-soft underline">
         {t('footer.admin')}

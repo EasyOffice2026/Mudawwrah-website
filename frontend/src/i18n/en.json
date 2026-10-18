@@ -88,6 +88,7 @@
     "knet": "KNET",
     "card": "Card",
     "placeOrder": "Place order",
+    "legalNotice": "By placing your order you agree to our <terms>Terms and Conditions</terms> and <refund>Return and Refund Policy</refund>.",
     "success": "Order {{orderNumber}} placed successfully",
     "successBody": "We will contact you shortly on {{phone}}.",
     "newOrder": "Back to menu",
@@ -582,6 +583,11 @@
     "freeDelivery": "Free delivery",
     "percentOff": "{{value}}% off your order",
     "amountOff": "{{amount}} off your order"
+  },
+  "legal": {
+    "notAvailable": "This page isn’t available for this restaurant.",
+    "backToMenu": "Back to the menu",
+    "navLabel": "Policies"
   },
   "footer": {
     "contactUs": "Contact us",

@@ -95,6 +95,7 @@
     "knet": "كي نت",
     "card": "بطاقة",
     "placeOrder": "تأكيد الطلب",
+    "legalNotice": "بتقديم طلبكم، فإنكم توافقون على <terms>الشروط والأحكام</terms> و<refund>سياسة الإرجاع واسترداد المبالغ</refund>.",
     "success": "تم إنشاء الطلب {{orderNumber}} بنجاح",
     "successBody": "سنتواصل معك قريباً على {{phone}}.",
     "newOrder": "العودة للقائمة",
@@ -589,6 +590,11 @@
     "freeDelivery": "توصيل مجاني",
     "percentOff": "خصم {{value}}٪ على طلبك",
     "amountOff": "خصم {{amount}} على طلبك"
+  },
+  "legal": {
+    "notAvailable": "هذه الصفحة غير متوفرة لهذا المطعم.",
+    "backToMenu": "العودة إلى القائمة",
+    "navLabel": "السياسات"
   },
   "footer": {
     "contactUs": "تواصل معنا",

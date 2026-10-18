@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
 import { reverseGeocode } from '../../lib/geocode';
+import { tenantPath } from '../../lib/tenant';
 import { getAttribution } from '../../lib/tracking';
 import { useCart } from '../../store/cart';
+import { legalFor, PAGE_PATH } from '../legal/index.js';
 import LocationPicker from './LocationPicker.jsx';
 import SheetShell from './SheetShell.jsx';
 
@@ -742,6 +744,19 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
       <div className="border-t border-hairline bg-white p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         {error ? <p className="mb-2 text-center text-xs font-semibold text-brand">{error}</p> : null}
         {blockedReason && !error ? <p className="mb-2 text-center text-xs font-semibold text-brand">{blockedReason}</p> : null}
+        {legalFor(tenant?.slug) ? (
+          // The Terms say "by placing an order, you agree", so the customer is shown where to read them.
+          // New tab: the checkout form they have filled in stays exactly as it is.
+          <p className="mb-2 text-center text-[11px] leading-snug text-ink-soft">
+            <Trans
+              i18nKey="checkout.legalNotice"
+              components={{
+                terms: <a href={tenantPath(tenant.slug, PAGE_PATH.terms)} target="_blank" rel="noopener noreferrer" className="font-semibold text-ink underline" />,
+                refund: <a href={tenantPath(tenant.slug, PAGE_PATH.refund)} target="_blank" rel="noopener noreferrer" className="font-semibold text-ink underline" />,
+              }}
+            />
+          </p>
+        ) : null}
         <button
           type="button"
           className="btn-primary w-full justify-between py-4"
