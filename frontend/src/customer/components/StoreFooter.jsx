@@ -4,11 +4,11 @@ import { tenantPath } from '../../lib/tenant';
 import { legalFor, PAGE_ORDER, PAGE_PATH, pageIn } from '../legal/index.js';
 
 /**
- * Contact details at the bottom of the menu, and a way in for staff.
+ * Contact details at the bottom of the menu, and links to the restaurant's own pages.
  *
- * The admin link is deliberately plain text, not a button — a customer
- * scrolling the menu should be able to ignore it entirely, while staff who
- * already know to look for it can still find it without memorising a URL.
+ * There is deliberately no link to the admin panel: this is the customer's page.
+ * Staff sign in at /r/<slug>/admin/login, or at /admin on the restaurant's own
+ * domain (see RootAdminRoute), and bookmark it.
  */
 export default function StoreFooter({ slug, settings }) {
   const { t, i18n } = useTranslation();
@@ -36,9 +36,6 @@ export default function StoreFooter({ slug, settings }) {
           ))}
         </nav>
       ) : null}
-      <Link to={tenantPath(slug, '/admin/login')} className="mt-4 inline-block text-xs text-ink-soft underline">
-        {t('footer.admin')}
-      </Link>
     </footer>
   );
 }
