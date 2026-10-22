@@ -11,10 +11,9 @@
  * The path arrives as ?file= rather than a [...catch-all] route: catch-all
  * functions matched a single segment but not nested ones like thumbs/x.jpg.
  */
-// The fallback is only ever a stopgap for whichever tunnel is live right now —
-// set UPSTREAM_API_URL in Vercel's project settings so a future tunnel
-// rotation is one env var change, not a code edit and a redeploy.
-const UPSTREAM = (process.env.UPSTREAM_API_URL || 'https://rod-encryption-approaches-inspector.trycloudflare.com').replace(
+// Where the images live: the API on Render. Set UPSTREAM_API_URL in Vercel's project settings to
+// change it without a code edit; the fallback is the same address.
+const UPSTREAM = (process.env.UPSTREAM_API_URL || 'https://mudawwrah-website.onrender.com').replace(
   /\/+$/,
   '',
 );
