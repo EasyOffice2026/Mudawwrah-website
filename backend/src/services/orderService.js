@@ -10,6 +10,7 @@ import { isOpenAt, nextOpening } from './branchHours.js';
 import { resolveForDelivery } from './zoneService.js';
 import { firstSoldOut } from './soldOutService.js';
 import { notifyNewOrder, notifyStatusChange } from './whatsapp/notifications.js';
+import { isOnlinePaymentEnabled } from './payment/index.js';
 
 const include = {
   items: { include: { menuItem: true } },
@@ -47,6 +48,11 @@ export const create = async (payload) => {
   if (isWeb && paymentMethod !== 'WHATSAPP' && !accepted.includes(paymentMethod)) {
     throw new HttpError(400, `${paymentMethod} is not accepted by this restaurant`);
   }
+
+  // A website order paid with KNET or a card goes to the payment page when a gateway is set up:
+  // it waits as PENDING, and reaches the kitchen and the staff only once it is paid.
+  const payOnline =
+    isWeb && ['KNET', 'CARD', 'APPLE_PAY'].includes(paymentMethod) && isOnlinePaymentEnabled();
 
   const menuItems = await prisma.menuItem.findMany({ where: { id: { in: payload.items.map((i) => i.menuItemId) } } });
   const options = await prisma.customizationOption.findMany({
@@ -156,6 +162,7 @@ export const create = async (payload) => {
       notes: payload.notes,
       channel: payload.channel || 'WEB',
       paymentMethod,
+      ...(payOnline ? { paymentStatus: 'PENDING' } : {}),
       orderType,
       subtotal,
       deliveryFee,
@@ -185,10 +192,19 @@ export const create = async (payload) => {
   });
   // Fire-and-forget: a slow or failed WhatsApp call must never delay the
   // order confirmation the customer is waiting on.
-  notifyNewOrder(order, settings).catch((error) => console.error('[whatsapp] new-order notification failed', error));
+  if (!payOnline) {
+    notifyNewOrder(order, settings).catch((error) => console.error('[whatsapp] new-order notification failed', error));
+  }
   pushToFoodics(order);
   return order;
 };
+
+/** An order whose payment page could not be opened: nothing was charged, and it never reaches the kitchen. */
+export const cancelUnpaid = (id) =>
+  prisma.order.update({
+    where: { id },
+    data: { status: 'CANCELLED', paymentStatus: 'FAILED', ...statusStamp({}, 'CANCELLED') },
+  });
 
 /**
  * What the admin polls every few seconds to notice new orders without

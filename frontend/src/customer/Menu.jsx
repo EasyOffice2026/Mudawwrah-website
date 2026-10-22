@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, apiError } from '../lib/api';
 import { localized } from '../lib/format';
 import { setStorefrontMeta } from '../lib/pageMeta';
@@ -13,6 +13,7 @@ import CategorySheet from './components/CategorySheet.jsx';
 import CategoryTabs from './components/CategoryTabs.jsx';
 import CollapsedBar from './components/CollapsedBar.jsx';
 import CheckoutModal from './components/CheckoutModal.jsx';
+import PaymentResult from './components/PaymentResult.jsx';
 import CustomizeModal from './components/CustomizeModal.jsx';
 import ItemCard from './components/ItemCard.jsx';
 import ItemRow from './components/ItemRow.jsx';
@@ -65,7 +66,24 @@ export default function Menu() {
   // Zero-height marker just above the sticky rail. Once it scrolls out of
   // view the rail is pinned, which is the moment the store bar should appear.
   const sentinelRef = useRef(null);
-  const { addLine, count, subtotal, ensureTenant, promo, setPromo } = useCart();
+  const { addLine, count, subtotal, ensureTenant, promo, setPromo, clear } = useCart();
+
+  // Coming back from the payment page: the address says how it went (?payment=paid|failed|pending).
+  const [searchParams] = useSearchParams();
+  const [paymentResult, setPaymentResult] = useState(() => {
+    const state = searchParams.get('payment');
+    return ['paid', 'failed', 'pending'].includes(state)
+      ? { state, orderNumber: searchParams.get('order') || '' }
+      : null;
+  });
+  useEffect(() => {
+    if (!paymentResult) return;
+    // A paid order empties the basket; a refused one keeps it for another try.
+    if (paymentResult.state === 'paid') clear();
+    // Drop the result from the address, so a reload does not show it again.
+    navigate(`/r/${slug}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [splashDone, setSplashDone] = useState(() => splashAlreadyPlayed(slug));
 
@@ -376,6 +394,18 @@ export default function Menu() {
           setCheckoutOpen(true);
         }}
       />
+
+      {paymentResult ? (
+        <PaymentResult
+          state={paymentResult.state}
+          orderNumber={paymentResult.orderNumber}
+          onClose={() => setPaymentResult(null)}
+          onRetry={() => {
+            setPaymentResult(null);
+            setCheckoutOpen(true);
+          }}
+        />
+      ) : null}
 
       <CheckoutModal
         open={checkoutOpen}

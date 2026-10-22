@@ -78,7 +78,9 @@ Seeded menu items use clearly labeled placeholder images; upload real photos fro
 | `WHATSAPP_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` | Meta WhatsApp Cloud API credentials |
 | `WHATSAPP_VERIFY_TOKEN` / `WHATSAPP_APP_SECRET` | Webhook verification token and HMAC signing secret |
 | `WHATSAPP_SESSION_TTL_MINUTES` | Idle time before a chat's cart/state resets (default 60) |
-| `PAYMENT_PROVIDER` | `manual`, `myfatoorah` or `mock` |
+| `PAYMENT_PROVIDER` | `manual`, `tap`, `myfatoorah` or `mock` |
+| `TAP_SECRET_KEY` | Tap Payments secret key (`sk_test_…` to try, `sk_live_…` to take real money); server only |
+| `STOREFRONT_URL` | Where the customer lands after paying; defaults to the first `CORS_ORIGINS` entry |
 | `MYFATOORAH_API_KEY` / `MYFATOORAH_BASE_URL` | MyFatoorah credentials (test host by default) |
 
 ## Frontend setup
@@ -160,11 +162,32 @@ Without WhatsApp credentials the bot still runs: outbound messages are logged to
 | Value | Behaviour |
 | ----- | --------- |
 | `manual` (default) | Online payment button hidden; cash on delivery only |
+| `tap` | KNET, Visa, Mastercard, Apple Pay and Google Pay on Tap's hosted page; needs `TAP_SECRET_KEY`. See "Paying on the website with Tap" |
 | `myfatoorah` | KNET/cards via MyFatoorah `SendPayment`; needs `MYFATOORAH_API_KEY` (+ `MYFATOORAH_BASE_URL` for production) |
 | `mock` | Dev only — the payment link marks the order paid when opened |
 
 Add a new gateway by dropping a module exposing `name`, `isConfigured`, `createPaymentLink` and
 `getPaymentStatus` into that folder and registering it in `payment/index.js`.
+
+### Paying on the website with Tap
+
+With `PAYMENT_PROVIDER=tap`, a website order paid with KNET or Card goes to Tap's hosted page, where the
+customer picks KNET, Visa, Mastercard, Apple Pay or Google Pay.
+
+1. Checkout places the order as `PENDING` and answers with `paymentUrl`; the storefront sends the
+   customer there. The basket stays until the payment is confirmed. Nothing reaches Foodics or the
+   staff's WhatsApp yet, so an abandoned checkout never reaches the kitchen.
+2. Tap sends the customer back to `GET /api/payments/tap/callback?tap_id=chg_…` and also posts the charge to
+   the same address. Either way the API asks Tap for the charge itself with the secret key, so a forged
+   callback changes nothing, and it checks that the amount equals the order total.
+3. Paid: the order is `PAID` and `CONFIRMED`, it is pushed to Foodics, the staff are told, and the customer
+   lands on the storefront with "Payment received" (`?payment=paid`; the basket is emptied).
+   Refused or abandoned: the order is `CANCELLED`, and the customer is offered "Try again" with the basket kept.
+   If Tap cannot open the page, the order is cancelled and the customer is asked to try again.
+
+To go live: put the **live** secret key in `TAP_SECRET_KEY` on the server (`sk_test_…` keys charge nothing, so use one
+first), set `PUBLIC_URL` to the API's public address (Tap needs to reach it), and in the Tap dashboard add the
+storefront's domain (and, for Apple Pay, verify the domain). Cash on delivery is unchanged.
 
 ## Settings
 

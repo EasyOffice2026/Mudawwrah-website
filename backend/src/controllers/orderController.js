@@ -1,9 +1,22 @@
+import { HttpError } from '../middleware/error.js';
 import * as service from '../services/orderService.js';
+import { startPayment } from '../services/payment/index.js';
 import { orderSchema, orderStatusSchema } from '../validators.js';
 
 export const create = async (req, res) => {
   const data = orderSchema.parse(req.body);
-  res.status(201).json(await service.create({ ...data, userId: req.user?.sub }));
+  const order = await service.create({ ...data, userId: req.user?.sub });
+  // Cash and WhatsApp orders are placed as they are. An online payment goes on to the gateway's
+  // page: the answer carries its address and the storefront sends the customer there.
+  if (order.paymentStatus !== 'PENDING') return res.status(201).json(order);
+  try {
+    const link = await startPayment(order, req.body?.lang === 'ar' ? 'ar' : 'en');
+    return res.status(201).json({ ...order, paymentStatus: 'PENDING', paymentUrl: link.url });
+  } catch (error) {
+    console.error('[payment] could not open the payment page', error);
+    await service.cancelUnpaid(order.id);
+    throw new HttpError(502, 'The payment page could not be opened. Nothing was charged. Please try again.');
+  }
 };
 
 // req.user is passed along so branch accounts only ever see their own branch's orders.
