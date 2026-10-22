@@ -86,6 +86,17 @@ export const handleCallback = async (providerName, query) => {
     console.error(`[payment] ${order.orderNumber}: charged ${status.amount}, order total ${order.total}`);
     return { order, pending: true };
   }
+  // Paid after the order was cancelled: the money is recorded, the order is not brought back, and
+  // the restaurant has to refund it. Said loudly because nothing else will notice.
+  if (status.paid && order.status === 'CANCELLED') {
+    console.error(`[payment] REFUND NEEDED: ${order.orderNumber} was paid (${status.reference}) after it was cancelled`);
+    const kept = await prisma.order.update({
+      where: { id: order.id },
+      data: { paymentStatus: 'PAID', paidAt: new Date() },
+      include: { items: true },
+    });
+    return { order: kept, refundNeeded: true };
+  }
 
   const updated = await prisma.order.update({
     where: { id: order.id },

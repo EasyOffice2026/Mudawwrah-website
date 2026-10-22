@@ -1,6 +1,7 @@
 import { prisma } from '../prisma.js';
 import { currentTenantId } from '../tenantContext.js';
 import { dateKey } from './orderNumber.js';
+import { hiddenWhileUnpaid } from './orderVisibility.js';
 import { isOnlinePaymentEnabled } from './payment/index.js';
 import { computeReport, normalisePhone } from './reportCompute.js';
 import { resolveRange } from './reportRange.js';
@@ -60,13 +61,13 @@ export const report = async ({ preset, from, to, branchId } = {}, now = new Date
     }),
     prisma.order.findMany({
       where: { ...branch, createdAt: { gte: range.prevFrom, lt: range.prevTo } },
-      select: { status: true, total: true, branchId: true, createdAt: true },
+      select: { status: true, total: true, branchId: true, createdAt: true, paymentStatus: true },
     }),
     // Every customer ever, at every branch: "new" and "returning" must not
     // depend on which branch or period is being looked at.
     prisma.order.groupBy({
       by: ['customerPhone'],
-      where: { status: { not: 'CANCELLED' } },
+      where: { status: { not: 'CANCELLED' }, ...hiddenWhileUnpaid },
       _min: { createdAt: true },
       _max: { createdAt: true },
       _count: { _all: true },
@@ -98,7 +99,7 @@ export const report = async ({ preset, from, to, branchId } = {}, now = new Date
   const lapsedNames = new Map();
   if (quiet.length) {
     const latest = await prisma.order.findMany({
-      where: { customerPhone: { in: quiet } },
+      where: { customerPhone: { in: quiet }, ...hiddenWhileUnpaid },
       orderBy: { createdAt: 'desc' },
       distinct: ['customerPhone'],
       select: { customerPhone: true, customerName: true },

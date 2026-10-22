@@ -10,6 +10,7 @@ import { isOpenAt, nextOpening } from './branchHours.js';
 import { resolveForDelivery } from './zoneService.js';
 import { firstSoldOut } from './soldOutService.js';
 import { notifyNewOrder, notifyStatusChange } from './whatsapp/notifications.js';
+import { arrivedAfter, hiddenWhileUnpaid, isAwaitingPayment } from './orderVisibility.js';
 import { isOnlinePaymentEnabled } from './payment/index.js';
 
 const include = {
@@ -214,7 +215,7 @@ export const cancelUnpaid = (id) =>
  * A branch account sees only its own branch, exactly as in the order list.
  */
 export const feed = async ({ since } = {}, viewer = null) => {
-  const scope = viewerScope(viewer);
+  const scope = { ...viewerScope(viewer), ...hiddenWhileUnpaid };
   const [orders, latest, unseen] = await Promise.all([
     prisma.order.findMany({
       where: scope,
@@ -233,13 +234,15 @@ export const feed = async ({ since } = {}, viewer = null) => {
       },
     }),
     prisma.order.aggregate({ where: scope, _max: { updatedAt: true } }),
-    since ? prisma.order.count({ where: { ...scope, createdAt: { gt: since } } }) : 0,
+    since ? prisma.order.count({ where: { ...scope, ...arrivedAfter(since) } }) : 0,
   ]);
   return { orders, unseen, version: latest._max.updatedAt, now: new Date() };
 };
 
 export const list = ({ status, channel, from, to, search, branchId, page = 1, pageSize = 20 } = {}, viewer = null) => {
   const where = {
+    // An order still waiting for its online payment is not shown until it is paid.
+    ...hiddenWhileUnpaid,
     ...(branchId ? { branchId } : {}),
     // After the filter above, so a branch account cannot widen its own view.
     ...viewerScope(viewer),
@@ -282,6 +285,8 @@ export const getById = async (id, viewer = null) => {
 
 export const updateStatus = async (id, status, viewer = null, { cancelReason, cancelNote } = {}) => {
   const current = await getById(id, viewer);
+  // Until the gateway confirms the money, the order is not the restaurant's to confirm or cancel.
+  if (isAwaitingPayment(current)) throw new HttpError(409, 'This order is waiting for its online payment');
   if (current.status === status) return current;
   const restored = current.status === 'CANCELLED' && status !== 'CANCELLED';
   const order = await prisma.order.update({
