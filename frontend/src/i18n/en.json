@@ -180,7 +180,11 @@
       "title": "Branch performance",
       "hint": "Every branch side by side. Tap a branch to see its own dashboard.",
       "period": "Period",
-      "periods": { "today": "Today", "7d": "Last 7 days", "30d": "Last 30 days" },
+      "periods": {
+        "today": "Today",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days"
+      },
       "orders": "Orders",
       "averageOrder": "Avg. order",
       "cancelled": "Cancelled",
@@ -591,5 +595,16 @@
   },
   "footer": {
     "contactUs": "Contact us"
+  },
+  "payment": {
+    "paidTitle": "Payment received",
+    "paidBody": "Thank you! Order {{orderNumber}} is confirmed and we are getting it ready.",
+    "failedTitle": "The payment didn't go through",
+    "failedBody": "You were not charged. Your basket is still here, so you can try again.",
+    "pendingTitle": "Confirming your payment",
+    "pendingBody": "We are waiting for the bank to confirm order {{orderNumber}}. This usually takes a moment, and we will message you.",
+    "retry": "Try again",
+    "close": "Back to the menu",
+    "redirecting": "Taking you to the secure payment page…"
   }
 }

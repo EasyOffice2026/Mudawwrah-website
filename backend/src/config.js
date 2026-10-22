@@ -9,6 +9,12 @@ export const config = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1d',
   refreshExpiresIn: process.env.REFRESH_EXPIRES_IN || '30d',
   uploadDir: process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads'),
+  // Where the customer lands after paying: the storefront, not the API.
+  storefrontUrl: (
+    process.env.STOREFRONT_URL ||
+    (process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).find((s) => s && !s.includes('*')) ||
+    'http://localhost:5173'
+  ).replace(/\/$/, ''),
   publicUrl: process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 4000}`,
   staticDir: process.env.STATIC_DIR ? path.resolve(process.env.STATIC_DIR) : null,
   maxUploadBytes: Number(process.env.MAX_UPLOAD_BYTES || 5 * 1024 * 1024),
@@ -28,6 +34,13 @@ export const config = {
       baseUrl: process.env.MYFATOORAH_BASE_URL || 'https://apitest.myfatoorah.com',
       currency: process.env.MYFATOORAH_CURRENCY || 'KWD',
       webhookSecret: process.env.MYFATOORAH_WEBHOOK_SECRET || '',
+    },
+    tap: {
+      secretKey: process.env.TAP_SECRET_KEY || '',
+      // Only for a Tap marketplace account; leave empty otherwise.
+      merchantId: process.env.TAP_MERCHANT_ID || '',
+      baseUrl: process.env.TAP_BASE_URL || 'https://api.tap.company',
+      currency: process.env.TAP_CURRENCY || 'KWD',
     },
     manualPayUrl: process.env.MANUAL_PAY_URL || '',
   },

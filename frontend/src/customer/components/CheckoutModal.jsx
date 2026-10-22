@@ -141,6 +141,8 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   const [zones, setZones] = useState([]);
   const [zoneId, setZoneId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  // True while the browser is being sent to the payment page, so the button stays locked.
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState(null);
   const [placed, setPlaced] = useState(null);
   // Live status for the order just placed, refreshed while the screen is open.
@@ -298,6 +300,8 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         address: isPickup ? undefined : composedAddress,
         notes: note || undefined,
         paymentMethod: viaWhatsapp ? 'WHATSAPP' : form.paymentMethod,
+        // The language of the payment page.
+        lang: i18n.language,
         orderType,
         pickupLocationId: isPickup ? pickupLocationId : undefined,
         // The zone decides fee, minimum and branch on the server; the parts
@@ -322,6 +326,13 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         })),
       };
       const { data } = await api.post('/orders', payload);
+      // Paying online: on to the payment page. The basket stays until the payment is confirmed;
+      // the storefront clears it when the customer comes back paid.
+      if (data.paymentUrl) {
+        setRedirecting(true);
+        window.location.assign(data.paymentUrl);
+        return;
+      }
       if (viaWhatsapp) {
         const text = buildWhatsappMessage({ lines, order: data, settings, lang: i18n.language, t });
         window.open(`https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
@@ -760,10 +771,10 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         <button
           type="button"
           className="btn-primary w-full justify-between py-4"
-          disabled={submitting || !canSubmit}
+          disabled={submitting || redirecting || !canSubmit}
           onClick={() => submit(false)}
         >
-          <span>{submitting ? t('common.saving') : t('checkout.placeOrder')}</span>
+          <span>{redirecting ? t('payment.redirecting') : submitting ? t('common.saving') : t('checkout.placeOrder')}</span>
           <span>{kwd(total)}</span>
         </button>
         <button
