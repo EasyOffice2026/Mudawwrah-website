@@ -1,6 +1,7 @@
 import { config } from '../../config.js';
 import { HttpError } from '../../middleware/error.js';
 import { prisma } from '../../prisma.js';
+import { currentTenant } from '../../tenantContext.js';
 import { statusStamp } from '../statusTimes.js';
 import * as mock from './mock.js';
 import * as myfatoorah from './myfatoorah.js';
@@ -10,17 +11,20 @@ const providers = { tap, myfatoorah, mock };
 
 export const getProvider = (name = config.payment.provider) => providers[name] || null;
 
+/** Online payment is on for the current restaurant only if it is listed in ONLINE_PAYMENT_TENANTS. */
 export const isOnlinePaymentEnabled = () => {
+  const slug = String(currentTenant()?.slug || '').toLowerCase();
+  if (!slug || !config.payment.tenants.includes(slug)) return false;
   const provider = getProvider();
   return Boolean(provider && provider.isConfigured());
 };
 
-const callbackUrl = (provider) => `${config.publicUrl}/api/payments/${provider.name}/callback`;
+const callbackUrl = (provider) => `${config.apiUrl}/api/payments/${provider.name}/callback`;
 
 /** Creates a hosted payment link for an order and stores the provider reference on it. */
 export const startPayment = async (order, lang = 'en') => {
   const provider = getProvider();
-  if (!provider || !provider.isConfigured()) return null;
+  if (!isOnlinePaymentEnabled()) return null;
   const { url, reference } = await provider.createPaymentLink({
     order,
     lang,
@@ -81,6 +85,17 @@ export const handleCallback = async (providerName, query) => {
   if (status.paid && status.amount !== undefined && Math.abs(status.amount - Number(order.total)) > 0.0005) {
     console.error(`[payment] ${order.orderNumber}: charged ${status.amount}, order total ${order.total}`);
     return { order, pending: true };
+  }
+  // Paid after the order was cancelled: the money is recorded, the order is not brought back, and
+  // the restaurant has to refund it. Said loudly because nothing else will notice.
+  if (status.paid && order.status === 'CANCELLED') {
+    console.error(`[payment] REFUND NEEDED: ${order.orderNumber} was paid (${status.reference}) after it was cancelled`);
+    const kept = await prisma.order.update({
+      where: { id: order.id },
+      data: { paymentStatus: 'PAID', paidAt: new Date() },
+      include: { items: true },
+    });
+    return { order: kept, refundNeeded: true };
   }
 
   const updated = await prisma.order.update({

@@ -393,7 +393,8 @@ const customersSection = ({ range, orders, history, now, lapsedNames }) => {
 /* ------------------------------------------------------------------ payments */
 
 const paymentsSection = ({ orders, now, onlinePayments }) => {
-  const kept = orders.filter(live);
+  // Money taken: an order still waiting for its payment is not part of any method's total.
+  const kept = orders.filter((o) => live(o) && o.paymentStatus !== 'PENDING');
   const revenue = sum(kept, money);
   const methods = new Map();
   for (const o of kept) {
@@ -522,13 +523,20 @@ export const computeReport = ({
   lateAfterMinutes = 45,
   onlinePayments = false,
   branchFiltered = false,
-}) => ({
-  range: { preset: range.preset, from: range.from, to: range.to, prevFrom: range.prevFrom, prevTo: range.prevTo, timeZone: range.timeZone },
-  sales: salesSection({ range, orders, prevOrders, branches }),
-  orders: ordersSection({ range, orders, prevOrders }),
-  menu: menuSection({ range, orders, menuItems, categories }),
-  customers: customersSection({ range, orders, history, now, lapsedNames }),
-  payments: paymentsSection({ orders, now, onlinePayments }),
-  marketing: marketingSection({ range, orders, visits, visitTrackingStart, branchFiltered }),
-  operations: operationsSection({ orders, branches, lateAfterMinutes }),
-});
+}) => {
+  // An order still waiting for its online payment is not a sale. Only the Payments section reads
+  // these, as "abandoned" once they have waited too long.
+  const settled = (list) => list.filter((o) => o.paymentStatus !== 'PENDING');
+  const sold = settled(orders);
+  const prevSold = settled(prevOrders);
+  return {
+    range: { preset: range.preset, from: range.from, to: range.to, prevFrom: range.prevFrom, prevTo: range.prevTo, timeZone: range.timeZone },
+    sales: salesSection({ range, orders: sold, prevOrders: prevSold, branches }),
+    orders: ordersSection({ range, orders: sold, prevOrders: prevSold }),
+    menu: menuSection({ range, orders: sold, menuItems, categories }),
+    customers: customersSection({ range, orders: sold, history, now, lapsedNames }),
+    payments: paymentsSection({ orders, now, onlinePayments }),
+    marketing: marketingSection({ range, orders: sold, visits, visitTrackingStart, branchFiltered }),
+    operations: operationsSection({ orders: sold, branches, lateAfterMinutes }),
+  };
+};

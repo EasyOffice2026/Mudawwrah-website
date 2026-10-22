@@ -1,4 +1,5 @@
 import { prisma } from '../prisma.js';
+import { hiddenWhileUnpaid } from './orderVisibility.js';
 import { currentTenantId } from '../tenantContext.js';
 import { getAll as getSettings } from './settingService.js';
 
@@ -74,7 +75,8 @@ export const stats = async ({ range = 'daily', branchId } = {}) => {
   const settings = await getSettings();
   const timeZone = settings.timezone || 'Asia/Kuwait';
   const tenantId = currentTenantId();
-  const branch = branchFilter(branchId);
+  // Orders still waiting for an online payment are not counted anywhere (see orderVisibility).
+  const branch = { ...branchFilter(branchId), ...hiddenWhileUnpaid };
 
   const today = startOfZonedDay(new Date(), timeZone);
   // Walk back whole days from the zone's midnight, then re-anchor, so the
@@ -185,7 +187,7 @@ export const branches = async ({ period = 'today' } = {}) => {
     }),
     prisma.order.groupBy({
       by: ['branchId', 'status'],
-      where: { createdAt: { gte: since } },
+      where: { createdAt: { gte: since }, ...hiddenWhileUnpaid },
       _count: { _all: true },
       _sum: { total: true },
     }),

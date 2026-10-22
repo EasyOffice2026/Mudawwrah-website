@@ -43,7 +43,16 @@ export const config = {
       currency: process.env.TAP_CURRENCY || 'KWD',
     },
     manualPayUrl: process.env.MANUAL_PAY_URL || '',
+    // Restaurants (slugs) that take online payment. The gateway account belongs to one business,
+    // so a restaurant that is not listed here never reaches it, whatever PAYMENT_PROVIDER is.
+    tenants: (process.env.ONLINE_PAYMENT_TENANTS || '')
+      .split(',')
+      .map((slug) => slug.trim().toLowerCase())
+      .filter(Boolean),
   },
+  // This API's own public address, where a payment gateway sends its callback. PUBLIC_URL is the
+  // storefront's address, which has no /api behind it, so the two must not be confused.
+  apiUrl: (process.env.API_URL || process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 4000}`).replace(/\/$/, ''),
 };
 
 /**

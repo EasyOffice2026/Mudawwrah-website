@@ -22,7 +22,11 @@ const tellStaff = async (order) => {
 /** Provider redirect/webhook target: `GET|POST /api/payments/:provider/callback`. */
 export const callback = async (req, res) => {
   const result = await payment.handleCallback(req.params.provider, { ...req.query, ...req.body });
-  if (result.paid || result.failed) await notifyPaymentResult(result.order, Boolean(result.paid));
+  // The gateway's call carries no restaurant, so the order's own restaurant is used for the notice.
+  const tenant = await prisma.tenant.findUnique({ where: { id: result.order.tenantId } });
+  if (result.paid || result.failed) {
+    await runWithTenant(tenant, () => notifyPaymentResult(result.order, Boolean(result.paid)));
+  }
   if (result.paid) {
     pushToFoodics(result.order);
     if (result.order.channel === 'WEB') tellStaff(result.order).catch((e) => console.error('[payment] staff notice failed', e));
