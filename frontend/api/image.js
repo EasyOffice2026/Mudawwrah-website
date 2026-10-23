@@ -43,8 +43,9 @@ export default async function handler(request, response) {
     const body = Buffer.from(await upstream.arrayBuffer());
     response.setHeader('Content-Type', type);
     response.setHeader('Content-Length', String(body.length));
-    // Filenames are unique per upload, so these can cache hard.
-    response.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, immutable');
+    // A file name is unique to its upload, and so is every made-to-size copy of it, so a picture
+    // never changes: the browser and the CDN may keep it for a year.
+    response.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
     return response.status(200).send(body);
   } catch {
     return response.status(502).json({ error: 'Could not reach the image host' });

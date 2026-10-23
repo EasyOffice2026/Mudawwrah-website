@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { discountOf, kwd, localized, nutritionLine } from '../../lib/format';
+import { dishPicture, fallbackOnError, gridPicture, originalPicture } from '../../lib/imageVariant';
 import SheetShell from './SheetShell.jsx';
 
 /**
@@ -17,6 +18,8 @@ export default function CustomizeModal({ item, lang, onClose, onConfirm }) {
   const [quantity, setQuantity] = useState(1);
   // True once the hero photo has scrolled away and the title bar takes over.
   const [scrolled, setScrolled] = useState(false);
+  // The sharp picture has loaded and faded in over the small one.
+  const [photoReady, setPhotoReady] = useState(false);
   const scrollRef = useRef(null);
   const itemId = item?.id;
 
@@ -96,14 +99,24 @@ export default function CustomizeModal({ item, lang, onClose, onConfirm }) {
         onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 200)}
         className="flex-1 overflow-y-auto pb-32"
       >
-        <div className="relative">
+        <div
+          className="relative bg-hairline bg-cover bg-center"
+          // The small picture from the menu is already on the phone, so it fills the space at once
+          // while the sharper one loads and fades in over it. Never a blank box.
+          style={{ backgroundImage: `url("${gridPicture(item.image)}")` }}
+        >
           <img
-            src={item.image?.url || item.image?.thumbnailUrl || '/placeholder.svg'}
+            src={dishPicture(item.image)}
+            onError={fallbackOnError(originalPicture(item.image))}
+            onLoad={() => setPhotoReady(true)}
+            decoding="async"
             alt={localized(item, 'name', lang)}
             // An item with no description, nutrition or options has almost
             // nothing below the fold, so the photo takes the slack rather than
             // leaving the sheet looking half-loaded.
-            className={`w-full object-cover ${sparse ? 'h-[46vh]' : 'h-64'}`}
+            className={`w-full object-cover transition-opacity duration-300 ${photoReady ? 'opacity-100' : 'opacity-0'} ${
+              sparse ? 'h-[46vh]' : 'h-64'
+            }`}
           />
           <button
             type="button"

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
+import { fallbackOnError, gridPicture, originalPicture, variantUrl } from '../../lib/imageVariant';
 import { useCart } from '../../store/cart';
 import SheetShell from './SheetShell.jsx';
 
@@ -127,7 +128,13 @@ export default function CartDrawer({ open, onClose, settings, suggestions, promo
 
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   {line.imageUrl ? (
-                    <img src={line.imageUrl} alt="" className="h-20 w-20 rounded-xl object-cover" />
+                    <img
+                      src={variantUrl(line.imageUrl, 'w400')}
+                      onError={fallbackOnError(line.imageUrl)}
+                      decoding="async"
+                      alt=""
+                      className="h-20 w-20 rounded-xl object-cover"
+                    />
                   ) : null}
                   <div className="flex items-center gap-1 rounded-xl border border-hairline bg-white">
                     <button
@@ -162,7 +169,9 @@ export default function CartDrawer({ open, onClose, settings, suggestions, promo
                 <div key={suggestion.id} className="w-[124px] shrink-0">
                   <div className="relative overflow-hidden rounded-xl bg-hairline">
                     <img
-                      src={suggestion.image?.thumbnailUrl || suggestion.image?.url || '/placeholder.svg'}
+                      src={gridPicture(suggestion.image)}
+                      onError={fallbackOnError(originalPicture(suggestion.image))}
+                      decoding="async"
                       alt=""
                       className="aspect-square w-full object-cover"
                       loading="lazy"
