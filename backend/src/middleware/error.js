@@ -21,6 +21,18 @@ export const errorHandler = (err, req, res, next) => {
     body.details = err.details;
   }
   if (status >= 500) console.error(err);
+  // Customers never see database text. A full connection pool is "busy, try again"; any other
+  // unexpected failure is a plain message. The real error stays in the server log above.
+  if (status >= 500 && !err.status) {
+    const message = String(err.message || '');
+    if (/EMAXCONN|max clients reached/i.test(message)) {
+      res.set('Retry-After', '2');
+      return res.status(503).json({ error: 'We are busy for a moment. Please try again in a few seconds.' });
+    }
+    if (message.includes('Invalid `prisma.') || message.includes('PrismaClient')) {
+      return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    }
+  }
   res.status(status).json(body);
 };
 
