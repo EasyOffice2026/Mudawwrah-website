@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import { config, isOriginAllowed } from './config.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import { resolveTenant } from './middleware/tenant.js';
+import { serveVariant } from './services/imageVariants.js';
 import routes from './routes/index.js';
 
 export const createApp = () => {
@@ -31,7 +32,10 @@ export const createApp = () => {
   );
   app.use(express.urlencoded({ extended: false }));
   app.use(morgan('dev'));
-  app.use('/uploads', express.static(config.uploadDir));
+  // Made-to-size copies first (/uploads/w400/x.webp), then the files as uploaded. File names are
+  // unique per upload, so browsers and the CDN may keep them for good.
+  app.get('/uploads/:size/:name', serveVariant);
+  app.use('/uploads', express.static(config.uploadDir, { maxAge: '365d', immutable: true }));
   // resolveTenant must stay in front of the routes: it resolves the restaurant
   // and opens the AsyncLocalStorage scope every tenant-aware query relies on.
   // Without it no request carries a tenant and the whole API 400s.
