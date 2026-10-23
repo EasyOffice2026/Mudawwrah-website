@@ -29,6 +29,7 @@ import {
   requireStaff,
 } from '../middleware/auth.js';
 import { asyncHandler as h } from '../middleware/error.js';
+import { publicCache } from '../middleware/publicCache.js';
 import { reattachTenant, requireTenant } from '../middleware/tenant.js';
 import { upload } from '../middleware/upload.js';
 
@@ -38,7 +39,7 @@ router.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Platform level — no restaurant in context.
 router.get('/tenants', h(tenants.listPublic));
-router.get('/tenants/current', h(tenants.current));
+router.get('/tenants/current', publicCache.middleware, h(tenants.current));
 router.get('/tenants/all', authenticate, requirePlatformAdmin, h(tenants.listAll));
 router.post('/tenants', authenticate, requirePlatformAdmin, h(tenants.create));
 router.put('/tenants/:id', authenticate, requirePlatformAdmin, h(tenants.update));
@@ -56,7 +57,7 @@ const scoped = Router();
 scoped.use(requireTenant);
 
 // Categories
-scoped.get('/categories', h(categories.listPublic));
+scoped.get('/categories', publicCache.middleware, h(categories.listPublic));
 scoped.get('/categories/all', requireStaff, h(categories.listAll));
 scoped.post('/categories/reorder', requireStaff, h(categories.reorder));
 scoped.get('/categories/:id', h(categories.getById));
@@ -98,7 +99,7 @@ scoped.put('/branch-sold-out', requireOrderDesk, h(soldOut.set));
 
 // Delivery zones: the public list feeds checkout and WhatsApp; editing them (fees,
 // minimums, which branch serves an area) is the owner's alone.
-scoped.get('/zones', h(zones.listPublic));
+scoped.get('/zones', publicCache.middleware, h(zones.listPublic));
 scoped.get('/zones/all', requireStaff, h(zones.listAll));
 scoped.get('/zones/:id', requireStaff, h(zones.getById));
 scoped.post('/zones', requireAdmin, h(zones.create));
@@ -108,7 +109,7 @@ scoped.delete('/zones/:id', requireAdmin, h(zones.remove));
 // Banners
 // Pickup branches. The public list is what the checkout offers; everything
 // else is staff-only, and every read is confined to the current restaurant.
-scoped.get('/pickup-locations', h(pickupLocations.listPublic));
+scoped.get('/pickup-locations', publicCache.middleware, h(pickupLocations.listPublic));
 scoped.get('/pickup-locations/all', requireStaff, h(pickupLocations.listAll));
 scoped.post('/pickup-locations/reorder', requireStaff, h(pickupLocations.reorder));
 scoped.get('/pickup-locations/:id', requireStaff, h(pickupLocations.getById));
@@ -125,7 +126,7 @@ scoped.put('/banners/:id', requireStaff, h(banners.update));
 scoped.delete('/banners/:id', requireStaff, h(banners.remove));
 
 // Promotions
-scoped.get('/promotions', h(promotions.listPublic));
+scoped.get('/promotions', publicCache.middleware, h(promotions.listPublic));
 scoped.post('/promotions/preview', h(promotions.preview));
 scoped.get('/promotions/all', requireStaff, h(promotions.listAll));
 // Discount codes are the owner's alone (client requirement).
@@ -146,7 +147,7 @@ scoped.put('/users/:id', requireAdmin, h(users.update));
 scoped.delete('/users/:id', requireAdmin, h(users.remove));
 
 // Settings
-scoped.get('/settings', h(settings.get));
+scoped.get('/settings', publicCache.middleware, h(settings.get));
 // Fees, minimum order, tax and payment methods: owner only (client requirement).
 scoped.put('/settings', requireAdmin, h(settings.update));
 

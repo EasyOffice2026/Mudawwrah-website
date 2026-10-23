@@ -1,10 +1,14 @@
 import { prisma } from '../prisma.js';
 import { runWithTenant } from '../tenantContext.js';
 import { HttpError } from './error.js';
+import { publicCache } from './publicCache.js';
 
 const RESERVED_SUBDOMAINS = new Set(['www', 'api', 'admin', 'app', 'localhost']);
 
-const bySlug = (slug) => prisma.tenant.findFirst({ where: { slug, isActive: true } });
+// The restaurant behind an address or slug hardly ever changes, and every request looks it up first,
+// so a found one is remembered for a minute (and forgotten at once when staff change anything).
+const bySlug = (slug) => publicCache.remember(`slug:${slug}`, () => prisma.tenant.findFirst({ where: { slug, isActive: true } }));
+const byDomain = (host) => publicCache.remember(`domain:${host}`, () => prisma.tenant.findFirst({ where: { customDomain: host, isActive: true } }));
 
 /**
  * Resolves the restaurant this request belongs to, in priority order:
@@ -33,7 +37,7 @@ export const resolveTenant = async (req, res, next) => {
     let tenant = null;
 
     if (host) {
-      tenant = await prisma.tenant.findFirst({ where: { customDomain: host, isActive: true } });
+      tenant = await byDomain(host);
       if (!tenant) {
         const [sub, ...rest] = host.split('.');
         if (rest.length >= 2 && !RESERVED_SUBDOMAINS.has(sub)) tenant = await bySlug(sub);

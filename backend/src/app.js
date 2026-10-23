@@ -5,6 +5,7 @@ import path from 'node:path';
 import morgan from 'morgan';
 import { config, isOriginAllowed } from './config.js';
 import { errorHandler, notFound } from './middleware/error.js';
+import { publicCache } from './middleware/publicCache.js';
 import { resolveTenant } from './middleware/tenant.js';
 import { serveVariant } from './services/imageVariants.js';
 import routes from './routes/index.js';
@@ -39,7 +40,7 @@ export const createApp = () => {
   // resolveTenant must stay in front of the routes: it resolves the restaurant
   // and opens the AsyncLocalStorage scope every tenant-aware query relies on.
   // Without it no request carries a tenant and the whole API 400s.
-  app.use('/api', resolveTenant, routes);
+  app.use('/api', publicCache.invalidateOnWrite, resolveTenant, routes);
 
   // Optionally serve the built frontend from the API, for single-origin
   // deployments where one service answers both.
