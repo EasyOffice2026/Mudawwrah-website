@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
+import { cachedPath, refresh } from '../../lib/storefrontApi';
 import { fallbackOnError, gridPicture, originalPicture, variantUrl } from '../../lib/imageVariant';
 import { useCart } from '../../store/cart';
 import SheetShell from './SheetShell.jsx';
@@ -24,6 +25,12 @@ const Row = ({ label, value, tone }) => (
  * order: upsells, a special request, and the voucher field —
  * with a running "you're saving" total so the discount stays visible.
  */
+const minimumsOf = (zones) =>
+  (zones || [])
+    .map((z) => z.minimumOrder)
+    .filter((m) => m !== null && m !== undefined)
+    .map(Number);
+
 export default function CartDrawer({ open, onClose, settings, suggestions, promotions, lang, onCheckout, onAddSuggestion }) {
   const { t } = useTranslation();
   const { lines, setQuantity, removeLine, subtotal, promo, setPromo, note, setNote } = useCart();
@@ -33,15 +40,14 @@ export default function CartDrawer({ open, onClose, settings, suggestions, promo
   const [manualOpen, setManualOpen] = useState(false);
   const [promoError, setPromoError] = useState(null);
   // Delivery areas can have their own minimum; the exact one is enforced at checkout once the area is chosen.
-  const [zoneMinimums, setZoneMinimums] = useState([]);
+  const [zoneMinimums, setZoneMinimums] = useState(() => minimumsOf(cachedPath('/zones')));
 
   useEffect(() => {
     if (!open) return undefined;
     let cancelled = false;
-    api
-      .get('/zones')
-      .then(({ data }) => {
-        if (!cancelled) setZoneMinimums((data || []).map((z) => z.minimumOrder).filter((m) => m !== null && m !== undefined).map(Number));
+    refresh('/zones')
+      .then((data) => {
+        if (!cancelled) setZoneMinimums(minimumsOf(data));
       })
       .catch(() => {});
     return () => {

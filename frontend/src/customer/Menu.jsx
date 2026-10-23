@@ -4,6 +4,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, apiError } from '../lib/api';
 import { localized } from '../lib/format';
 import { setStorefrontMeta } from '../lib/pageMeta';
+import { refresh } from '../lib/storefrontApi';
+import { keepIfSame, recall } from '../lib/storefrontCache';
 import { applyTheme } from '../lib/theme';
 import { applyTracking, captureAttribution } from '../lib/tracking';
 import { useCart } from '../store/cart';
@@ -38,18 +40,36 @@ const MenuSkeleton = () => (
   </div>
 );
 
+// The policy pages are one tap away in the footer: fetch their code while the browser is idle, so
+// they open at once instead of after a loading pause.
+const prefetchPolicyPages = () => {
+  const go = () => import('./LegalPage.jsx').catch(() => {});
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(go, { timeout: 4000 });
+  else setTimeout(go, 2000);
+};
+
 export default function Menu() {
   const { t, i18n } = useTranslation();
   const { slug } = useParams();
   const navigate = useNavigate();
   const lang = i18n.language;
-  const [tenant, setTenant] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [promotions, setPromotions] = useState([]);
-  const [settings, setSettings] = useState(null);
+  // What this phone saw last time (see lib/storefrontCache): a return visit or the back button shows
+  // the menu at once, in the restaurant's colours from the first paint, while the latest loads quietly.
+  const [remembered] = useState(() => {
+    const saved = recall(slug);
+    if (saved) {
+      applyTheme(saved.tenant);
+      setStorefrontMeta(saved.tenant, lang);
+    }
+    return saved;
+  });
+  const [tenant, setTenant] = useState(remembered?.tenant || null);
+  const [categories, setCategories] = useState(remembered?.categories || []);
+  const [promotions, setPromotions] = useState(remembered?.promotions || []);
+  const [settings, setSettings] = useState(remembered?.settings || null);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [activeId, setActiveId] = useState(null);
+  const [loading, setLoading] = useState(!remembered);
+  const [activeId, setActiveId] = useState(remembered?.categories?.[0]?.id || null);
   const [customizing, setCustomizing] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -88,28 +108,32 @@ export default function Menu() {
   const [splashDone, setSplashDone] = useState(() => splashAlreadyPlayed(slug));
 
   const load = async () => {
-    setLoading(true);
+    // With the last visit's menu already on screen the refresh is silent: no loading boxes, and
+    // nothing is replaced unless it really changed.
+    if (!remembered) setLoading(true);
     try {
-      const [tenantRes, categoriesRes, settingsRes, promotionsRes] = await Promise.all([
-        api.get('/tenants/current'),
-        api.get('/categories'),
-        api.get('/settings'),
-        api.get('/promotions'),
+      const [tenantData, categoriesData, settingsData, promotionsData] = await Promise.all([
+        refresh('/tenants/current'),
+        refresh('/categories'),
+        refresh('/settings'),
+        refresh('/promotions'),
       ]);
-      setTenant(tenantRes.data);
+      setTenant((current) => keepIfSame(current, tenantData));
       // Repaints the entire UI in this restaurant's palette, and renames the
       // tab and share tags so every storefront is not called "Mdawra".
-      applyTheme(tenantRes.data);
-      setStorefrontMeta(tenantRes.data, lang);
-      setCategories(categoriesRes.data);
-      setSettings(settingsRes.data);
-      applyTracking(settingsRes.data);
-      setPromotions(promotionsRes.data);
-      setActiveId(categoriesRes.data[0]?.id || null);
-      ensureTenant(slug, localized(tenantRes.data, "name", lang));
+      applyTheme(tenantData);
+      setStorefrontMeta(tenantData, lang);
+      setCategories((current) => keepIfSame(current, categoriesData));
+      setSettings((current) => keepIfSame(current, settingsData));
+      applyTracking(settingsData);
+      setPromotions((current) => keepIfSame(current, promotionsData));
+      setActiveId((current) => (categoriesData.some((c) => c.id === current) ? current : categoriesData[0]?.id || null));
+      ensureTenant(slug, localized(tenantData, 'name', lang));
       setError(null);
+      prefetchPolicyPages();
     } catch (err) {
-      setError(apiError(err));
+      // A menu a few seconds old beats an error box: only complain when there is nothing to show.
+      if (!remembered) setError(apiError(err));
     } finally {
       setLoading(false);
     }

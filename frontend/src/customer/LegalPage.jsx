@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../lib/api';
 import { localized } from '../lib/format';
 import { setPageMeta } from '../lib/pageMeta';
+import { cachedPath, refresh } from '../lib/storefrontApi';
 import { tenantPath } from '../lib/tenant';
 import { applyTheme } from '../lib/theme';
 import { legalFor, PAGE_ORDER, PAGE_PATH, pageIn } from './legal/index.js';
@@ -47,13 +47,15 @@ export default function LegalPage({ page }) {
   const lang = i18n.language === 'ar' ? 'ar' : 'en';
   const legal = legalFor(slug);
   const view = pageIn(legal, page, lang);
-  const [tenant, setTenant] = useState(null);
+  const [tenant, setTenant] = useState(() => cachedPath('/tenants/current'));
 
   useEffect(() => {
     let cancelled = false;
-    api
-      .get('/tenants/current')
-      .then(({ data }) => {
+    // Painted from what the menu already fetched, so the page opens in the restaurant's colours at once.
+    const saved = cachedPath('/tenants/current');
+    if (saved) applyTheme(saved);
+    refresh('/tenants/current')
+      .then((data) => {
         if (cancelled) return;
         setTenant(data);
         applyTheme(data);

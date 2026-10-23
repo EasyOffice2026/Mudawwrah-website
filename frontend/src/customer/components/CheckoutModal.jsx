@@ -3,6 +3,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
 import { reverseGeocode } from '../../lib/geocode';
+import { cachedPath, refresh } from '../../lib/storefrontApi';
 import { tenantPath } from '../../lib/tenant';
 import { getAttribution } from '../../lib/tracking';
 import { useCart } from '../../store/cart';
@@ -133,12 +134,12 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   // Branches the restaurant has set up under Settings → Pickup locations. A
   // restaurant with none keeps working exactly as before, off the single
   // pickup address in Settings.
-  const [pickupLocations, setPickupLocations] = useState([]);
+  const [pickupLocations, setPickupLocations] = useState(() => cachedPath('/pickup-locations') || []);
   const [pickupLocationId, setPickupLocationId] = useState(null);
   // Delivery zones (Admin → Delivery zones). Once a restaurant has any, the
   // customer picks one instead of typing an area: it decides the fee, the
   // minimum order and which branch cooks. None keeps the old free-text area.
-  const [zones, setZones] = useState([]);
+  const [zones, setZones] = useState(() => cachedPath('/zones') || []);
   const [zoneId, setZoneId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   // True while the browser is being sent to the payment page, so the button stays locked.
@@ -160,18 +161,18 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   }, [settings?.paymentMethods, form.paymentMethod]);
 
   useEffect(() => {
-    api
-      .get('/pickup-locations')
-      .then(({ data }) => {
+    // Shown at once from what the menu already fetched, then refreshed; if the refresh fails the
+    // customer keeps the lists they have rather than losing them.
+    refresh('/pickup-locations')
+      .then((data) => {
         setPickupLocations(data);
         // A closed branch is never pre-selected; the customer would only find out at the button.
         if (data.length === 1 && data[0].openNow !== false) setPickupLocationId(data[0].id);
       })
-      .catch(() => setPickupLocations([]));
-    api
-      .get('/zones')
-      .then(({ data }) => setZones(data))
-      .catch(() => setZones([]));
+      .catch(() => {});
+    refresh('/zones')
+      .then((data) => setZones(data))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
