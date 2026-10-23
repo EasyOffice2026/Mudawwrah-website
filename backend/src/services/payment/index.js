@@ -11,10 +11,15 @@ const providers = { tap, myfatoorah, mock };
 
 export const getProvider = (name = config.payment.provider) => providers[name] || null;
 
-/** Online payment is on for the current restaurant only if it is listed in ONLINE_PAYMENT_TENANTS. */
-export const isOnlinePaymentEnabled = () => {
+/**
+ * Online payment is on for the current restaurant only if it is listed in ONLINE_PAYMENT_TENANTS.
+ * With a customer's phone given, a pilot list (ONLINE_PAYMENT_PILOT_PHONES) narrows it to those customers.
+ */
+export const isOnlinePaymentEnabled = (customerPhone) => {
   const slug = String(currentTenant()?.slug || '').toLowerCase();
   if (!slug || !config.payment.tenants.includes(slug)) return false;
+  const pilot = config.payment.pilotPhones;
+  if (customerPhone !== undefined && pilot.length && !pilot.includes(String(customerPhone).replace(/[^0-9]/g, '').slice(-8))) return false;
   const provider = getProvider();
   return Boolean(provider && provider.isConfigured());
 };
@@ -24,7 +29,7 @@ const callbackUrl = (provider) => `${config.apiUrl}/api/payments/${provider.name
 /** Creates a hosted payment link for an order and stores the provider reference on it. */
 export const startPayment = async (order, lang = 'en') => {
   const provider = getProvider();
-  if (!isOnlinePaymentEnabled()) return null;
+  if (!isOnlinePaymentEnabled(order.customerPhone)) return null;
   const { url, reference } = await provider.createPaymentLink({
     order,
     lang,
