@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as auth from '../controllers/authController.js';
+import { clientIpInfo } from '../services/authService.js';
 import * as banners from '../controllers/bannerController.js';
 import * as categories from '../controllers/categoryController.js';
 import * as dashboard from '../controllers/dashboardController.js';
@@ -36,6 +37,24 @@ import { upload } from '../middleware/upload.js';
 const router = Router();
 
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+// "What address does the server see for me?" Open it on a branch computer to read the address its
+// account must be locked to. It only ever tells a visitor about their own connection.
+router.get('/my-address', (req, res) => {
+  const { ip, source } = clientIpInfo(req);
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    address: ip,
+    readFrom: source,
+    seen: {
+      'cf-connecting-ip': req.headers['cf-connecting-ip'] || null,
+      'x-real-ip': req.headers['x-real-ip'] || null,
+      'x-forwarded-for': req.headers['x-forwarded-for'] || null,
+      'true-client-ip': req.headers['true-client-ip'] || null,
+      socket: req.socket?.remoteAddress || null,
+    },
+  });
+});
 
 // Platform level — no restaurant in context.
 router.get('/tenants', h(tenants.listPublic));
