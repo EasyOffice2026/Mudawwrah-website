@@ -575,6 +575,39 @@
       "confirmRemove": "Remove {{name}}? Past orders keep their record of it.",
       "thisBranch": "this branch",
       "ownerOnly": "Only the owner can change branches, opening hours and allowed IPs."
+    },
+    "printing": {
+      "title": "Printing",
+      "intro": "Each branch prints its orders by itself. One computer at the branch keeps a print page open, and every new order comes out on the printer next to it the moment it is placed (for online payments, once the payment is confirmed). Nobody has to open the dashboard or press print.",
+      "setupTitle": "Set up a branch computer (once)",
+      "step1": "In Windows, make the receipt printer the default printer and set its paper to 80 mm.",
+      "step2": "Click \"Copy Chrome shortcut\" for the branch below, create a new Windows shortcut on that computer and paste it as the target. Put the shortcut in the Startup folder (Win+R, type shell:startup) so it opens by itself after a restart.",
+      "step3": "Open the shortcut and press \"Print a test ticket\". It must print without any pop-up. Keep the computer awake and the window open.",
+      "private": "Keep these links private: anyone who has one can read that branch's orders.",
+      "waiting": "{{count}} waiting to print",
+      "noneWaiting": "Nothing waiting",
+      "lastPrinted": "Last printed",
+      "neverPrinted": "Nothing has printed here yet",
+      "link": "Station link",
+      "copyLink": "Copy link",
+      "copyShortcut": "Copy Chrome shortcut",
+      "copied": "Copied",
+      "open": "Open",
+      "reprint": "Send to printer",
+      "sent": "Sent to the printer",
+      "station": {
+        "title": "Print station",
+        "starting": "Starting…",
+        "ready": "Ready. New orders print by themselves.",
+        "printing": "Printing {{number}}…",
+        "offline": "Cannot reach the server. Trying again…",
+        "badLink": "This printer link is not valid. Ask the owner for the link in Admin → Printing.",
+        "lastCheck": "Last checked",
+        "printedHere": "Printed on this computer",
+        "nothingYet": "Nothing yet",
+        "test": "Print a test ticket",
+        "silentWarning": "Printing is waiting for someone to confirm. Start Chrome with --kiosk-printing (see Admin → Printing) so tickets print without a pop-up."
+      }
     }
   },
   "store": {
