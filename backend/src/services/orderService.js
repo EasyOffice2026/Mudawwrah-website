@@ -164,6 +164,8 @@ export const create = async (payload) => {
       channel: payload.channel || 'WEB',
       paymentMethod,
       ...(payOnline ? { paymentStatus: 'PENDING' } : {}),
+      // Printable at once, unless it waits for an online payment: that one prints when it is paid.
+      ...(payOnline ? {} : { printQueuedAt: new Date() }),
       orderType,
       subtotal,
       deliveryFee,

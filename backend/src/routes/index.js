@@ -10,6 +10,7 @@ import * as items from '../controllers/itemController.js';
 import * as media from '../controllers/mediaController.js';
 import * as orders from '../controllers/orderController.js';
 import * as payments from '../controllers/paymentController.js';
+import * as printing from '../controllers/printController.js';
 import * as pickupLocations from '../controllers/pickupLocationController.js';
 import * as promotions from '../controllers/promotionController.js';
 import * as reports from '../controllers/reportController.js';
@@ -31,6 +32,7 @@ import {
 } from '../middleware/auth.js';
 import { asyncHandler as h } from '../middleware/error.js';
 import { publicCache } from '../middleware/publicCache.js';
+import { requirePrintKey } from '../middleware/printKey.js';
 import { reattachTenant, requireTenant } from '../middleware/tenant.js';
 import { upload } from '../middleware/upload.js';
 
@@ -109,6 +111,12 @@ scoped.get('/orders/track/:id', h(orders.track));
 scoped.get('/orders', requireOrderDesk, h(orders.list));
 // Before /orders/:id, which would otherwise read "feed" as an order id.
 scoped.get('/orders/feed', requireOrderDesk, h(orders.feed));
+// Automatic printing. A branch's print station asks for its waiting tickets with a private key (no
+// login to expire on an unattended computer); the owner lists the stations; the order desk can reprint.
+scoped.get('/print/jobs', requirePrintKey, h(printing.jobs));
+scoped.post('/print/jobs/:id/printed', requirePrintKey, h(printing.printed));
+scoped.get('/print/stations', requireStaff, h(printing.stations));
+scoped.post('/orders/:id/reprint', requireOrderDesk, h(printing.reprint));
 scoped.get('/orders/:id', requireOrderDesk, h(orders.getById));
 scoped.patch('/orders/:id/status', requireOrderDesk, h(orders.updateStatus));
 

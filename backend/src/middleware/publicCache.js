@@ -11,7 +11,7 @@
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 // Things customers (and the payment, WhatsApp and Foodics-free paths) do that cannot change what the
 // public lists show. Every other write clears the memory.
-const NOT_A_MENU_CHANGE = /^[/](orders|visits|promotions[/]preview|auth|payments|whatsapp|feedback)/;
+const NOT_A_MENU_CHANGE = /^[/](orders|visits|promotions[/]preview|auth|payments|whatsapp|feedback|print)/;
 
 export const createPublicCache = ({ ttlMs = 20_000, lookupTtlMs = 60_000, now = Date.now } = {}) => {
   const responses = new Map();
