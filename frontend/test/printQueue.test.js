@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { chromeShortcut, pickJobs, RETRY_AFTER_MS, SILENT_PRINT_MS, stationUrl, testTicket } from '../src/lib/printQueue.js';
+import {
+  chromeShortcut,
+  pickJobs,
+  RETRY_AFTER_MS,
+  SILENT_PRINT_MS,
+  STATION_PRINT_CSS,
+  stationUrl,
+  testTicket,
+} from '../src/lib/printQueue.js';
 
 const jobs = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
 
@@ -31,6 +39,16 @@ test('the Windows shortcut opens Chrome in its own window, printing without a di
   assert.match(target, /^"C:\\Program Files\\Google\\Chrome\\Application\\chrome\.exe" /);
   assert.match(target, /--kiosk-printing/);
   assert.match(target, /--app="https:\/\/x\.test\/r\/a\/print\/b#k"$/);
+});
+
+test('the shortcut uses a Chrome profile of its own, so silent printing holds even when Chrome is already open', () => {
+  assert.match(chromeShortcut('https://x.test/'), / --user-data-dir="C:\\PrintStation" /);
+});
+
+test('a ticket prints with no page margins, so Chrome adds no date or address, and keeps clear of the paper edges', () => {
+  assert.match(STATION_PRINT_CSS, /^@media print \{/);
+  assert.match(STATION_PRINT_CSS, /@page \{ margin: 0; \}/);
+  assert.match(STATION_PRINT_CSS, /\.print-receipt \{ padding: 0 4mm; \}/);
 });
 
 test('a print that takes longer than 1.5 s is treated as a dialog waiting for someone', () => {
