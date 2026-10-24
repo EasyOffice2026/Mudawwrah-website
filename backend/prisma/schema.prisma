@@ -299,6 +299,11 @@ model Order {
   cancelReason     String?
   cancelNote       String?
   paidAt          DateTime?
+  /// Automatic printing: when the order became printable (placed, or paid for online), when a branch
+  /// station printed it, and how many times. Old orders have none, so they are never printed.
+  printQueuedAt   DateTime?
+  printedAt       DateTime?
+  printCount      Int           @default(0)
   /// Structured address parts, collected step by step by the WhatsApp flow.
   area          String?
   block         String?
@@ -352,6 +357,7 @@ model Order {
   @@unique([tenantId, orderNumber])
   @@index([tenantId])
   @@index([branchId])
+  @@index([branchId, printedAt])
 }
 
 model OrderFeedback {

@@ -23,6 +23,9 @@ const SoldOut = lazy(() => import('./admin/pages/SoldOut.jsx'));
 const Users = lazy(() => import('./admin/pages/Users.jsx'));
 const Zones = lazy(() => import('./admin/pages/Zones.jsx'));
 // Operator-only, so it stays out of the bundle a customer downloads.
+// Automatic printing: the page a branch computer keeps open next to its printer, and the owner's setup page.
+const PrintStation = lazy(() => import('./printing/PrintStation.jsx'));
+const Printing = lazy(() => import('./admin/pages/Printing.jsx'));
 const PlatformConsole = lazy(() => import('./platform/PlatformConsole.jsx'));
 const PlatformLogin = lazy(() => import('./platform/PlatformLogin.jsx'));
 
@@ -45,6 +48,7 @@ export default function App() {
       <Route path="/r/:slug/about" element={<LegalPage page="about" />} />
       <Route path="/r/:slug/terms" element={<LegalPage page="terms" />} />
       <Route path="/r/:slug/refund-policy" element={<LegalPage page="refund" />} />
+      <Route path="/r/:slug/print/:branchId" element={<PrintStation />} />
       <Route path="/r/:slug/admin/login" element={<Login />} />
       <Route path="/r/:slug/admin" element={<AdminLayout />}>
         {/* The order desk: the only pages a branch account can open. */}
@@ -74,6 +78,7 @@ export default function App() {
               </AdminOnly>
             }
           />
+          <Route path="printing" element={<Printing />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Route>

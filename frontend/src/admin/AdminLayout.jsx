@@ -41,6 +41,7 @@ const links = [
   { to: 'promotions', labelKey: 'admin.promotions', roles: STAFF },
   { to: 'feedback', labelKey: 'admin.feedback', roles: STAFF },
   { to: 'zones', labelKey: 'admin.zones', roles: OWNER },
+  { to: 'printing', labelKey: 'admin.printing.title', roles: STAFF },
   { to: 'users', labelKey: 'admin.users', roles: OWNER },
   { to: 'settings', labelKey: 'admin.settings', roles: STAFF },
 ];

@@ -109,6 +109,8 @@ export const handleCallback = async (providerName, query) => {
       ? {
           paymentStatus: 'PAID',
           paidAt: new Date(),
+          // Paid: now the kitchen's printer may print it (an unpaid online order never does).
+          printQueuedAt: order.printQueuedAt || new Date(),
           ...(order.status === 'PENDING' ? { status: 'CONFIRMED', ...statusStamp(order, 'CONFIRMED') } : {}),
         }
       : {

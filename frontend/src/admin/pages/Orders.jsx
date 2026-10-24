@@ -97,6 +97,17 @@ export default function Orders() {
   }, [feed?.version, live]);
 
   const [cancelling, setCancelling] = useState(null);
+  // The order whose ticket was just sent to the branch printer again (shown on its button for a moment).
+  const [sentId, setSentId] = useState(null);
+  const reprint = async (order) => {
+    try {
+      await api.post(`/orders/${order.id}/reprint`);
+      setSentId(order.id);
+      setTimeout(() => setSentId(null), 3000);
+    } catch (err) {
+      setError(apiError(err));
+    }
+  };
   const [cancelForm, setCancelForm] = useState({ reason: '', note: '' });
 
   /** Every status change goes through here; cancelling first asks why. */
@@ -418,9 +429,14 @@ export default function Orders() {
                   {statusLabel(status)}
                 </button>
               ))}
-              <button type="button" className="btn-ghost ms-auto" onClick={() => window.print()}>
-                🖨️ {t('admin.printTicket')}
-              </button>
+              <span className="ms-auto flex flex-wrap gap-2">
+                <button type="button" className="btn-ghost" onClick={() => reprint(detail)}>
+                  {sentId === detail.id ? t('admin.printing.sent') : `🖨️ ${t('admin.printing.reprint')}`}
+                </button>
+                <button type="button" className="btn-ghost" onClick={() => window.print()}>
+                  🖨️ {t('admin.printTicket')}
+                </button>
+              </span>
             </div>
           </div>
         ) : null}
