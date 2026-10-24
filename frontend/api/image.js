@@ -11,10 +11,9 @@
  * The path arrives as ?file= rather than a [...catch-all] route: catch-all
  * functions matched a single segment but not nested ones like thumbs/x.jpg.
  */
-// The fallback is only ever a stopgap for whichever tunnel is live right now —
-// set UPSTREAM_API_URL in Vercel's project settings so a future tunnel
-// rotation is one env var change, not a code edit and a redeploy.
-const UPSTREAM = (process.env.UPSTREAM_API_URL || 'https://rod-encryption-approaches-inspector.trycloudflare.com').replace(
+// Where the images live: the API on Render. Set UPSTREAM_API_URL in Vercel's project settings to
+// change it without a code edit; the fallback is the same address.
+const UPSTREAM = (process.env.UPSTREAM_API_URL || 'https://mudawwrah-website.onrender.com').replace(
   /\/+$/,
   '',
 );
@@ -44,8 +43,9 @@ export default async function handler(request, response) {
     const body = Buffer.from(await upstream.arrayBuffer());
     response.setHeader('Content-Type', type);
     response.setHeader('Content-Length', String(body.length));
-    // Filenames are unique per upload, so these can cache hard.
-    response.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, immutable');
+    // A file name is unique to its upload, and so is every made-to-size copy of it, so a picture
+    // never changes: the browser and the CDN may keep it for a year.
+    response.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
     return response.status(200).send(body);
   } catch {
     return response.status(502).json({ error: 'Could not reach the image host' });

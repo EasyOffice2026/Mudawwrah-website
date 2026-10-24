@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { discountOf, kwd, localized, nutritionLine } from '../../lib/format';
+import { fallbackOnError, gridPicture, originalPicture } from '../../lib/imageVariant';
 import AddButton from './AddButton.jsx';
 
 /**
@@ -52,7 +53,9 @@ export default function ItemRow({ item, lang, onOpen, onAdd }) {
       <div className="relative shrink-0">
         <div className="overflow-hidden rounded-2xl bg-hairline">
           <img
-            src={item.image?.thumbnailUrl || item.image?.url || '/placeholder.svg'}
+            src={gridPicture(item.image)}
+            onError={fallbackOnError(originalPicture(item.image))}
+            decoding="async"
             alt={localized(item, 'name', lang)}
             className={`h-[112px] w-[112px] object-cover ${unavailable ? 'grayscale' : ''}`}
             loading="lazy"

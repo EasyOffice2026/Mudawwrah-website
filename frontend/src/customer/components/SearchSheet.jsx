@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { discountOf, kwd, localized } from '../../lib/format';
+import { fallbackOnError, gridPicture, originalPicture } from '../../lib/imageVariant';
 import SheetShell from './SheetShell.jsx';
 
 /**
@@ -81,7 +82,9 @@ export default function SearchSheet({ open, categories, lang, onClose, onSelect 
                     className="flex w-full items-center gap-3 border-b border-hairline px-3 py-3 text-start transition active:bg-surface"
                   >
                     <img
-                      src={item.image?.thumbnailUrl || item.image?.url || '/placeholder.svg'}
+                      src={gridPicture(item.image)}
+                      onError={fallbackOnError(originalPicture(item.image))}
+                      decoding="async"
                       alt=""
                       className="h-14 w-14 shrink-0 rounded-xl object-cover"
                       loading="lazy"

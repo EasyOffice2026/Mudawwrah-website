@@ -26,13 +26,24 @@ const sign = (user, expiresIn) =>
     { expiresIn },
   );
 
-/** The client's address, as Cloudflare or the proxy in front of us saw it. */
-export const clientIp = (req) =>
-  String(
-    req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || String(req.headers['x-forwarded-for'] || '').split(',')[0] || req.socket?.remoteAddress || '',
-  )
-    .trim()
-    .replace(/^::ffff:/, '');
+/**
+ * The client's address, as Cloudflare or the proxy in front of us saw it, and which header it was read
+ * from. Edge headers come first because the edge overwrites them; the first entry of X-Forwarded-For is
+ * only a fallback, since a client can write that part itself.
+ */
+export const clientIpInfo = (req) => {
+  const candidates = [
+    ['cf-connecting-ip', req.headers['cf-connecting-ip']],
+    ['x-real-ip', req.headers['x-real-ip']],
+    ['x-forwarded-for', String(req.headers['x-forwarded-for'] || '').split(',')[0]],
+    ['socket', req.socket?.remoteAddress],
+  ];
+  const found = candidates.find(([, value]) => String(value || '').trim());
+  const [source, value] = found || ['none', ''];
+  return { ip: String(value).trim().replace(/^::ffff:/, ''), source };
+};
+
+export const clientIp = (req) => clientIpInfo(req).ip;
 
 /** The /64 network of an IPv6 address ("2a00:1851:10:48cf"), or null for anything else. */
 const ipv6Network = (ip) => {
@@ -69,7 +80,7 @@ export const assertBranchAccess = async (user, ip) => {
   if (branch.allowedIps.length && !ipAllowed(ip, branch.allowedIps)) {
     // The address is logged so a branch whose line changed can be fixed from the log.
     console.warn(`[branch-access] refused ${user.email || user.branchId} from ${ip || 'unknown address'}`);
-    throw new HttpError(403, 'This branch account can only be used from the branch itself');
+    throw new HttpError(403, `This branch account can only be used from the branch itself (this device: ${ip || 'unknown address'})`);
   }
 };
 

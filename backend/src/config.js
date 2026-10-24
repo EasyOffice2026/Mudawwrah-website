@@ -49,6 +49,13 @@ export const config = {
       .split(',')
       .map((slug) => slug.trim().toLowerCase())
       .filter(Boolean),
+    // While set, only customers with these phone numbers (last 8 digits) are sent to the payment
+    // page; everyone else orders as before. For testing with the live site open, and for the first
+    // real payment. Empty = everyone at a listed restaurant.
+    pilotPhones: (process.env.ONLINE_PAYMENT_PILOT_PHONES || '')
+      .split(',')
+      .map((phone) => phone.replace(/[^0-9]/g, '').slice(-8))
+      .filter(Boolean),
   },
   // This API's own public address, where a payment gateway sends its callback. PUBLIC_URL is the
   // storefront's address, which has no /api behind it, so the two must not be confused.

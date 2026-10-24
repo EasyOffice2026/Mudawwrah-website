@@ -53,7 +53,7 @@ export const create = async (payload) => {
   // A website order paid with KNET or a card goes to the payment page when a gateway is set up:
   // it waits as PENDING, and reaches the kitchen and the staff only once it is paid.
   const payOnline =
-    isWeb && ['KNET', 'CARD', 'APPLE_PAY'].includes(paymentMethod) && isOnlinePaymentEnabled();
+    isWeb && ['KNET', 'CARD', 'APPLE_PAY'].includes(paymentMethod) && isOnlinePaymentEnabled(payload.customerPhone);
 
   const menuItems = await prisma.menuItem.findMany({ where: { id: { in: payload.items.map((i) => i.menuItemId) } } });
   const options = await prisma.customizationOption.findMany({

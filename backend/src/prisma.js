@@ -51,7 +51,11 @@ const CONNECTION_LOST = new Set([
   'P2024', // timed out fetching a connection from the pool
 ]);
 
-// Retried operations are reads only. A write that fails this way may still have
+// The database's connection pool being full ("max clients reached"): the database refused the
+// connection, so nothing was run.
+export const isPoolFull = (error) => /EMAXCONN|max clients reached/i.test(String(error?.message || ''));
+
+// Retried operations after a dropped connection are reads only. A write that fails this way may still have
 // been committed before the connection dropped, and quietly repeating it could
 // charge a customer twice for one order. Those keep failing loudly.
 const READ_ONLY = new Set([
@@ -80,7 +84,7 @@ const READ_ONLY = new Set([
  * rather than mid-restart.
  */
 export const withRetry = async (operation, run) => {
-  if (!READ_ONLY.has(operation)) return run();
+  const readOnly = READ_ONLY.has(operation);
 
   let lastError;
   for (const waitMs of [0, 150, 400, 800, 1500, 1800]) {
@@ -88,7 +92,10 @@ export const withRetry = async (operation, run) => {
     try {
       return await run();
     } catch (error) {
-      if (!CONNECTION_LOST.has(error?.code)) throw error;
+      // A full connection pool turns the connection away at login, before any statement ran,
+      // so even a write is safe to repeat. A dropped connection is only repeated for reads.
+      const retryable = isPoolFull(error) || (readOnly && CONNECTION_LOST.has(error?.code));
+      if (!retryable) throw error;
       lastError = error;
     }
   }

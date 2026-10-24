@@ -34,3 +34,38 @@ test('the gateway calls back to the API, not to the storefront', () => {
   assert.equal(config.apiUrl, 'https://api.example.com');
   assert.equal(config.publicUrl, 'https://www.madawarah.com');
 });
+
+test('while a pilot list is set, only those phones are sent to the payment page', () => {
+  const saved = [...config.payment.pilotPhones];
+  config.payment.pilotPhones.push('55551234');
+  try {
+    assert.equal(as('mdawra', () => isOnlinePaymentEnabled('55551234')), true);
+    // however the number was typed: country code, spaces, plus sign
+    assert.equal(as('mdawra', () => isOnlinePaymentEnabled('+965 5555 1234')), true);
+    assert.equal(as('mdawra', () => isOnlinePaymentEnabled('99887766')), false);
+    // asked about the restaurant as a whole (no customer), the pilot does not hide the feature
+    assert.equal(as('mdawra', () => isOnlinePaymentEnabled()), true);
+    // a restaurant that is not listed stays off, pilot or not
+    assert.equal(as('khobzt-marie', () => isOnlinePaymentEnabled('55551234')), false);
+  } finally {
+    config.payment.pilotPhones.length = 0;
+    config.payment.pilotPhones.push(...saved);
+  }
+});
+
+test('with no pilot list, every customer of a listed restaurant is sent to the payment page', () => {
+  assert.equal(config.payment.pilotPhones.length, 0);
+  assert.equal(as('mdawra', () => isOnlinePaymentEnabled('99887766')), true);
+});
+
+test('a customer outside the pilot gets no payment page from startPayment either', async () => {
+  const saved = [...config.payment.pilotPhones];
+  config.payment.pilotPhones.push('55551234');
+  try {
+    const order = { id: 'o2', orderNumber: 'X-2', total: '3.000', customerName: 'A', customerPhone: '99887766' };
+    assert.equal(await as('mdawra', () => startPayment(order)), null);
+  } finally {
+    config.payment.pilotPhones.length = 0;
+    config.payment.pilotPhones.push(...saved);
+  }
+});

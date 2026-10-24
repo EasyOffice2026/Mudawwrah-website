@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { discountOf, kwd, localized } from '../../lib/format';
+import { fallbackOnError, gridPicture, originalPicture } from '../../lib/imageVariant';
 import AddButton from './AddButton.jsx';
 
 /**
@@ -36,7 +37,9 @@ export default function ItemCard({ item, lang, onOpen, onAdd }) {
     >
       <div className="relative w-full overflow-hidden rounded-2xl bg-hairline">
         <img
-          src={item.image?.thumbnailUrl || item.image?.url || '/placeholder.svg'}
+          src={gridPicture(item.image)}
+          onError={fallbackOnError(originalPicture(item.image))}
+          decoding="async"
           alt={localized(item, 'name', lang)}
           className={`aspect-square w-full object-cover transition duration-300 group-hover:scale-[1.04] ${
             unavailable ? 'grayscale' : ''
