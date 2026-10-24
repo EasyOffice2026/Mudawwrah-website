@@ -11,6 +11,7 @@ import * as media from '../controllers/mediaController.js';
 import * as orders from '../controllers/orderController.js';
 import * as payments from '../controllers/paymentController.js';
 import * as presence from '../controllers/presenceController.js';
+import * as icons from '../controllers/iconController.js';
 import * as printing from '../controllers/printController.js';
 import * as pickupLocations from '../controllers/pickupLocationController.js';
 import * as promotions from '../controllers/promotionController.js';
@@ -73,6 +74,7 @@ router.get('/tenants/current', publicCache.middleware, h(tenants.current));
 router.get('/tenants/all', authenticate, requirePlatformAdmin, h(tenants.listAll));
 router.post('/tenants', authenticate, requirePlatformAdmin, h(tenants.create));
 router.put('/tenants/:id', authenticate, requirePlatformAdmin, h(tenants.update));
+router.get('/tenants/icon', h(icons.icon));
 router.get('/tenants/:slug', h(tenants.getBySlug));
 
 // Auth is resolved by email across the whole platform, so it needs no tenant.

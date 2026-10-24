@@ -8,6 +8,11 @@ import { installStaleChunkReload } from './lib/version.js';
 
 installStaleChunkReload();
 
+// The do-nothing service worker that lets browsers offer "Install" (see public/sw.js). It never caches anything.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>

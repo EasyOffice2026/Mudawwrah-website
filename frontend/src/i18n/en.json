@@ -666,5 +666,9 @@
     "retry": "Try again",
     "close": "Back to the menu",
     "redirecting": "Taking you to the secure payment page…"
+  },
+  "install": {
+    "button": "Install the app",
+    "ios": "To install this as an app: tap Share, then \"Add to Home Screen\"."
   }
 }
