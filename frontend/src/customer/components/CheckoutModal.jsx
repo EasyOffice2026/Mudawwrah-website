@@ -277,6 +277,9 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         ? t('cart.minimumOrder', { amount: kwd(minimumOrder) })
         : null;
   const phoneOk = phoneValid(form.customerPhone);
+  // Said as soon as the field is left, or once enough digits are typed to be a full number, so the customer is
+  // never left with a disabled button and no reason.
+  const showPhoneError = !phoneOk && (phoneTouched || normalisePhone(form.customerPhone).length >= 8);
   const canSubmit = form.customerName.trim() && phoneOk && !branchMissing && !blockedReason;
 
   /** The zone a free-text or reverse-geocoded area name belongs to, if any. */
@@ -495,13 +498,15 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
             <div>
               <label className="label">{t('checkout.phone')}</label>
               <input
-                className={`input ${phoneTouched && !phoneOk ? 'border-brand' : ''}`}
+                className={`input ${showPhoneError ? 'border-brand' : ''}`}
                 inputMode="tel"
                 value={form.customerPhone}
                 onChange={set('customerPhone')}
+                onBlur={() => setPhoneTouched(true)}
+                aria-invalid={showPhoneError}
                 required
               />
-              {phoneTouched && !phoneOk ? (
+              {showPhoneError ? (
                 <p className="mt-1 text-xs font-semibold text-brand">{t('checkout.phoneInvalid')}</p>
               ) : null}
             </div>

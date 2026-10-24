@@ -608,6 +608,32 @@
         "test": "Print a test ticket",
         "silentWarning": "Printing is waiting for someone to confirm. Start Chrome with --kiosk-printing (see Admin → Printing) so tickets print without a pop-up."
       }
+    },
+    "site": {
+      "title": "Website",
+      "openButton": "Website open",
+      "closedButton": "Website closed",
+      "openNow": "The website is open. Customers can order.",
+      "closedNow": "The website is closed. Customers can browse the menu but cannot order.",
+      "confirmClose": "Close the website? Customers will not be able to place orders until you open it again."
+    },
+    "waiting": {
+      "banner": "Orders waiting to be accepted: {{count}}",
+      "oldest": "oldest {{minutes}} min",
+      "urgent": "URGENT"
+    },
+    "presence": {
+      "title": "Branch screens",
+      "hint": "A branch counts as connected while its order screen is open and checking for orders.",
+      "connected": "Connected",
+      "lastSeen": "Last seen {{when}}",
+      "never": "Not seen since the server last restarted",
+      "when": {
+        "now": "just now",
+        "minutes": "{{count}} min ago",
+        "hours": "{{count}} h ago",
+        "days": "{{count}} d ago"
+      }
     }
   },
   "store": {

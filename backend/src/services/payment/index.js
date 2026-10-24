@@ -2,6 +2,7 @@ import { config } from '../../config.js';
 import { HttpError } from '../../middleware/error.js';
 import { prisma } from '../../prisma.js';
 import { currentTenant } from '../../tenantContext.js';
+import { announce } from '../orderEvents.js';
 import { statusStamp } from '../statusTimes.js';
 import * as mock from './mock.js';
 import * as myfatoorah from './myfatoorah.js';
@@ -122,5 +123,7 @@ export const handleCallback = async (providerName, query) => {
         },
     include: { items: true },
   });
+  // A payment just confirmed makes the order the kitchen's: tell the open screens now.
+  if (status.paid) announce(updated.tenantId, updated.branchId);
   return { order: updated, paid: status.paid, failed: status.failed };
 };

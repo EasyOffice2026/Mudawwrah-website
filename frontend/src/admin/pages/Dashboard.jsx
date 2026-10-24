@@ -4,6 +4,8 @@ import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, 
 import { api, apiError } from '../../lib/api';
 import { dateTime, kwd, localized } from '../../lib/format';
 import BranchAnalytics from '../components/BranchAnalytics.jsx';
+import BranchPresence from '../components/BranchPresence.jsx';
+import SiteOpenSwitch from '../components/SiteOpenSwitch.jsx';
 
 const ranges = ['daily', 'weekly', 'monthly'];
 
@@ -95,6 +97,8 @@ export default function Dashboard() {
   return (
     <div className="space-y-4">
       {toolbar}
+      <SiteOpenSwitch />
+      <BranchPresence />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi label={t('admin.kpi.todayOrders')} value={stats.kpis.todayOrders} />
         <Kpi label={t('admin.kpi.todayRevenue')} value={kwd(stats.kpis.todayRevenue)} />

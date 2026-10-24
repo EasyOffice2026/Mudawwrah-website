@@ -6,7 +6,7 @@ import { localized } from '../lib/format';
 import { applyTheme } from '../lib/theme';
 import { useAuth } from '../store/auth';
 import BuildLabel from '../components/BuildLabel.jsx';
-import { NotificationBell, OrderFeedProvider, SoundOffPill, useOrderFeed } from './OrderFeed.jsx';
+import { NotificationBell, OrderFeedProvider, SoundOffPill, useOrderFeed, WaitingBanner } from './OrderFeed.jsx';
 import UpdateBanner from './UpdateBanner.jsx';
 
 // Who sees each page. ADMIN is the owner; a BRANCH account only ever gets the
@@ -127,6 +127,7 @@ export default function AdminLayout() {
       </aside>
 
       <main className="min-w-0 flex-1">
+        <WaitingBanner base={base} />
         <UpdateBanner />
         <header className="flex items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-3">
           <button type="button" className="btn-ghost lg:hidden" onClick={() => setOpen((value) => !value)}>

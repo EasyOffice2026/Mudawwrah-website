@@ -10,6 +10,7 @@ import * as items from '../controllers/itemController.js';
 import * as media from '../controllers/mediaController.js';
 import * as orders from '../controllers/orderController.js';
 import * as payments from '../controllers/paymentController.js';
+import * as presence from '../controllers/presenceController.js';
 import * as printing from '../controllers/printController.js';
 import * as pickupLocations from '../controllers/pickupLocationController.js';
 import * as promotions from '../controllers/promotionController.js';
@@ -111,6 +112,9 @@ scoped.get('/orders/track/:id', h(orders.track));
 scoped.get('/orders', requireOrderDesk, h(orders.list));
 // Before /orders/:id, which would otherwise read "feed" as an order id.
 scoped.get('/orders/feed', requireOrderDesk, h(orders.feed));
+// The live connection an open order screen keeps, and which branch screens are connected (owner).
+scoped.get('/orders/stream', requireOrderDesk, orders.stream);
+scoped.get('/branches/presence', requireStaff, h(presence.branches));
 // Automatic printing. A branch's print station asks for its waiting tickets with a private key (no
 // login to expire on an unattended computer); the owner lists the stations; the order desk can reprint.
 scoped.get('/print/jobs', requirePrintKey, h(printing.jobs));

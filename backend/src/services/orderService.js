@@ -11,6 +11,7 @@ import { resolveForDelivery } from './zoneService.js';
 import { firstSoldOut } from './soldOutService.js';
 import { notifyNewOrder, notifyStatusChange } from './whatsapp/notifications.js';
 import { createdAtWindow } from './orderDates.js';
+import { announce } from './orderEvents.js';
 import { arrivedAfter, hiddenWhileUnpaid, isAwaitingPayment } from './orderVisibility.js';
 import { isOnlinePaymentEnabled } from './payment/index.js';
 
@@ -197,6 +198,7 @@ export const create = async (payload) => {
   // Fire-and-forget: a slow or failed WhatsApp call must never delay the
   // order confirmation the customer is waiting on.
   if (!payOnline) {
+    announce(order.tenantId, order.branchId);
     notifyNewOrder(order, settings).catch((error) => console.error('[whatsapp] new-order notification failed', error));
   }
   pushToFoodics(order);
@@ -217,9 +219,12 @@ export const cancelUnpaid = (id) =>
  * added or changes status — so a page only refetches when something changed.
  * A branch account sees only its own branch, exactly as in the order list.
  */
+// Orders still waiting to be accepted count for a day, so yesterday's forgotten ones do not ring for ever.
+const WAITING_WINDOW_MS = 24 * 3600 * 1000;
+
 export const feed = async ({ since } = {}, viewer = null) => {
   const scope = { ...viewerScope(viewer), ...hiddenWhileUnpaid };
-  const [orders, latest, unseen] = await Promise.all([
+  const [orders, latest, unseen, waitingRows] = await Promise.all([
     prisma.order.findMany({
       where: scope,
       orderBy: { createdAt: 'desc' },
@@ -238,8 +243,33 @@ export const feed = async ({ since } = {}, viewer = null) => {
     }),
     prisma.order.aggregate({ where: scope, _max: { updatedAt: true } }),
     since ? prisma.order.count({ where: { ...scope, ...arrivedAfter(since) } }) : 0,
+    prisma.order.groupBy({
+      by: ['branchId'],
+      where: { ...scope, status: 'PENDING', createdAt: { gt: new Date(Date.now() - WAITING_WINDOW_MS) } },
+      _count: { _all: true },
+      _min: { createdAt: true },
+    }),
   ]);
-  return { orders, unseen, version: latest._max.updatedAt, now: new Date() };
+  const waiting = {
+    count: waitingRows.reduce((sum, row) => sum + row._count._all, 0),
+    oldestAt: waitingRows.reduce((oldest, row) => (!oldest || row._min.createdAt < oldest ? row._min.createdAt : oldest), null),
+  };
+  // The owner also sees which branch is sitting on them; a branch account only ever sees its own.
+  let waitingByBranch;
+  if (viewer?.role !== 'BRANCH' && waitingRows.length) {
+    const names = await prisma.pickupLocation.findMany({
+      where: { id: { in: waitingRows.map((row) => row.branchId).filter(Boolean) } },
+      select: { id: true, nameEn: true, nameAr: true },
+    });
+    waitingByBranch = waitingRows.map((row) => ({
+      branchId: row.branchId,
+      nameEn: names.find((n) => n.id === row.branchId)?.nameEn || null,
+      nameAr: names.find((n) => n.id === row.branchId)?.nameAr || null,
+      count: row._count._all,
+      oldestAt: row._min.createdAt,
+    }));
+  }
+  return { orders, unseen, version: latest._max.updatedAt, now: new Date(), waiting, ...(waitingByBranch ? { waitingByBranch } : {}) };
 };
 
 export const list = async ({ status, channel, from, to, search, branchId, page = 1, pageSize = 20 } = {}, viewer = null) => {
@@ -305,6 +335,7 @@ export const updateStatus = async (id, status, viewer = null, { cancelReason, ca
   });
   // A WhatsApp hiccup is not worth failing an admin's status update over —
   // the change has already been saved above by the time this runs.
+  announce(order.tenantId, order.branchId);
   await notifyStatusChange(order).catch((error) => console.error('[whatsapp] status notification failed', error));
   return order;
 };

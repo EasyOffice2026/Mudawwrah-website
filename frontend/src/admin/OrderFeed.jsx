@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, API_BASE, tokenKey } from '../lib/api';
 import { playChime, unlockAudio, watchAudio } from '../lib/chime';
 import { dateTime, kwd, localized } from '../lib/format';
+import { createSseParser, reconnectDelay } from '../lib/liveStream';
+import { shouldChimeAgain, waitingAlarm } from '../lib/waiting';
 
 // Small and cheap (a few KB), so polling often costs nothing: this is what
 // makes a new order show up within seconds on every admin page.
@@ -61,9 +63,12 @@ export function OrderFeedProvider({ slug, user, children }) {
   // Orders this tab already knows about; null until the first load, which only
   // sets the baseline — opening the dashboard shouldn't chime for old orders.
   const known = useRef(null);
+  // When the chime last sounded, so a waiting order repeats it without doubling up.
+  const lastChime = useRef(0);
 
   const announce = useCallback(
     (fresh) => {
+      lastChime.current = Date.now();
       playChime();
       if (!canNotify() || Notification.permission !== 'granted') return;
       for (const order of fresh.slice(0, 3)) {
@@ -93,11 +98,76 @@ export function OrderFeedProvider({ slug, user, children }) {
     }
   }, [announce]);
 
+  const loadRef = useRef(load);
+  const feedRef = useRef(feed);
+  useEffect(() => {
+    loadRef.current = load;
+    feedRef.current = feed;
+  }, [load, feed]);
+
+  // The regular check stays as the safety net; the live connection below makes it instant.
   useEffect(() => {
     load();
     const id = setInterval(load, POLL_MS);
     return () => clearInterval(id);
   }, [load]);
+
+  // The live connection: the server says "orders" the moment an order is placed, paid or moved, and the screen
+  // fetches at once instead of waiting for the next check. It reconnects by itself and, if it cannot, the regular
+  // check above still covers it.
+  useEffect(() => {
+    let stopped = false;
+    let controller;
+    let timer;
+    let attempt = 0;
+    const connect = async () => {
+      controller = new AbortController();
+      try {
+        const response = await fetch(`${API_BASE}/orders/stream`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem(tokenKey(slug)) || ''}`,
+            'X-Tenant': slug,
+            'X-Storefront-Host': window.location.hostname,
+          },
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) throw new Error(`stream ${response.status}`);
+        attempt = 0;
+        const parse = createSseParser(() => loadRef.current());
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          parse(decoder.decode(value, { stream: true }));
+        }
+      } catch {
+        /* dropped or refused: try again below */
+      }
+      if (!stopped) {
+        timer = setTimeout(connect, reconnectDelay(attempt));
+        attempt += 1;
+      }
+    };
+    connect();
+    return () => {
+      stopped = true;
+      controller?.abort();
+      clearTimeout(timer);
+    };
+  }, [slug]);
+
+  // An order nobody has accepted keeps chiming (every 30 s, after its first minute) until it is accepted.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const alarm = waitingAlarm(feedRef.current.waiting);
+      if (shouldChimeAgain(alarm, lastChime.current)) {
+        lastChime.current = Date.now();
+        playChime();
+      }
+    }, 10000);
+    return () => clearInterval(id);
+  }, []);
 
   // Sound only works after the page has been touched once; take the first click anywhere.
   useEffect(() => {
@@ -279,5 +349,53 @@ export function NotificationBell({ base }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Re-renders now and then, so "waiting 7 min" keeps counting without a new fetch. */
+const useNow = (ms) => {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), ms);
+    return () => clearInterval(id);
+  }, [ms]);
+  return now;
+};
+
+/**
+ * Across the top of every admin page while orders wait to be accepted, stronger the longer they wait (amber, then
+ * red, then pulsing). Branch screens see their own; the owner also sees which branch is sitting on them.
+ */
+export function WaitingBanner({ base }) {
+  const { t, i18n } = useTranslation();
+  const feed = useOrderFeed();
+  const now = useNow(15000);
+  const alarm = waitingAlarm(feed?.waiting, now);
+  if (!feed || alarm.level === 'none') return null;
+  const tone =
+    alarm.level === 'urgent'
+      ? 'animate-pulse bg-red-700 text-white'
+      : alarm.level === 'late'
+        ? 'bg-red-600 text-white'
+        : 'bg-amber-100 text-amber-900';
+  const branches = (feed.waitingByBranch || []).filter((row) => row.nameEn);
+  return (
+    <Link
+      to={`${base}/orders`}
+      role="alert"
+      data-testid="waiting-banner"
+      data-level={alarm.level}
+      className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2.5 text-sm font-bold ${tone}`}
+    >
+      <span>
+        {alarm.level === 'urgent' ? `${t('admin.waiting.urgent')} · ` : ''}
+        {t('admin.waiting.banner', { count: alarm.count })} · {t('admin.waiting.oldest', { minutes: alarm.minutes })}
+      </span>
+      {branches.length ? (
+        <span className="text-xs font-semibold opacity-90">
+          {branches.map((row) => `${localized(row, 'name', i18n.language)} (${row.count})`).join(' · ')}
+        </span>
+      ) : null}
+    </Link>
   );
 }
