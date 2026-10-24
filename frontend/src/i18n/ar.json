@@ -641,7 +641,8 @@
         "hours": "منذ {{count}} ساعة",
         "days": "منذ {{count}} يوم"
       }
-    }
+    },
+    "refundNeeded": "يلزم الاسترداد"
   },
   "store": {
     "prepWindow": "{{min}}-{{max}} دقيقة",

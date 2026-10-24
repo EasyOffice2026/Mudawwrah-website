@@ -634,7 +634,8 @@
         "hours": "{{count}} h ago",
         "days": "{{count}} d ago"
       }
-    }
+    },
+    "refundNeeded": "Refund needed"
   },
   "store": {
     "prepWindow": "{{min}}-{{max}} mins",

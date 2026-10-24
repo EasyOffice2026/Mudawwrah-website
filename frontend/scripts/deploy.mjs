@@ -17,6 +17,7 @@
  * XDG_DATA_HOME=/c/Users/Administrator/AppData/Roaming/xdg.data).
  */
 import { execSync, spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 const LIVE_URL = process.env.VERIFY_URL || 'https://www.madawarah.com';
 // trimEnd, not trim: the first line of `git status` starts with a space that means something.
@@ -64,7 +65,33 @@ for (let attempt = 1; attempt <= 8; attempt += 1) {
   await wait(4000);
 }
 
+// The website is only half of a release: the server (Render) is deployed from GitHub, not from here. Say which code
+// it is running, so a change that needs both is never called "live" while the server is still on the old code.
+const apiAddress = () => {
+  try {
+    return (readFileSync('.env.production', 'utf8').match(/^VITE_API_URL=(.+)$/m) || [])[1]?.trim() || '';
+  } catch {
+    return '';
+  }
+};
+const serverCheck = async () => {
+  const api = process.env.VERIFY_API || apiAddress();
+  if (!api) return;
+  try {
+    const res = await fetch(`${api.replace(/\/+$/, '')}/version`, { cache: 'no-store' });
+    const body = res.ok ? await res.json() : null;
+    if (!body) return console.log('Server: could not read its version (an older server without /api/version).');
+    console.log(`Server: running commit ${body.commit || 'unknown'}, started ${body.startedAt}.`);
+    if (body.commit && body.commit !== commit) {
+      console.log(`NOTE: this release is ${commit}. If it also changes the server, merge it into the production branch and wait for Render to show Live, then check this line again.`);
+    }
+  } catch {
+    console.log('Server: could not be reached to read its version.');
+  }
+};
+
 if (live?.commit === commit) {
+  await serverCheck();
   console.log(`\nLIVE and verified: ${LIVE_URL} is serving commit ${live.commit}, built ${live.builtAt}.`);
   console.log('Open admin tabs will show "A new version is available" within a minute. Tabs opened before this feature existed need one manual refresh (Ctrl+Shift+R).\n');
 } else {

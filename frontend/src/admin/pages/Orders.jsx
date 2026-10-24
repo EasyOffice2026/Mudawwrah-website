@@ -253,6 +253,9 @@ export default function Orders() {
                   <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">{order.channel}</span>
                   <span className="block text-xs text-gray-500">
                     {order.paymentMethod} · {order.paymentStatus}
+                    {order.status === 'CANCELLED' && order.paymentStatus === 'PAID' ? (
+                      <span className="ms-1 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">{t('admin.refundNeeded')}</span>
+                    ) : null}
                   </span>
                 </td>
                 <td className="py-2">
@@ -305,6 +308,9 @@ export default function Orders() {
               </p>
               <p>
                 <span className="text-gray-500">{t('checkout.paymentMethod')}:</span> {detail.paymentMethod} · {detail.paymentStatus}
+                {detail.status === 'CANCELLED' && detail.paymentStatus === 'PAID' ? (
+                  <span className="ms-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700">{t('admin.refundNeeded')}</span>
+                ) : null}
               </p>
               <p>
                 <span className="text-gray-500">{t('admin.channel')}:</span> {detail.channel}

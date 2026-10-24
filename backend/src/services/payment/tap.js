@@ -61,6 +61,14 @@ export const createPaymentLink = async ({ order, lang, callbackUrl }) => {
 // Statuses at which the money will not come: the customer left, cancelled, or the bank refused.
 const FAILED = ['ABANDONED', 'CANCELLED', 'FAILED', 'DECLINED', 'RESTRICTED', 'VOID', 'TIMEDOUT'];
 
+// How Tap names what the customer paid with, as our payment methods. Google Pay is a card payment.
+const METHODS = { KNET: 'KNET', VISA: 'CARD', MASTERCARD: 'CARD', AMERICAN_EXPRESS: 'CARD', AMEX: 'CARD', MADA: 'CARD', MEEZA: 'CARD', APPLE_PAY: 'APPLE_PAY', GOOGLE_PAY: 'CARD' };
+const clean = (value) => String(value || '').toUpperCase().replace(/[\s-]+/g, '_');
+
+/** The payment method a captured charge was made with, or null when Tap does not say. */
+export const methodFor = (charge) =>
+  METHODS[clean(charge?.source?.type)] || METHODS[clean(charge?.source?.payment_method)] || METHODS[clean(charge?.card?.brand)] || null;
+
 /** Reads the charge from Tap itself. Only CAPTURED means the money was taken. */
 export const getPaymentStatus = async ({ paymentId }) => {
   const charge = await request('GET', `/v2/charges/${encodeURIComponent(paymentId)}`);
@@ -72,6 +80,7 @@ export const getPaymentStatus = async ({ paymentId }) => {
     // What was charged, so the caller can check it against the order.
     amount: Number(charge.amount),
     currency: charge.currency,
+    method: methodFor(charge),
     raw: charge,
   };
 };

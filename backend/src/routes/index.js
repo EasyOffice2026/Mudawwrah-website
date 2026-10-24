@@ -41,6 +41,14 @@ const router = Router();
 
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// Which code this server is running (Render sets RENDER_GIT_COMMIT) and since when. The website release script reads
+// it, so a release that needs a server change cannot be called live while the server is still on the old code.
+const STARTED_AT = new Date().toISOString();
+router.get('/version', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ commit: String(process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '').slice(0, 7) || null, startedAt: STARTED_AT });
+});
+
 // "What address does the server see for me?" Open it on a branch computer to read the address its
 // account must be locked to. It only ever tells a visitor about their own connection.
 router.get('/my-address', (req, res) => {

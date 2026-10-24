@@ -109,6 +109,8 @@ export const handleCallback = async (providerName, query) => {
     data: status.paid
       ? {
           paymentStatus: 'PAID',
+          // How they really paid (the link was opened as "KNET" whatever the customer then chose).
+          ...(status.method ? { paymentMethod: status.method } : {}),
           paidAt: new Date(),
           // Paid: now the kitchen's printer may print it (an unpaid online order never does).
           printQueuedAt: order.printQueuedAt || new Date(),

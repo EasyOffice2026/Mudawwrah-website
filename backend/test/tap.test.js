@@ -88,3 +88,27 @@ test('is configured only with a secret key', () => {
   assert.equal(tap.isConfigured(), true);
   assert.equal(tap.name, 'tap');
 });
+
+test('how the customer paid is read from the charge: KNET, card brands, Apple Pay, Google Pay', () => {
+  assert.equal(tap.methodFor({ source: { payment_method: 'KNET' } }), 'KNET');
+  assert.equal(tap.methodFor({ source: { payment_method: 'VISA' } }), 'CARD');
+  assert.equal(tap.methodFor({ source: { payment_method: 'MASTERCARD' } }), 'CARD');
+  assert.equal(tap.methodFor({ source: { type: 'APPLE_PAY', payment_method: 'VISA' } }), 'APPLE_PAY');
+  assert.equal(tap.methodFor({ source: { type: 'Apple Pay' } }), 'APPLE_PAY');
+  assert.equal(tap.methodFor({ source: { type: 'GOOGLE_PAY', payment_method: 'MASTERCARD' } }), 'CARD');
+  assert.equal(tap.methodFor({ card: { brand: 'Mada' } }), 'CARD');
+  assert.equal(tap.methodFor({ source: { payment_method: 'SOMETHING_NEW' } }), null);
+  assert.equal(tap.methodFor({}), null);
+  assert.equal(tap.methodFor(null), null);
+});
+
+test('the payment status carries how the customer paid, so Reports can tell KNET from cards', async () => {
+  answer(200, { id: 'chg_9', status: 'CAPTURED', amount: 3.3, currency: 'KWD', source: { payment_method: 'KNET' } });
+  const knet = await tap.getPaymentStatus({ paymentId: 'chg_9' });
+  assert.deepEqual([knet.paid, knet.method], [true, 'KNET']);
+  answer(200, { id: 'chg_10', status: 'CAPTURED', amount: 3.3, currency: 'KWD', source: { payment_method: 'VISA' } });
+  assert.equal((await tap.getPaymentStatus({ paymentId: 'chg_10' })).method, 'CARD');
+  answer(200, { id: 'chg_11', status: 'DECLINED', amount: 3.3, currency: 'KWD' });
+  const declined = await tap.getPaymentStatus({ paymentId: 'chg_11' });
+  assert.deepEqual([declined.paid, declined.failed, declined.method], [false, true, null]);
+});
