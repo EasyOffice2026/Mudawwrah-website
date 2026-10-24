@@ -9,7 +9,12 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 
 const DB = process.env.TEST_DATABASE_URL;
-if (!DB || /supabase|pooler|amazonaws/i.test(DB)) throw new Error('Set TEST_DATABASE_URL to a throwaway local database');
+if (!DB) {
+  // Not a failure: these need a database they are allowed to wipe. The automatic checks (CI) provide one.
+  console.log('branches tests skipped: set TEST_DATABASE_URL to a throwaway database to run them');
+  process.exit(0);
+}
+if (/supabase|pooler|amazonaws/i.test(DB)) throw new Error('TEST_DATABASE_URL must be a throwaway database, never the production one');
 process.env.DATABASE_URL = DB;
 process.env.DIRECT_URL = DB;
 process.env.JWT_SECRET = 'test-secret';
