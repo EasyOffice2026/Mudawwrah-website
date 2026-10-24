@@ -10,6 +10,7 @@ import { isOpenAt, nextOpening } from './branchHours.js';
 import { resolveForDelivery } from './zoneService.js';
 import { firstSoldOut } from './soldOutService.js';
 import { notifyNewOrder, notifyStatusChange } from './whatsapp/notifications.js';
+import { createdAtWindow } from './orderDates.js';
 import { arrivedAfter, hiddenWhileUnpaid, isAwaitingPayment } from './orderVisibility.js';
 import { isOnlinePaymentEnabled } from './payment/index.js';
 
@@ -241,7 +242,9 @@ export const feed = async ({ since } = {}, viewer = null) => {
   return { orders, unseen, version: latest._max.updatedAt, now: new Date() };
 };
 
-export const list = ({ status, channel, from, to, search, branchId, page = 1, pageSize = 20 } = {}, viewer = null) => {
+export const list = async ({ status, channel, from, to, search, branchId, page = 1, pageSize = 20 } = {}, viewer = null) => {
+  // The restaurant's own timezone decides where a chosen day begins and ends (only looked up when dates are used).
+  const timeZone = from || to ? (await getSettings()).timezone || 'Asia/Kuwait' : null;
   const where = {
     // An order still waiting for its online payment is not shown until it is paid.
     ...hiddenWhileUnpaid,
@@ -250,9 +253,7 @@ export const list = ({ status, channel, from, to, search, branchId, page = 1, pa
     ...viewerScope(viewer),
     ...(status ? { status } : {}),
     ...(channel ? { channel } : {}),
-    ...(from || to
-      ? { createdAt: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(to) } : {}) } }
-      : {}),
+    ...(from || to ? { createdAt: createdAtWindow(from, to, timeZone) } : {}),
     ...(search
       ? {
           OR: [
