@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
+import SiteOpenSwitch from '../components/SiteOpenSwitch.jsx';
 import BrandingSection from '../components/BrandingSection.jsx';
 import FoodicsSection from '../components/FoodicsSection.jsx';
 import PickupLocationsSection from '../components/PickupLocationsSection.jsx';
@@ -93,15 +94,7 @@ export default function Settings() {
             />
           </div>
         ))}
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-brand"
-            checked={settings.isOpen === 'true'}
-            onChange={(e) => setSettings({ ...settings, isOpen: String(e.target.checked) })}
-          />
-          Site open for orders
-        </label>
+        <SiteOpenSwitch onChange={(open) => setSettings((current) => ({ ...current, isOpen: String(open) }))} />
       </section>
 
       <PickupLocationsSection />

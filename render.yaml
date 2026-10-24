@@ -1,32 +1,68 @@
+# The API as it actually runs in production (Render, Singapore, Starter, with a disk for uploaded pictures).
+#
+# The live service was created by hand in the dashboard and is NOT managed by this file; it is the record of the
+# settings, and a starting point for a copy (a staging server, or another restaurant group). If you change a
+# setting in the dashboard, change it here too. Values marked `sync: false` are secrets or per-environment
+# addresses: Render asks for them when a Blueprint is created, and they are never written in this repository.
+#
+# Why these choices:
+# - Starter, not Free: a Free service sleeps after 15 minutes idle (the first order after a quiet hour waits a
+#   minute) and has no disk.
+# - Singapore: the nearest Render region to the database in Tokyo and to Vercel's servers.
+# - The disk keeps uploaded pictures (about 200 MB today) across deploys. A service with a disk restarts for a
+#   few seconds on each deploy.
+# - Build command: --include=dev installs the Prisma tool; migrate deploy applies any new migration before the new
+#   version starts, and does nothing when there is none.
 services:
   - type: web
-    name: mdawra-api
+    name: Mudawwrah-website
     runtime: node
-    plan: starter # a paid plan is required for the persistent disk used by uploads
+    region: singapore
+    plan: starter
+    branch: devin/1784920877-mdawra-ordering-platform
     rootDir: backend
-    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy
+    buildCommand: npm ci --include=dev && npx prisma generate && npx prisma migrate deploy
     startCommand: npm start
     healthCheckPath: /api/health
     disk:
-      name: mdawra-uploads
+      name: uploads
       mountPath: /var/data/uploads
       sizeGB: 1
     envVars:
       - key: NODE_VERSION
-        value: "20"
+        value: "24"
+      # Supabase SESSION pooler, port 5432 (the transaction pooler on 6543 breaks Prisma). Keep connection_limit small:
+      # every server using the same database shares one pool of connections (Supabase "Pool Size"), so the limits of
+      # all servers together must stay under it. Example: ...:5432/postgres?connection_limit=5&pool_timeout=20
       - key: DATABASE_URL
-        sync: false # Supabase Postgres URI (Session pooler, port 5432 — migrations need it)
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      # The same secret for the life of the system: changing it logs everyone out and changes every printer link.
       - key: JWT_SECRET
-        generateValue: true
-      - key: PORT
-        value: "4000"
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: REFRESH_EXPIRES_IN
+        value: 30d
+      - key: MAX_UPLOAD_BYTES
+        value: "5242880"
       - key: UPLOAD_DIR
         value: /var/data/uploads
+      # The storefront's address (pictures are served through it), not the API's own address.
       - key: PUBLIC_URL
-        sync: false # https://mdawra-api.onrender.com (set after the first deploy)
+        value: https://www.madawarah.com
       - key: CORS_ORIGINS
-        sync: false # https://<your-app>.vercel.app
-      - key: SEED_ADMIN_EMAIL
+        value: https://madawarah.com,https://www.madawarah.com,https://khobztmaraei.com,https://www.khobztmaraei.com,https://*.vercel.app
+      # This API's own public address: where a payment gateway sends its callback.
+      - key: API_URL
         sync: false
-      - key: SEED_ADMIN_PASSWORD
-        sync: false
+      - key: STOREFRONT_URL
+        value: https://www.madawarah.com
+      # Online payments (Tap). Off until PAYMENT_PROVIDER is set. Put the TEST key first, never the live key in a chat:
+      #   PAYMENT_PROVIDER=tap
+      #   TAP_SECRET_KEY=sk_test_...
+      #   ONLINE_PAYMENT_TENANTS=mdawra            (only these restaurants may use the gateway)
+      #   ONLINE_PAYMENT_PILOT_PHONES=55551234     (while testing, only these phones are sent to the payment page;
+      #                                             empty = every customer of the listed restaurants)
+      # Never set SEED_* here and never run db:setup or db:reset against live data: they can erase it.

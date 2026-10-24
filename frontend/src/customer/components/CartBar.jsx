@@ -25,7 +25,7 @@ export default function CartBar({ count, subtotal, onOpen }) {
     // Pinned to the viewport, but the inner wrapper is capped to the same
     // max-w-3xl column as the menu — otherwise the bar stretches the full
     // width of a desktop window while the content sits in a narrow column.
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]">
       <div className="pointer-events-auto mx-auto max-w-3xl p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <button
           type="button"

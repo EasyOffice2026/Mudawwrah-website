@@ -16,7 +16,8 @@ All menu content, banners, and settings are served live from the API — nothing
 | -------- | ---- |
 | Frontend | React 19, Vite, Tailwind CSS, react-router, zustand, i18next, Recharts, axios |
 | Backend  | Node.js, Express 5, Prisma ORM, JWT, multer + sharp (uploads/thumbnails), zod validation |
-| Database | PostgreSQL |
+| Database | PostgreSQL (Supabase in production) |
+| Hosting  | Website on Vercel, API on Render, receipt printing through a page kept open at each branch |
 
 ## Repository layout
 
@@ -195,9 +196,12 @@ Managed in **Admin → Settings** and consumed by the customer site: restaurant 
 
 ## Deployment notes
 
-- Live: site https://mdawra.vercel.app, admin https://mdawra.vercel.app/admin/login, API https://mdawra-api.onrender.com.
-- Step-by-step hosting guide (Supabase + Render + Vercel): [DEPLOY.md](DEPLOY.md).
+- Live: https://www.madawarah.com (Mudawarah) and https://khobztmaraei.com (Khobzt Marie); admin at `/admin` on each; the API runs on Render.
+- How it runs, how to release a change, how to check it is healthy and what to do when it is not: [DEPLOY.md](DEPLOY.md). The server's settings are recorded in [render.yaml](render.yaml).
+- Every change is checked automatically (lint, tests, build, and every migration on an empty database): see `.github/workflows/ci.yml`.
+- Order desk: new orders reach the branch screens at once over a live connection (`GET /api/orders/stream`, with a regular check as the safety net); orders waiting to be accepted raise a banner and a repeating chime; the Dashboard shows which branch screens are connected.
+- Automatic printing: each branch computer keeps a print page open (`/r/<slug>/print/<branch>`); setup is on Admin → Printing.
 - `STATIC_DIR` makes the API serve a built frontend from the same origin (single-host deploys).
 - Provide a production `DATABASE_URL`, run `npx prisma migrate deploy`, then `npm start` in `backend/`.
 - Build the frontend (`npm run build`) and serve `frontend/dist` from any static host; set `VITE_API_URL` to the deployed API and `CORS_ORIGINS` to the site origin.
-- Uploads live on local disk by default; mount a persistent volume or replace the storage driver in `backend/src/services/mediaService.js`.
+- Uploads live on local disk by default (the Render disk in production); small WebP copies of each picture are made on demand and cached (`/uploads/w400/<name>.webp` for the grid, `/uploads/w900/<name>.webp` for a dish's page).

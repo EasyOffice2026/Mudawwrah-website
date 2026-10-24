@@ -1,0 +1,71 @@
+# Automatic checks on every change: nothing reaches the production branch without them passing.
+# The database tests run against a real, empty PostgreSQL that exists only for the run.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [devin/1784920877-mdawra-ordering-platform]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  website:
+    name: Website (lint, tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_API_URL: http://localhost:4000/api
+
+  server:
+    name: Server (tests with a real database)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      # A throwaway database: the tests create and delete their own data, and refuse any address that looks like production.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/ci
+      JWT_SECRET: ci-only-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      # Proves every migration applies cleanly to an empty database, exactly as the Render deploy does.
+      - run: npx prisma migrate deploy
+      - run: npm run lint
+      - run: npm test

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { tenantPath } from '../../lib/tenant';
 import { legalFor, PAGE_ORDER, PAGE_PATH, pageIn } from '../legal/index.js';
+import InstallApp from './InstallApp.jsx';
 
 /**
  * Contact details at the bottom of the menu, and links to the restaurant's own pages.
@@ -36,6 +37,7 @@ export default function StoreFooter({ slug, settings }) {
           ))}
         </nav>
       ) : null}
+      <InstallApp />
     </footer>
   );
 }

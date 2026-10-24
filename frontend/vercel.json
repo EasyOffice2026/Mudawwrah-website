@@ -5,9 +5,12 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/uploads/:file*", "destination": "/api/image?file=:file*" },
+    { "source": "/manifest.webmanifest", "destination": "/api/manifest" },
+    { "source": "/app-icon/:size", "destination": "/api/app-icon?size=:size" },
     { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
-    { "source": "/version.json", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] }
+    { "source": "/version.json", "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }] },
+    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }, { "key": "Service-Worker-Allowed", "value": "/" }] }
   ]
 }

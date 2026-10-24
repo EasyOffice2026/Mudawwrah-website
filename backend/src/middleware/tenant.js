@@ -8,6 +8,17 @@ const RESERVED_SUBDOMAINS = new Set(['www', 'api', 'admin', 'app', 'localhost'])
 // The restaurant behind an address or slug hardly ever changes, and every request looks it up first,
 // so a found one is remembered for a minute (and forgotten at once when staff change anything).
 const bySlug = (slug) => publicCache.remember(`slug:${slug}`, () => prisma.tenant.findFirst({ where: { slug, isActive: true } }));
+/**
+ * The addresses a restaurant's domain may arrive as: exactly as typed, and the same with or without "www." in front.
+ * A restaurant holds one domain; customers type either form (www.khobztmaraei.com used to show an error because only
+ * khobztmaraei.com was registered).
+ */
+export const domainCandidates = (host) => {
+  const name = String(host || '').trim().toLowerCase();
+  if (!name) return [];
+  return name.startsWith('www.') ? [name, name.slice(4)] : [name, `www.${name}`];
+};
+
 const byDomain = (host) => publicCache.remember(`domain:${host}`, () => prisma.tenant.findFirst({ where: { customDomain: host, isActive: true } }));
 
 /**
@@ -37,7 +48,10 @@ export const resolveTenant = async (req, res, next) => {
     let tenant = null;
 
     if (host) {
-      tenant = await byDomain(host);
+      for (const candidate of domainCandidates(host)) {
+        tenant = await byDomain(candidate);
+        if (tenant) break;
+      }
       if (!tenant) {
         const [sub, ...rest] = host.split('.');
         if (rest.length >= 2 && !RESERVED_SUBDOMAINS.has(sub)) tenant = await bySlug(sub);

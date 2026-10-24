@@ -10,6 +10,8 @@ import * as items from '../controllers/itemController.js';
 import * as media from '../controllers/mediaController.js';
 import * as orders from '../controllers/orderController.js';
 import * as payments from '../controllers/paymentController.js';
+import * as presence from '../controllers/presenceController.js';
+import * as icons from '../controllers/iconController.js';
 import * as printing from '../controllers/printController.js';
 import * as pickupLocations from '../controllers/pickupLocationController.js';
 import * as promotions from '../controllers/promotionController.js';
@@ -40,6 +42,14 @@ const router = Router();
 
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// Which code this server is running (Render sets RENDER_GIT_COMMIT) and since when. The website release script reads
+// it, so a release that needs a server change cannot be called live while the server is still on the old code.
+const STARTED_AT = new Date().toISOString();
+router.get('/version', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ commit: String(process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '').slice(0, 7) || null, startedAt: STARTED_AT });
+});
+
 // "What address does the server see for me?" Open it on a branch computer to read the address its
 // account must be locked to. It only ever tells a visitor about their own connection.
 router.get('/my-address', (req, res) => {
@@ -64,6 +74,7 @@ router.get('/tenants/current', publicCache.middleware, h(tenants.current));
 router.get('/tenants/all', authenticate, requirePlatformAdmin, h(tenants.listAll));
 router.post('/tenants', authenticate, requirePlatformAdmin, h(tenants.create));
 router.put('/tenants/:id', authenticate, requirePlatformAdmin, h(tenants.update));
+router.get('/tenants/icon', h(icons.icon));
 router.get('/tenants/:slug', h(tenants.getBySlug));
 
 // Auth is resolved by email across the whole platform, so it needs no tenant.
@@ -111,6 +122,9 @@ scoped.get('/orders/track/:id', h(orders.track));
 scoped.get('/orders', requireOrderDesk, h(orders.list));
 // Before /orders/:id, which would otherwise read "feed" as an order id.
 scoped.get('/orders/feed', requireOrderDesk, h(orders.feed));
+// The live connection an open order screen keeps, and which branch screens are connected (owner).
+scoped.get('/orders/stream', requireOrderDesk, orders.stream);
+scoped.get('/branches/presence', requireStaff, h(presence.branches));
 // Automatic printing. A branch's print station asks for its waiting tickets with a private key (no
 // login to expire on an unattended computer); the owner lists the stations; the order desk can reprint.
 scoped.get('/print/jobs', requirePrintKey, h(printing.jobs));
