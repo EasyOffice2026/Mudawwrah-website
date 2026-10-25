@@ -246,6 +246,26 @@ export const cancelUnpaid = (id) =>
 // Orders still waiting to be accepted count for a day, so yesterday's forgotten ones do not ring for ever.
 const WAITING_WINDOW_MS = 24 * 3600 * 1000;
 
+// An order nobody has accepted after this long is late, for the outside monitor below.
+export const LATE_AFTER_MS = 15 * 60 * 1000;
+
+/**
+ * How many of this restaurant's orders have waited too long to be accepted: for an uptime monitor that alerts the
+ * owner by email or SMS, since an unattended order desk once went unnoticed for two days. An online order counts
+ * from when it was paid; one still waiting for its payment is not the kitchen's yet.
+ */
+export const lateOrders = (now = Date.now()) => {
+  const cutoff = new Date(now - LATE_AFTER_MS);
+  return prisma.order.count({
+    where: {
+      ...hiddenWhileUnpaid,
+      status: 'PENDING',
+      createdAt: { gt: new Date(now - WAITING_WINDOW_MS) },
+      OR: [{ paidAt: null, createdAt: { lt: cutoff } }, { paidAt: { lt: cutoff } }],
+    },
+  });
+};
+
 export const feed = async ({ since } = {}, viewer = null) => {
   const scope = { ...viewerScope(viewer), ...hiddenWhileUnpaid };
   const [orders, latest, unseen, waitingRows] = await Promise.all([

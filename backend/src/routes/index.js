@@ -110,6 +110,8 @@ scoped.put('/items/:id', requireStaff, h(items.update));
 scoped.delete('/items/:id', requireAdmin, h(items.remove));
 
 // Orders
+// Watched by an uptime monitor (see DEPLOY.md): answers 503 when an order has waited too long to be accepted.
+scoped.get('/health/orders', h(orders.health));
 scoped.post('/orders', orderLimit, optionalAuth, h(orders.create));
 // One per storefront browser session, for the visitors-to-orders conversion rate.
 scoped.post('/visits', h(visits.record));

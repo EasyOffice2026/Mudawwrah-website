@@ -82,6 +82,9 @@ export const remove = async (id) => {
 };
 
 export const reorder = async (orderedIds) => {
+  // update() by id is not limited to this restaurant, so the list is checked against its own categories first.
+  const owned = await prisma.category.findMany({ where: { id: { in: orderedIds } }, select: { id: true } });
+  if (owned.length !== new Set(orderedIds).size) throw new HttpError(400, 'Unknown category in the list');
   await prisma.$transaction(
     orderedIds.map((id, index) => prisma.category.update({ where: { id }, data: { displayOrder: index } })),
   );

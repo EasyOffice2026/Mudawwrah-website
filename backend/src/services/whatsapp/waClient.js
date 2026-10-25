@@ -114,8 +114,10 @@ export const markAsRead = async (messageId) => {
   }).catch((err) => console.error('[whatsapp] mark as read failed', err));
 };
 
+// Without the app secret nothing can be checked, so nothing is believed: a webhook that trusted every caller
+// would let anyone place orders and post ratings under any phone number.
 export const verifySignature = (rawBody, signatureHeader) => {
-  if (!config.whatsapp.appSecret) return true;
+  if (!config.whatsapp.appSecret) return false;
   if (!signatureHeader || !rawBody) return false;
   const expected = `sha256=${crypto.createHmac('sha256', config.whatsapp.appSecret).update(rawBody).digest('hex')}`;
   const a = Buffer.from(expected);

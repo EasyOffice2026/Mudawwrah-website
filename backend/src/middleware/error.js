@@ -29,9 +29,8 @@ export const errorHandler = (err, req, res, next) => {
       res.set('Retry-After', '2');
       return res.status(503).json({ error: 'We are busy for a moment. Please try again in a few seconds.' });
     }
-    if (message.includes('Invalid `prisma.') || message.includes('PrismaClient')) {
-      return res.status(500).json({ error: 'Something went wrong. Please try again.' });
-    }
+    // Anything else unexpected (a programming error, a library failure) is not the visitor's business either.
+    return res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
   res.status(status).json(body);
 };

@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
 import { runWithTenant } from '../tenantContext.js';
 import * as payment from '../services/payment/index.js';
@@ -43,6 +44,8 @@ export const callback = async (req, res) => {
 
 /** Development helper used by the `mock` payment provider. */
 export const mockPay = async (req, res) => {
+  // The pretend gateway marks any order paid. It exists for local runs and tests only, never next to a real one.
+  if (config.payment.provider !== 'mock') throw new HttpError(404, 'Not found');
   const result = await payment.handleCallback('mock', { paymentId: req.query.ref });
   if (result.paid) {
     await notifyPaymentResult(result.order, true);

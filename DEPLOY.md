@@ -50,6 +50,24 @@ cd backend && node scripts/branch-status.mjs                     # per branch: n
 In the admin, the **Dashboard** shows which branch screens are connected, and every page shows a banner while orders wait
 to be accepted (amber, then red after 5 minutes, then pulsing after 15; the chime repeats until they are accepted).
 
+### Alerts when nobody is looking (set up once)
+
+In October 2026 orders went unaccepted for two days before anyone noticed. A free uptime monitor (UptimeRobot,
+Better Stack, ...) checking every 5 minutes and alerting the owner by email, SMS or app closes that gap:
+
+| Monitor | Address | Alerts when |
+| --- | --- | --- |
+| Server up | `https://mudawwrah-website.onrender.com/api/health` | it does not answer 200 |
+| Orders accepted | `https://mudawwrah-website.onrender.com/api/health/orders?tenant=mdawra` | it answers 503: an order has waited 15+ minutes unaccepted |
+| Website up | `https://www.madawarah.com/version.json` | it does not answer 200 |
+
+The orders check says only ok or not ok, never order details. Add one per restaurant (`?tenant=khobzt-marie`, ...).
+
+### Deploys without a gap
+
+Render → the service → **Settings → Health Check Path** must be `/api/health`. Render then keeps the old server
+answering until the new one is healthy; without it, every deploy shows visitors a few seconds of "502".
+
 ## Server settings (Render → Environment)
 
 The full list, with the reason for each, is in [`render.yaml`](render.yaml). The ones that matter in an emergency:
@@ -62,6 +80,9 @@ The full list, with the reason for each, is in [`render.yaml`](render.yaml). The
 | `PUBLIC_URL` | The storefront address (`https://www.madawarah.com`), not the API's. |
 | `API_URL` | The API's own address; payment gateways call back to it. |
 | `ONLINE_PAYMENT_TENANTS`, `ONLINE_PAYMENT_PILOT_PHONES` | Which restaurants, and during testing which phones, are sent to the payment page. |
+| `NODE_ENV` | `production`: the server then refuses to start with a development secret or an open CORS list. |
+| `CORS_ORIGINS` | Only the restaurants' own addresses. No `*.vercel.app`: that would let any site hosted on Vercel call the API. Staff use `www.madawarah.com/admin`, never a Vercel preview link. |
+| `WHATSAPP_APP_SECRET` | Without it, WhatsApp webhooks are refused (nothing can prove they come from Meta). |
 
 ## Branch accounts and the address lock
 
