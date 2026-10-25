@@ -86,7 +86,7 @@
     "paymentMethod": "Payment method",
     "cash": "Cash on delivery",
     "knet": "KNET",
-    "card": "Card",
+    "card": "Credit / debit card",
     "placeOrder": "Place order",
     "legalNotice": "By placing your order you agree to our <terms>Terms and Conditions</terms> and <refund>Return and Refund Policy</refund>.",
     "success": "Order {{orderNumber}} placed successfully",
@@ -147,7 +147,11 @@
     "opensOn": "opens {{day}} at {{time}}",
     "zoneClosed": "This area's branch is closed now",
     "status_OUT_FOR_DELIVERY": "On the way",
-    "status_REACHED": "Rider has arrived"
+    "status_REACHED": "Rider has arrived",
+    "knetHint": "Kuwaiti debit card",
+    "cardHint": "Visa, Mastercard, AMEX",
+    "applePay": "Apple Pay",
+    "applePayHint": "Pay with Apple Pay"
   },
   "admin": {
     "login": "Admin login",

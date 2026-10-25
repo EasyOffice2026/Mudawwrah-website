@@ -3,6 +3,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
 import { reverseGeocode } from '../../lib/geocode';
+import { canUseApplePay, offeredPayments } from '../../lib/paymentMethods';
 import { cachedPath, refresh } from '../../lib/storefrontApi';
 import { tenantPath } from '../../lib/tenant';
 import { getAttribution } from '../../lib/tracking';
@@ -151,14 +152,13 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
 
   // Keep the selection on a method the restaurant actually offers — the form
   // starts on CASH, which a shop that has switched cash off never shows.
+  const [applePay] = useState(canUseApplePay);
   useEffect(() => {
-    const allowed = String(settings?.paymentMethods || 'KNET,CARD')
-      .split(',')
-      .map((method) => method.trim().toUpperCase());
+    const allowed = offeredPayments(settings?.paymentMethods, { applePay });
     if (allowed.length && !allowed.includes(form.paymentMethod)) {
       setForm((current) => ({ ...current, paymentMethod: allowed[0] }));
     }
-  }, [settings?.paymentMethods, form.paymentMethod]);
+  }, [settings?.paymentMethods, form.paymentMethod, applePay]);
 
   useEffect(() => {
     // Shown at once from what the menu already fetched, then refreshed; if the refresh fails the
@@ -219,19 +219,23 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   const effectiveTip = isPickup ? 0 : tip;
   const total = Number((discounted + deliveryFee + serviceCharge + tax + effectiveTip).toFixed(3));
 
-  // Driven by the restaurant's own settings, so a shop that does not take cash
-  // simply never offers it. Falls back to card-only rather than showing
-  // everything if the setting is missing.
-  const paymentLabels = {
-    CASH: [t('checkout.cash'), '💵'],
-    KNET: [t('checkout.knet'), '💳'],
-    CARD: [t('checkout.card'), '💳'],
+  // Driven by the restaurant's own settings, so a shop that does not take cash simply never offers it. The
+  // customer picks the method here, and the payment page opens straight on it (KNET, the card form, Apple Pay).
+  const paymentOptions = {
+    KNET: { label: t('checkout.knet'), hint: t('checkout.knetHint'), badges: [['KNET', 'bg-[#0b4ea2] text-white']] },
+    CARD: {
+      label: t('checkout.card'),
+      hint: t('checkout.cardHint'),
+      badges: [
+        ['VISA', 'bg-white text-[#1a1f71] ring-1 ring-hairline'],
+        ['MC', 'bg-white text-[#eb001b] ring-1 ring-hairline'],
+        ['AMEX', 'bg-[#2e77bc] text-white'],
+      ],
+    },
+    APPLE_PAY: { label: t('checkout.applePay'), hint: t('checkout.applePayHint'), badges: [[' Pay', 'bg-black text-white']] },
+    CASH: { label: t('checkout.cash'), hint: '', badges: [] },
   };
-  const enabledPayments = String(settings?.paymentMethods || 'KNET,CARD')
-    .split(',')
-    .map((method) => method.trim().toUpperCase())
-    .filter((method) => paymentLabels[method])
-    .map((method) => [method, ...paymentLabels[method]]);
+  const enabledPayments = offeredPayments(settings?.paymentMethods, { applePay }).map((method) => [method, paymentOptions[method]]);
 
   const tipPresets = String(settings?.tipPresets || '')
     .split(',')
@@ -687,21 +691,33 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
 
         <section className="mt-3 bg-white px-3 py-4">
           <h3 className="text-[15px] font-extrabold">{t('checkout.payWith')}</h3>
-          <div className="mt-3 divide-y divide-hairline">
-            {enabledPayments.map(([value, label, icon]) => (
-              <label key={value} className="flex cursor-pointer items-center justify-between py-3.5">
-                <span className="flex items-center gap-3 text-[15px] font-medium">
-                  <span aria-hidden>{icon}</span>
-                  {label}
-                </span>
+          <div className="mt-3 space-y-2.5">
+            {enabledPayments.map(([value, { label, hint, badges }]) => (
+              <label
+                key={value}
+                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 transition-colors ${
+                  form.paymentMethod === value ? 'border-brand bg-brand/5' : 'border-hairline'
+                }`}
+              >
                 <input
                   type="radio"
                   name="paymentMethod"
                   value={value}
                   checked={form.paymentMethod === value}
                   onChange={set('paymentMethod')}
-                  className="h-5 w-5 accent-brand"
+                  className="h-5 w-5 shrink-0 accent-brand"
                 />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-bold">{label}</span>
+                  {hint ? <span className="block text-xs text-ink-soft">{hint}</span> : null}
+                </span>
+                <span className="flex shrink-0 items-center gap-1" aria-hidden>
+                  {badges.map(([text, style]) => (
+                    <span key={text} className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold leading-none tracking-wide ${style}`}>
+                      {text}
+                    </span>
+                  ))}
+                </span>
               </label>
             ))}
           </div>
