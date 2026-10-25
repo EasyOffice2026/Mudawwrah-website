@@ -50,6 +50,15 @@ test('opens a Tap charge for the order total with every payment method, and retu
   assert.equal(call.body.merchant, undefined);
 });
 
+test('the method chosen at checkout opens directly: KNET to the KNET page, a card to the card form', async () => {
+  for (const [paymentMethod, source] of [['KNET', 'src_kw.knet'], ['CARD', 'src_card'], ['APPLE_PAY', 'src_all'], [undefined, 'src_all']]) {
+    calls = [];
+    answer(200, { id: 'chg_2', status: 'INITIATED', transaction: { url: 'https://checkout.tap.company/?token=y' } });
+    await tap.createPaymentLink({ order: { ...order, paymentMethod }, lang: 'en', callbackUrl: 'https://api.test/cb' });
+    assert.equal(calls[0].body.source.id, source, String(paymentMethod));
+  }
+});
+
 test('says why Tap refused, and does not invent a payment page', async () => {
   answer(400, { errors: [{ code: '1105', description: 'Invalid amount' }] });
   await assert.rejects(

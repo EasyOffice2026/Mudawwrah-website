@@ -93,7 +93,7 @@
     "paymentMethod": "طريقة الدفع",
     "cash": "الدفع عند الاستلام",
     "knet": "كي نت",
-    "card": "بطاقة",
+    "card": "بطاقة ائتمان / خصم",
     "placeOrder": "تأكيد الطلب",
     "legalNotice": "بتقديم طلبكم، فإنكم توافقون على <terms>الشروط والأحكام</terms> و<refund>سياسة الإرجاع واسترداد المبالغ</refund>.",
     "success": "تم إنشاء الطلب {{orderNumber}} بنجاح",
@@ -154,7 +154,11 @@
     "opensOn": "يفتح يوم {{day}} الساعة {{time}}",
     "zoneClosed": "فرع هالمنطقة مسكّر الحين",
     "status_OUT_FOR_DELIVERY": "طالع للتوصيل",
-    "status_REACHED": "المندوب وصل"
+    "status_REACHED": "المندوب وصل",
+    "knetHint": "بطاقة السحب الآلي الكويتية",
+    "cardHint": "فيزا، ماستركارد، أمريكان إكسبريس",
+    "applePay": "Apple Pay",
+    "applePayHint": "الدفع عبر Apple Pay"
   },
   "admin": {
     "login": "دخول الإدارة",

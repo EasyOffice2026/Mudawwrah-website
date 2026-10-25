@@ -22,6 +22,15 @@ const NUMBER_FIELDS = [
   ['lateAfterMinutes', 'Late delivery after (minutes)'],
 ];
 
+// The ways to pay the checkout can offer. KNET, card and Apple Pay go to the online payment page where one is set
+// up for the restaurant; cash is paid to the driver.
+const PAYMENT_METHODS = [
+  ['KNET', 'KNET'],
+  ['CARD', 'Credit / debit card (Visa, Mastercard, AMEX)'],
+  ['APPLE_PAY', 'Apple Pay (shown on iPhone, iPad and Mac only)'],
+  ['CASH', 'Cash on delivery'],
+];
+
 // Each pairs the settings key with what a customer of that platform actually
 // calls the field, and where to find it, so a non-technical owner does not
 // have to know the word "pixel" to fill this in correctly.
@@ -94,6 +103,28 @@ export default function Settings() {
             />
           </div>
         ))}
+        <fieldset>
+          <legend className="label">Payment methods at checkout</legend>
+          <div className="space-y-1.5">
+            {PAYMENT_METHODS.map(([value, label]) => {
+              const chosen = String(settings.paymentMethods || '').split(',').map((m) => m.trim()).filter(Boolean);
+              const toggle = () => {
+                const next = chosen.includes(value) ? chosen.filter((m) => m !== value) : [...chosen, value];
+                // At least one stays on: with none, customers could not pay at all.
+                if (!next.length) return;
+                // Kept in the list's own order, so the checkout always shows them the same way round.
+                const ordered = PAYMENT_METHODS.map(([m]) => m).filter((m) => next.includes(m));
+                setSettings({ ...settings, paymentMethods: ordered.join(',') });
+              };
+              return (
+                <label key={value} className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input type="checkbox" className="h-4 w-4 accent-brand" checked={chosen.includes(value)} onChange={toggle} />
+                  {label}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
         <SiteOpenSwitch onChange={(open) => setSettings((current) => ({ ...current, isOpen: String(open) }))} />
       </section>
 

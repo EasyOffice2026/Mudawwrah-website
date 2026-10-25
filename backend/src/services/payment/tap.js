@@ -27,6 +27,13 @@ export const isConfigured = () => Boolean(config.payment.tap.secretKey);
 // Tap wants the phone without the country code, as digits.
 const localPhone = (phone) => String(phone).replace(/\D/g, '').replace(/^965/, '').slice(-8);
 
+// The customer already chose how to pay on our checkout, so Tap opens that method's page directly instead of
+// asking again: KNET goes straight to the KNET page, a card to Tap's card form (Visa, Mastercard, AMEX).
+// Apple Pay, and anything else, gets Tap's page with every method the merchant has, where Apple Pay is offered
+// on Apple devices.
+const SOURCES = { KNET: 'src_kw.knet', CARD: 'src_card' };
+export const sourceFor = (paymentMethod) => SOURCES[String(paymentMethod || '').toUpperCase()] || 'src_all';
+
 export const createPaymentLink = async ({ order, lang, callbackUrl }) => {
   const { merchantId, currency } = config.payment.tap;
   const [firstName, ...rest] = String(order.customerName || 'Customer').trim().split(/\s+/);
@@ -45,8 +52,7 @@ export const createPaymentLink = async ({ order, lang, callbackUrl }) => {
       ...(rest.length ? { last_name: rest.join(' ') } : {}),
       phone: { country_code: '965', number: localPhone(order.customerPhone) },
     },
-    // Every method Tap has enabled for the merchant (KNET, cards, Apple Pay, Google Pay).
-    source: { id: 'src_all' },
+    source: { id: sourceFor(order.paymentMethod) },
     ...(merchantId ? { merchant: { id: merchantId } } : {}),
     post: { url: callbackUrl },
     redirect: { url: callbackUrl },
