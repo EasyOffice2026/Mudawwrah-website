@@ -10,7 +10,10 @@ export const authenticate = (req, res, next) => {
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return next(new HttpError(401, 'Authentication required'));
   try {
-    req.user = jwt.verify(token, config.jwtSecret);
+    const payload = jwt.verify(token, config.jwtSecret);
+    // The 30-day renewal token only ever buys a new short one; it never opens the API itself.
+    if (payload.typ === 'refresh') throw new Error('refresh token used as access token');
+    req.user = payload;
     next();
   } catch {
     next(new HttpError(401, 'Invalid or expired token'));
@@ -30,7 +33,8 @@ export const optionalAuth = (req, res, next) => {
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (token) {
     try {
-      req.user = jwt.verify(token, config.jwtSecret);
+      const payload = jwt.verify(token, config.jwtSecret);
+      if (payload.typ !== 'refresh') req.user = payload;
     } catch {
       // An expired token should not stop a guest checkout.
     }

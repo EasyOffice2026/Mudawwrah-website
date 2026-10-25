@@ -12,6 +12,8 @@ import routes from './routes/index.js';
 
 export const createApp = () => {
   const app = express();
+  // Nothing tells a visitor which framework answers.
+  app.disable('x-powered-by');
   app.use(
     cors({
       // A function rather than a list, so wildcard entries like
@@ -36,7 +38,18 @@ export const createApp = () => {
   // Made-to-size copies first (/uploads/w400/x.webp), then the files as uploaded. File names are
   // unique per upload, so browsers and the CDN may keep them for good.
   app.get('/uploads/:size/:name', serveVariant);
-  app.use('/uploads', express.static(config.uploadDir, { maxAge: '365d', immutable: true }));
+  app.use(
+    '/uploads',
+    express.static(config.uploadDir, {
+      maxAge: '365d',
+      immutable: true,
+      // An uploaded file is only ever shown as a picture: never sniffed as another type, never run.
+      setHeaders: (res) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+      },
+    }),
+  );
   // resolveTenant must stay in front of the routes: it resolves the restaurant
   // and opens the AsyncLocalStorage scope every tenant-aware query relies on.
   // Without it no request carries a tenant and the whole API 400s.

@@ -799,14 +799,17 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
           <span>{redirecting ? t('payment.redirecting') : submitting ? t('common.saving') : t('checkout.placeOrder')}</span>
           <span>{kwd(total)}</span>
         </button>
-        <button
-          type="button"
-          className="btn-ghost mt-2 w-full py-3"
-          disabled={submitting || !canSubmit}
-          onClick={() => submit(true)}
-        >
-          {t('cart.whatsapp')}
-        </button>
+        {/* Hidden while the restaurant takes payment online: a WhatsApp order reaches the kitchen unpaid. */}
+        {settings?.onlinePayment !== 'true' ? (
+          <button
+            type="button"
+            className="btn-ghost mt-2 w-full py-3"
+            disabled={submitting || !canSubmit}
+            onClick={() => submit(true)}
+          >
+            {t('cart.whatsapp')}
+          </button>
+        ) : null}
       </div>
 
       <LocationPicker

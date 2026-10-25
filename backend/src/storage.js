@@ -4,6 +4,7 @@ import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
 import sharp from 'sharp';
 import { config } from './config.js';
+import { HttpError } from './middleware/error.js';
 
 // Cloudinary configures itself from CLOUDINARY_URL. Without it we fall back to
 // local disk so `npm run dev` works with no cloud account.
@@ -11,10 +12,25 @@ export const driver = process.env.CLOUDINARY_URL ? 'cloudinary' : 'local';
 
 if (driver === 'cloudinary') cloudinary.config({ secure: true });
 
-const randomName = (originalName) => {
-  const ext = path.extname(originalName).toLowerCase() || '.jpg';
-  return `${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
+// The picture formats a menu needs, by what the file really is, never by its name or the type the browser
+// declared: both are chosen by whoever uploads. An SVG (or HTML) named "photo.png" would otherwise be stored and
+// served from the restaurant's own site, where its script could read a signed-in owner's session.
+const EXTENSIONS = { jpeg: '.jpg', png: '.png', webp: '.webp', gif: '.gif' };
+
+export const imageExtension = async (buffer) => {
+  let meta = {};
+  try {
+    meta = await sharp(buffer).metadata();
+  } catch {
+    meta = {};
+  }
+  // AVIF reports as "heif"; so does an iPhone HEIC photo, which browsers cannot show.
+  const ext = meta.format === 'heif' && meta.compression === 'av1' ? '.avif' : EXTENSIONS[meta.format];
+  if (!ext) throw new HttpError(400, 'Please upload a JPG, PNG, WebP, GIF or AVIF picture.');
+  return ext;
 };
+
+const randomName = (ext) => `${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
 
 // Cloudinary resizes on delivery, so the thumbnail is just a transformed URL.
 const cloudinaryThumb = (url) => url.replace('/upload/', '/upload/c_fill,w_400,h_400,q_auto,f_auto/');
@@ -31,7 +47,9 @@ const uploadToCloudinary = (buffer, folder) =>
  * Stores an image and returns { filename, url, thumbnailUrl }.
  * `filename` doubles as the storage key passed back to destroy().
  */
-export const put = async (buffer, { originalName, folder = 'mdawra' }) => {
+// The uploaded file's own name is not used: what the file really is decides how it is stored.
+export const put = async (buffer, { folder = 'mdawra' } = {}) => {
+  const ext = await imageExtension(buffer);
   if (driver === 'cloudinary') {
     const result = await uploadToCloudinary(buffer, folder);
     return {
@@ -41,7 +59,7 @@ export const put = async (buffer, { originalName, folder = 'mdawra' }) => {
     };
   }
 
-  const filename = randomName(originalName);
+  const filename = randomName(ext);
   await fs.mkdir(path.join(config.uploadDir, 'thumbs'), { recursive: true });
   await fs.writeFile(path.join(config.uploadDir, filename), buffer);
 

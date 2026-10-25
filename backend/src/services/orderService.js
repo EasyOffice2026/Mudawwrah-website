@@ -37,7 +37,18 @@ const round3 = (value) => Number(Number(value).toFixed(3));
 // trip while the customer watches "Saving…".
 const placedInclude = { items: true, branch: include.branch };
 
+/**
+ * "Order via WhatsApp" hands an order over unpaid and straight to the kitchen. Where this customer must pay online,
+ * it would be a way round paying (the checkout hides the button as well).
+ */
+export const skipsPayment = (payload) =>
+  (payload.channel || 'WEB') === 'WEB' && payload.paymentMethod === 'WHATSAPP' && isOnlinePaymentEnabled(payload.customerPhone);
+
 export const create = async (payload) => {
+  if (skipsPayment(payload)) {
+    throw new HttpError(409, 'Please choose a payment method and pay online to place your order.');
+  }
+
   // Independent reads go out together: the database is a long round trip away, and the customer waits on each one.
   // An option is only used below when it belongs to an item found in this restaurant's menu.
   const ids = payload.items.map((i) => i.menuItemId);
