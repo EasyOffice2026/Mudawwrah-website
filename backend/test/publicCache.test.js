@@ -116,7 +116,7 @@ test('what customers do (orders, visits) does not throw the memory away', async 
   assert.equal(calls.menu, 1);
 });
 
-test('a restaurant lookup is kept for a minute, a miss is never kept', async () => {
+test('a restaurant lookup is kept for a minute, and so is a miss', async () => {
   const load = async () => {
     calls.lookups += 1;
     return { id: 'r1' };
@@ -133,9 +133,25 @@ test('a restaurant lookup is kept for a minute, a miss is never kept', async () 
     calls.lookups += 1;
     return null;
   };
-  await cache.remember('slug:nobody', miss);
+  // An address that is no restaurant's is asked about on every request; it must not cost the database each time.
+  assert.equal(await cache.remember('slug:nobody', miss), null);
+  assert.equal(await cache.remember('slug:nobody', miss), null);
+  assert.equal(calls.lookups, 3);
+  clock += 61_000;
   await cache.remember('slug:nobody', miss);
   assert.equal(calls.lookups, 4);
+});
+
+test('a remembered miss is forgotten as soon as staff change anything (a restaurant or domain added)', async () => {
+  let found = null;
+  const load = async () => {
+    calls.lookups += 1;
+    return found;
+  };
+  assert.equal(await cache.remember('domain:new.example', load), null);
+  found = { id: 'r9' };
+  cache.clear();
+  assert.deepEqual(await cache.remember('domain:new.example', load), { id: 'r9' });
 });
 
 test('clearing forgets lookups too', async () => {
