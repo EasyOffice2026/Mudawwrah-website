@@ -6,6 +6,12 @@ import * as service from '../services/orderService.js';
 import { startPayment } from '../services/payment/index.js';
 import { orderSchema, orderStatusSchema } from '../validators.js';
 
+/** For an uptime monitor: 200 while every order is being accepted in time, 503 once one has waited too long. */
+export const health = async (req, res) => {
+  const late = await service.lateOrders();
+  res.status(late ? 503 : 200).json({ status: late ? 'orders waiting too long' : 'ok' });
+};
+
 export const create = async (req, res) => {
   const data = orderSchema.parse(req.body);
   const order = await service.create({ ...data, userId: req.user?.sub });

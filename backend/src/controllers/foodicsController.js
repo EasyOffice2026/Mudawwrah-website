@@ -35,7 +35,8 @@ export const webhook = async (req, res) => {
   if (!tenant) throw new HttpError(404, 'Restaurant not found');
   const ok = foodics.verifyWebhook(tenant, {
     rawBody: req.rawBody,
-    secretHeader: req.get('x-foodics-secret') || req.get('x-webhook-secret') || req.query.secret,
+    // Header only: a secret in the address would be written to the request log.
+    secretHeader: req.get('x-foodics-secret') || req.get('x-webhook-secret'),
     signatureHeader: req.get('x-foodics-signature') || req.get('x-signature'),
   });
   if (!ok) throw new HttpError(401, 'Invalid webhook signature');

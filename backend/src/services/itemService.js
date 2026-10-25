@@ -66,6 +66,9 @@ export const remove = async (id) => {
 };
 
 export const reorder = async (orderedIds) => {
+  // update() by id is not limited to this restaurant, so the list is checked against its own items first.
+  const owned = await prisma.menuItem.findMany({ where: { id: { in: orderedIds } }, select: { id: true } });
+  if (owned.length !== new Set(orderedIds).size) throw new HttpError(400, 'Unknown menu item in the list');
   await prisma.$transaction(
     orderedIds.map((id, index) => prisma.menuItem.update({ where: { id }, data: { displayOrder: index } })),
   );
