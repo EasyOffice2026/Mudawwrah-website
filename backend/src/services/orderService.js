@@ -32,8 +32,20 @@ const viewerScope = (viewer) => (viewer?.role === 'BRANCH' ? { branchId: viewer.
 
 const round3 = (value) => Number(Number(value).toFixed(3));
 
+// What a newly placed order is answered with: its lines and the branch handling it. The confirmation page, the
+// payment page, WhatsApp and Foodics read nothing else, and every further relation is one more database round
+// trip while the customer watches "Saving…".
+const placedInclude = { items: true, branch: include.branch };
+
 export const create = async (payload) => {
-  const settings = await getSettings();
+  // Independent reads go out together: the database is a long round trip away, and the customer waits on each one.
+  // An option is only used below when it belongs to an item found in this restaurant's menu.
+  const ids = payload.items.map((i) => i.menuItemId);
+  const [settings, menuItems, options] = await Promise.all([
+    getSettings(),
+    prisma.menuItem.findMany({ where: { id: { in: ids } } }),
+    prisma.customizationOption.findMany({ where: { menuItemId: { in: ids } } }),
+  ]);
   if (settings.isOpen !== 'true') throw new HttpError(409, 'The restaurant is currently closed for orders');
 
   // The website hides payment methods the restaurant has switched off; this
@@ -56,11 +68,6 @@ export const create = async (payload) => {
   // it waits as PENDING, and reaches the kitchen and the staff only once it is paid.
   const payOnline =
     isWeb && ['KNET', 'CARD', 'APPLE_PAY'].includes(paymentMethod) && isOnlinePaymentEnabled(payload.customerPhone);
-
-  const menuItems = await prisma.menuItem.findMany({ where: { id: { in: payload.items.map((i) => i.menuItemId) } } });
-  const options = await prisma.customizationOption.findMany({
-    where: { menuItemId: { in: menuItems.map((i) => i.id) } },
-  });
 
   const lines = payload.items.map((line) => {
     const item = menuItems.find((m) => m.id === line.menuItemId);
@@ -125,18 +132,24 @@ export const create = async (payload) => {
     if (zone) branchId = zone.branchId;
   }
 
-  const soldOut = await firstSoldOut(branchId, lines.map((l) => l.menuItemId));
+  // Collecting in person is never charged for delivery, and carries no address.
+  let deliveryFee = orderType === 'PICKUP' ? 0 : round3(zone?.deliveryFee ?? settings.deliveryFee);
+
+  // The sold-out check and the voucher (re-resolved from the database; the client only sends a code) are read
+  // together, but still judged in the order the customer is told about them: sold out, minimum, then the code.
+  const soldOutCheck = firstSoldOut(branchId, lines.map((l) => l.menuItemId));
+  const promoCheck = resolvePromotion(payload.promoCode, subtotal, deliveryFee);
+  promoCheck.catch(() => {}); // judged below; never an unhandled rejection when an earlier check fails first
+
+  const soldOut = await soldOutCheck;
   if (soldOut) throw new HttpError(409, `${soldOut.item} is sold out at our ${soldOut.branch} branch right now`);
 
   const minimumOrder = zone?.minimumOrder ?? Number(settings.minimumOrder);
   if (subtotal < minimumOrder) {
     throw new HttpError(422, `Minimum order value is KWD ${Number(minimumOrder).toFixed(3)}`);
   }
-  // Collecting in person is never charged for delivery, and carries no address.
-  let deliveryFee = orderType === 'PICKUP' ? 0 : round3(zone?.deliveryFee ?? settings.deliveryFee);
 
-  // The voucher is re-resolved from the database; the client only sends a code.
-  const { promotion, discount, freeDelivery } = await resolvePromotion(payload.promoCode, subtotal, deliveryFee);
+  const { promotion, discount, freeDelivery } = await promoCheck;
   if (freeDelivery) deliveryFee = 0;
 
   const discountedSubtotal = round3(subtotal - discount);
@@ -193,7 +206,7 @@ export const create = async (payload) => {
       total,
       items: { create: lines },
     },
-    include,
+    include: placedInclude,
   });
   // Fire-and-forget: a slow or failed WhatsApp call must never delay the
   // order confirmation the customer is waiting on.

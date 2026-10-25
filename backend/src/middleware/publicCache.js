@@ -49,13 +49,17 @@ export const createPublicCache = ({ ttlMs = 20_000, lookupTtlMs = 60_000, now = 
     next();
   };
 
-  /** Remembers a successful lookup (such as a restaurant by its address); a miss is never kept. */
+  /**
+   * Remembers a lookup (such as a restaurant by its address), a miss included. An address that is no restaurant's
+   * (the API's own, an old preview link) is asked about on every request, and each miss cost three trips to the
+   * database, about a second. A restaurant or domain added later clears the memory like any other staff change.
+   */
   const remember = async (key, load) => {
     const hit = lookups.get(key);
     if (hit && now() - hit.at < lookupTtlMs) return hit.value;
     const value = await load();
-    if (value) lookups.set(key, { value, at: now() });
-    return value;
+    lookups.set(key, { value: value ?? null, at: now() });
+    return value ?? null;
   };
 
   return { middleware, invalidateOnWrite, remember, clear };
