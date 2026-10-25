@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { offeredPayments } from '../src/lib/paymentMethods.js';
+import { methodOfChoice, offeredPayments, paymentChoices } from '../src/lib/paymentMethods.js';
+
+test('a card is offered as Credit Card and as American Express, as on the payment page', () => {
+  assert.deepEqual(paymentChoices(['KNET', 'CARD', 'APPLE_PAY']), ['KNET', 'CARD', 'AMEX', 'APPLE_PAY']);
+  assert.deepEqual(paymentChoices(['KNET']), ['KNET']);
+});
+
+test('American Express is paid through the card form, so the order records a card payment', () => {
+  assert.equal(methodOfChoice('AMEX'), 'CARD');
+  assert.equal(methodOfChoice('CARD'), 'CARD');
+  assert.equal(methodOfChoice('KNET'), 'KNET');
+});
 
 test('the checkout offers exactly what the restaurant switched on, in its order', () => {
   assert.deepEqual(offeredPayments('KNET,CARD,APPLE_PAY', { applePay: true }), ['KNET', 'CARD', 'APPLE_PAY']);

@@ -3,13 +3,14 @@ import { Trans, useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
 import { reverseGeocode } from '../../lib/geocode';
-import { canUseApplePay, offeredPayments } from '../../lib/paymentMethods';
+import { canUseApplePay, methodOfChoice, offeredPayments, paymentChoices } from '../../lib/paymentMethods';
 import { cachedPath, refresh } from '../../lib/storefrontApi';
 import { tenantPath } from '../../lib/tenant';
 import { getAttribution } from '../../lib/tracking';
 import { useCart } from '../../store/cart';
 import { legalFor, PAGE_PATH } from '../legal/index.js';
 import LocationPicker from './LocationPicker.jsx';
+import PaymentLogos from './PaymentLogos.jsx';
 import SheetShell from './SheetShell.jsx';
 
 const buildWhatsappMessage = ({ lines, order, settings, lang, t }) => {
@@ -153,6 +154,7 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   // Keep the selection on a method the restaurant actually offers — the form
   // starts on CASH, which a shop that has switched cash off never shows.
   const [applePay] = useState(canUseApplePay);
+  const [payChoice, setPayChoice] = useState(null);
   useEffect(() => {
     const allowed = offeredPayments(settings?.paymentMethods, { applePay });
     if (allowed.length && !allowed.includes(form.paymentMethod)) {
@@ -221,21 +223,21 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
 
   // Driven by the restaurant's own settings, so a shop that does not take cash simply never offers it. The
   // customer picks the method here, and the payment page opens straight on it (KNET, the card form, Apple Pay).
-  const paymentOptions = {
-    KNET: { label: t('checkout.knet'), hint: t('checkout.knetHint'), badges: [['KNET', 'bg-[#0b4ea2] text-white']] },
-    CARD: {
-      label: t('checkout.card'),
-      hint: t('checkout.cardHint'),
-      badges: [
-        ['VISA', 'bg-white text-[#1a1f71] ring-1 ring-hairline'],
-        ['MC', 'bg-white text-[#eb001b] ring-1 ring-hairline'],
-        ['AMEX', 'bg-[#2e77bc] text-white'],
-      ],
-    },
-    APPLE_PAY: { label: t('checkout.applePay'), hint: t('checkout.applePayHint'), badges: [[' Pay', 'bg-black text-white']] },
-    CASH: { label: t('checkout.cash'), hint: '', badges: [] },
+  // Laid out as on the payment page itself: KNET, Credit Card (Visa, Mastercard), American Express, Apple Pay.
+  const paymentText = {
+    KNET: [t('checkout.knet'), t('checkout.knetHint')],
+    CARD: [t('checkout.card'), t('checkout.cardHint')],
+    AMEX: [t('checkout.amex'), t('checkout.amexHint')],
+    APPLE_PAY: [t('checkout.applePay'), t('checkout.applePayHint')],
+    CASH: [t('checkout.cash'), ''],
   };
-  const enabledPayments = offeredPayments(settings?.paymentMethods, { applePay }).map((method) => [method, paymentOptions[method]]);
+  const choices = paymentChoices(offeredPayments(settings?.paymentMethods, { applePay }));
+  // American Express and Credit Card are both a CARD order, so the choice itself is remembered separately.
+  const currentChoice = choices.includes(payChoice) && methodOfChoice(payChoice) === form.paymentMethod ? payChoice : form.paymentMethod;
+  const choose = (choice) => {
+    setPayChoice(choice);
+    setForm((current) => ({ ...current, paymentMethod: methodOfChoice(choice) }));
+  };
 
   const tipPresets = String(settings?.tipPresets || '')
     .split(',')
@@ -690,36 +692,34 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
         ) : null}
 
         <section className="mt-3 bg-white px-3 py-4">
-          <h3 className="text-[15px] font-extrabold">{t('checkout.payWith')}</h3>
+          <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-ink-soft">{t('checkout.selectPayment')}</h3>
           <div className="mt-3 space-y-2.5">
-            {enabledPayments.map(([value, { label, hint, badges }]) => (
-              <label
-                key={value}
-                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 transition-colors ${
-                  form.paymentMethod === value ? 'border-brand bg-brand/5' : 'border-hairline'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value={value}
-                  checked={form.paymentMethod === value}
-                  onChange={set('paymentMethod')}
-                  className="h-5 w-5 shrink-0 accent-brand"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-bold">{label}</span>
-                  {hint ? <span className="block text-xs text-ink-soft">{hint}</span> : null}
-                </span>
-                <span className="flex shrink-0 items-center gap-1" aria-hidden>
-                  {badges.map(([text, style]) => (
-                    <span key={text} className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold leading-none tracking-wide ${style}`}>
-                      {text}
-                    </span>
-                  ))}
-                </span>
-              </label>
-            ))}
+            {choices.map((choice) => {
+              const [label, hint] = paymentText[choice];
+              const selected = currentChoice === choice;
+              return (
+                <label
+                  key={choice}
+                  className={`flex min-h-[62px] cursor-pointer items-center gap-3.5 rounded-lg border bg-white px-4 py-2.5 transition-colors ${
+                    selected ? 'border-brand' : 'border-[#e3e3e3]'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="paymentChoice"
+                    value={choice}
+                    checked={selected}
+                    onChange={() => choose(choice)}
+                    className="h-5 w-5 shrink-0 accent-brand"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-bold text-ink">{label}</span>
+                    {hint ? <span className="block text-xs text-ink-soft">{hint}</span> : null}
+                  </span>
+                  <PaymentLogos choice={choice} />
+                </label>
+              );
+            })}
           </div>
         </section>
 
