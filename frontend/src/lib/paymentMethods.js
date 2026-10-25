@@ -14,6 +14,15 @@ export const offeredPayments = (setting, { applePay = false } = {}) =>
     .filter((method, index, all) => KNOWN.includes(method) && all.indexOf(method) === index)
     .filter((method) => method !== 'APPLE_PAY' || applePay);
 
+/**
+ * The choices shown at checkout, as on the payment page: a card is offered twice, as "Credit Card" (Visa,
+ * Mastercard) and "American Express". Both are paid through the same card form, so both are a CARD order.
+ */
+export const paymentChoices = (methods) => methods.flatMap((method) => (method === 'CARD' ? ['CARD', 'AMEX'] : [method]));
+
+/** The order's payment method for a checkout choice. */
+export const methodOfChoice = (choice) => (choice === 'AMEX' ? 'CARD' : choice);
+
 /** True on an Apple device whose browser can pay with Apple Pay (Safari on iPhone, iPad or Mac). */
 export const canUseApplePay = () => {
   try {
