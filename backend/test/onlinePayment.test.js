@@ -7,6 +7,7 @@ process.env.ONLINE_PAYMENT_TENANTS = ' Mdawra ';
 process.env.PUBLIC_URL = 'https://www.madawarah.com';
 process.env.API_URL = 'https://api.example.com/';
 const { isOnlinePaymentEnabled, startPayment } = await import('../src/services/payment/index.js');
+const { create: createOrder, skipsPayment } = await import('../src/services/orderService.js');
 const { runWithTenant } = await import('../src/tenantContext.js');
 const { config } = await import('../src/config.js');
 
@@ -64,6 +65,30 @@ test('a customer outside the pilot gets no payment page from startPayment either
   try {
     const order = { id: 'o2', orderNumber: 'X-2', total: '3.000', customerName: 'A', customerPhone: '99887766' };
     assert.equal(await as('mdawra', () => startPayment(order)), null);
+  } finally {
+    config.payment.pilotPhones.length = 0;
+    config.payment.pilotPhones.push(...saved);
+  }
+});
+
+test('"Order via WhatsApp" is refused where the customer must pay online: it would hand the order over unpaid', async () => {
+  const order = { channel: 'WEB', paymentMethod: 'WHATSAPP', customerPhone: '99887766', items: [{ menuItemId: 'x', quantity: 1 }] };
+  await assert.rejects(
+    as('mdawra', () => createOrder(order)),
+    (error) => error.status === 409 && /pay online/.test(error.message),
+  );
+});
+
+test('during the pilot only the pilot phones lose "Order via WhatsApp"; a restaurant without online payment keeps it', async () => {
+  const saved = [...config.payment.pilotPhones];
+  config.payment.pilotPhones.push('55551234');
+  try {
+    const order = (phone) => ({ channel: 'WEB', paymentMethod: 'WHATSAPP', customerPhone: phone });
+    assert.equal(as('mdawra', () => skipsPayment(order('55551234'))), true);
+    assert.equal(as('mdawra', () => skipsPayment(order('99887766'))), false);
+    assert.equal(as('khobzt-marie', () => skipsPayment(order('55551234'))), false);
+    // The WhatsApp bot has its own payment step; only the website button is a way round paying.
+    assert.equal(as('mdawra', () => skipsPayment({ ...order('55551234'), channel: 'WHATSAPP' })), false);
   } finally {
     config.payment.pilotPhones.length = 0;
     config.payment.pilotPhones.push(...saved);

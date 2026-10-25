@@ -34,6 +34,7 @@ import {
 } from '../middleware/auth.js';
 import { asyncHandler as h } from '../middleware/error.js';
 import { publicCache } from '../middleware/publicCache.js';
+import { loginLimit, orderLimit, promoLimit, refreshLimit } from '../middleware/rateLimit.js';
 import { requirePrintKey } from '../middleware/printKey.js';
 import { reattachTenant, requireTenant } from '../middleware/tenant.js';
 import { upload } from '../middleware/upload.js';
@@ -78,8 +79,8 @@ router.get('/tenants/icon', h(icons.icon));
 router.get('/tenants/:slug', h(tenants.getBySlug));
 
 // Auth is resolved by email across the whole platform, so it needs no tenant.
-router.post('/auth/login', h(auth.login));
-router.post('/auth/refresh', h(auth.refresh));
+router.post('/auth/login', loginLimit, h(auth.login));
+router.post('/auth/refresh', refreshLimit, h(auth.refresh));
 router.get('/auth/me', authenticate, h(auth.me));
 
 // ---------------------------------------------------------------------------
@@ -109,13 +110,13 @@ scoped.put('/items/:id', requireStaff, h(items.update));
 scoped.delete('/items/:id', requireAdmin, h(items.remove));
 
 // Orders
-scoped.post('/orders', optionalAuth, h(orders.create));
+scoped.post('/orders', orderLimit, optionalAuth, h(orders.create));
 // One per storefront browser session, for the visitors-to-orders conversion rate.
 scoped.post('/visits', h(visits.record));
 // Above /orders/:id and public: the uuid in the link is the credential.
 // Customer accounts. Signup is tenant-scoped: an account belongs to the
 // restaurant it was created on.
-scoped.post('/auth/register', h(auth.register));
+scoped.post('/auth/register', loginLimit, h(auth.register));
 scoped.get('/orders/mine', requireCustomer, h(orders.mine));
 scoped.get('/orders/track/:id', h(orders.track));
 // Order desk: owner, staff and branch accounts. Branch accounts see and update only their branch's orders.
@@ -168,7 +169,7 @@ scoped.delete('/banners/:id', requireStaff, h(banners.remove));
 
 // Promotions
 scoped.get('/promotions', publicCache.middleware, h(promotions.listPublic));
-scoped.post('/promotions/preview', h(promotions.preview));
+scoped.post('/promotions/preview', promoLimit, h(promotions.preview));
 scoped.get('/promotions/all', requireStaff, h(promotions.listAll));
 // Discount codes are the owner's alone (client requirement).
 scoped.post('/promotions', requireAdmin, h(promotions.create));

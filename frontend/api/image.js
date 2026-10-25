@@ -35,14 +35,18 @@ export default async function handler(request, response) {
     if (!upstream.ok) return response.status(upstream.status).json({ error: 'Image not found' });
 
     const type = upstream.headers.get('content-type') || 'application/octet-stream';
-    // An interstitial would arrive as HTML; refuse rather than render it.
-    if (!type.startsWith('image/')) {
+    // An interstitial would arrive as HTML; refuse rather than render it. SVG is refused too: it can carry script,
+    // and served from the restaurant's own address it could read a signed-in owner's session.
+    if (!type.startsWith('image/') || type.includes('svg')) {
       return response.status(502).json({ error: 'Upstream did not return an image' });
     }
 
     const body = Buffer.from(await upstream.arrayBuffer());
     response.setHeader('Content-Type', type);
     response.setHeader('Content-Length', String(body.length));
+    // A picture is only ever a picture: never sniffed as another type, never allowed to run anything.
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
     // A file name is unique to its upload, and so is every made-to-size copy of it, so a picture
     // never changes: the browser and the CDN may keep it for a year.
     response.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');

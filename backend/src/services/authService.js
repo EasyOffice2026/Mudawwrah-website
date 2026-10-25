@@ -19,9 +19,10 @@ const publicUser = (user) => ({
 // tenantId travels in the token so every request knows which restaurant this
 // operator belongs to. Null marks a platform operator with access to all.
 // branchId confines a BRANCH account to its branch's orders.
-const sign = (user, expiresIn) =>
+// typ tells the two tokens apart: the short-lived one opens the API; the 30-day one can only ask for a new short one.
+const sign = (user, expiresIn, typ = 'access') =>
   jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, name: user.name, tenantId: user.tenantId ?? null, branchId: user.branchId ?? null },
+    { sub: user.id, email: user.email, role: user.role, name: user.name, tenantId: user.tenantId ?? null, branchId: user.branchId ?? null, typ },
     config.jwtSecret,
     { expiresIn },
   );
@@ -96,7 +97,7 @@ export const login = async ({ email, password }, { ip = '' } = {}) => {
   await assertBranchAccess(user, ip);
   return {
     token: sign(user, config.jwtExpiresIn),
-    refreshToken: sign(user, config.refreshExpiresIn),
+    refreshToken: sign(user, config.refreshExpiresIn, 'refresh'),
     user: { ...publicUser(user), tenantSlug: user.tenant?.slug ?? null },
   };
 };
@@ -109,6 +110,8 @@ export const refresh = async (refreshToken, { ip = '' } = {}) => {
   } catch {
     throw new HttpError(401, 'Invalid or expired refresh token');
   }
+  // A short-lived token cannot renew itself. (Tokens from before typ existed carry none and still renew.)
+  if (payload.typ === 'access') throw new HttpError(401, 'Invalid or expired refresh token');
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
   if (!user || !user.isActive) throw new HttpError(401, 'User no longer active');
   await assertBranchAccess(user, ip);
@@ -155,7 +158,7 @@ export const register = async ({ name, email, password, phone }) => {
 
   return {
     token: sign(user, config.jwtExpiresIn),
-    refreshToken: sign(user, config.refreshExpiresIn),
+    refreshToken: sign(user, config.refreshExpiresIn, 'refresh'),
     user: publicUser(user),
   };
 };
