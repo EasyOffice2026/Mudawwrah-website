@@ -1,4 +1,5 @@
 import { HttpError } from '../middleware/error.js';
+import * as closingService from '../services/closingService.js';
 import * as service from '../services/reportService.js';
 
 /** A branch id, or 'none' for orders from before branches existed; empty means all branches. */
@@ -17,3 +18,7 @@ export const report = async (req, res) => {
     throw error;
   }
 };
+
+// The day's closing sheet; branch accounts get their own branch only (decided in the service from req.user).
+export const closing = async (req, res) =>
+  res.json(await closingService.closing({ date: req.query.date, branchId: branchParam(req.query.branchId) }, req.user));

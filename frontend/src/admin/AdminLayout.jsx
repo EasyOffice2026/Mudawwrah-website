@@ -36,6 +36,7 @@ const links = [
   { to: 'menu', labelKey: 'admin.menu', roles: STAFF },
   { to: 'orders', labelKey: 'admin.orders', roles: DESK },
   { to: 'sold-out', labelKey: 'admin.soldOut', roles: DESK },
+  { to: 'closing', labelKey: 'admin.closing.title', roles: DESK },
   { to: 'media', labelKey: 'admin.media', roles: STAFF },
   { to: 'banners', labelKey: 'admin.banners', roles: STAFF },
   { to: 'promotions', labelKey: 'admin.promotions', roles: STAFF },

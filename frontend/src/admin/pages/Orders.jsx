@@ -312,6 +312,15 @@ export default function Orders() {
                   <span className="ms-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700">{t('admin.refundNeeded')}</span>
                 ) : null}
               </p>
+              {/* The payment as Tap knows it: what the manager looks up in Tap's dashboard. */}
+              {detail.paymentRef ? (
+                <p>
+                  <span className="text-gray-500">{t('admin.closing.reference')}:</span>{' '}
+                  <span className="font-mono text-xs" dir="ltr">
+                    {detail.paymentRef}
+                  </span>
+                </p>
+              ) : null}
               <p>
                 <span className="text-gray-500">{t('admin.channel')}:</span> {detail.channel}
               </p>
