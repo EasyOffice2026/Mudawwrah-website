@@ -642,7 +642,32 @@
         "days": "{{count}} d ago"
       }
     },
-    "refundNeeded": "Refund needed"
+    "refundNeeded": "Refund needed",
+    "closing": {
+      "title": "Daily closing",
+      "intro": "Every payment taken online on the day, to tick off one by one against the Tap dashboard.",
+      "date": "Day",
+      "print": "Print",
+      "paidOnline": "Paid online",
+      "payments": "Payments",
+      "paymentsCount_one": "{{count}} payment",
+      "paymentsCount_other": "{{count}} payments",
+      "net": "After refunds",
+      "notPaidOnline": "Not paid online",
+      "checked": "✓",
+      "time": "Time",
+      "order": "Order",
+      "method": "Method",
+      "reference": "Tap reference",
+      "amount": "Amount",
+      "totals": "Totals",
+      "tick": "Checked {{order}} against Tap",
+      "tickedOf": "Checked {{ticked}} of {{count}}",
+      "empty": "No online payments on this day.",
+      "howTo": "How to close: open the Tap dashboard → Transactions, choose the same day, and tick each payment here as you find it (same amount and reference). The day is closed when every line is ticked and the totals match. Refund-needed payments are refunded from the Tap dashboard.",
+      "notPaidOnlineNote_one": "1 order that day was not paid online ({{total}}): it was settled another way, so it is not in this list.",
+      "notPaidOnlineNote_other": "{{count}} orders that day were not paid online ({{total}}): they were settled another way, so they are not in this list."
+    }
   },
   "store": {
     "prepWindow": "{{min}}-{{max}} mins",

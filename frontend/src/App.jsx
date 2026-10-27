@@ -26,6 +26,7 @@ const Zones = lazy(() => import('./admin/pages/Zones.jsx'));
 // Automatic printing: the page a branch computer keeps open next to its printer, and the owner's setup page.
 const PrintStation = lazy(() => import('./printing/PrintStation.jsx'));
 const Printing = lazy(() => import('./admin/pages/Printing.jsx'));
+const Closing = lazy(() => import('./admin/pages/Closing.jsx'));
 const PlatformConsole = lazy(() => import('./platform/PlatformConsole.jsx'));
 const PlatformLogin = lazy(() => import('./platform/PlatformLogin.jsx'));
 
@@ -54,6 +55,8 @@ export default function App() {
         {/* The order desk: the only pages a branch account can open. */}
         <Route path="orders" element={<Orders />} />
         <Route path="sold-out" element={<SoldOut />} />
+        {/* Branch managers close their own branch's day with it, so it belongs to the order desk too. */}
+        <Route path="closing" element={<Closing />} />
         <Route element={<StaffOnly />}>
           <Route index element={<Dashboard />} />
           <Route path="menu" element={<MenuManager />} />

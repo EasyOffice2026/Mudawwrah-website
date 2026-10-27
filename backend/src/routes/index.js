@@ -219,6 +219,8 @@ router.post('/payments/:provider/callback', h(payments.callback));
 scoped.get('/dashboard/stats', requireStaff, h(dashboard.stats));
 scoped.get('/dashboard/branches', requireStaff, h(dashboard.branches));
 scoped.get('/reports', requireStaff, h(reports.report));
+// The day's closing sheet: branch managers close their own branch with it, so the order desk may open it.
+scoped.get('/reports/closing', requireOrderDesk, h(reports.closing));
 
 // A restaurant's own name, banner and logo — the fields the storefront
 // header and the platform picker actually display. requireAdmin, not just
