@@ -242,10 +242,11 @@ domain of its own. Its menu pictures are the live ones, read from the live site.
 
 1. **Supabase**: New project `mudawarah-staging`, region **Southeast Asia (Singapore)**. Copy its **session pooler**
    address (port 5432) with the password filled in.
-2. **Render**: New → Blueprint from this repository, keep only the `mudawwrah-staging` service from
-   [`render.yaml`](render.yaml), or New → Web Service with the same settings. Enter `DATABASE_URL` (the staging
-   address plus `?connection_limit=5&pool_timeout=20`), `DIRECT_URL` (the same, without them) and `TAP_SECRET_KEY`
-   (the **test** key, `sk_test_...`). It deploys from the `staging` branch: create it once with
+2. **Render**: New → **Web Service** (not a Blueprint: a Blueprint reads both services in [`render.yaml`](render.yaml)
+   and could change the live one), with the settings of `mudawwrah-staging` in that file. Enter `DATABASE_URL` (the
+   staging address plus `?connection_limit=5&pool_timeout=20`), `DIRECT_URL` (the same, without them),
+   `TAP_SECRET_KEY` (the **test** key, `sk_test_...`) and a new `JWT_SECRET`
+   (`node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`), never the live one. It deploys from the `staging` branch: create it once with
    `git push origin <production branch>:staging`. The first build creates the tables. Check
    `https://mudawwrah-staging.onrender.com/api/version` says `"environment":"staging"`.
 3. **Copy the live set-up into it** (from Git Bash in `backend`; it only reads live, and shows what it would do first):
