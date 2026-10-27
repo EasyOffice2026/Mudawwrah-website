@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
 import { useAuth } from '../../store/auth';
+import TapCheck from '../components/TapCheck.jsx';
 import { buildClosingWorkbook, paidTime } from '../reports/closingExport.js';
 import { downloadWorkbook } from '../reports/reportExport.js';
 
@@ -46,6 +47,8 @@ export default function Closing() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [ticks, setTicks] = useState(() => new Set());
+  // Bumped to load the sheet again (after a missed payment is recorded).
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (canPickBranch) api.get('/pickup-locations/all').then(({ data }) => setBranches(data)).catch(() => setBranches([]));
@@ -64,7 +67,7 @@ export default function Closing() {
       })
       .catch((err) => setError(apiError(err)))
       .finally(() => setLoading(false));
-  }, [date, branchId, slug]);
+  }, [date, branchId, slug, reload]);
 
   // Leaves print mode however the print dialog was closed.
   useEffect(() => {
@@ -84,6 +87,15 @@ export default function Closing() {
         : user?.name || '';
   const restaurantName = restaurant ? localized(restaurant, 'name', lang) : '';
   const showBranch = canPickBranch && !branchId;
+
+  // Everything Tap confirms is ticked at once; only what it does not confirm is left to look at.
+  const tickMatched = (references) => {
+    if (!closing) return;
+    const next = new Set(ticks);
+    for (const payment of closing.payments) if (references.includes(payment.reference)) next.add(payment.id);
+    setTicks(next);
+    saveTicks(tickKey(slug, closing.date, closing.branchId), next);
+  };
 
   const toggle = (id) => {
     const next = new Set(ticks);
@@ -195,6 +207,15 @@ export default function Closing() {
               </div>
             ) : null}
           </section>
+
+          <TapCheck
+            key={`${closing.date}:${closing.branchId || 'all'}`}
+            date={closing.date}
+            branchId={canPickBranch ? branchId : undefined}
+            canRecord={canPickBranch}
+            onMatched={tickMatched}
+            onRecorded={() => setReload((n) => n + 1)}
+          />
 
           {closing.notPaidOnline.count ? (
             <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">

@@ -27,14 +27,22 @@ const add = (totals, key, amount) => {
  *
  * A branch account only ever sees its own branch.
  */
-export const closing = async ({ date, branchId } = {}, viewer = null, now = new Date()) => {
+/** The day (YYYY-MM-DD, default today) as a window of time in the restaurant's own time zone. */
+export const dayWindow = async (date, now = new Date()) => {
   const settings = await getSettings();
   const timeZone = settings.timezone || 'Asia/Kuwait';
   const day = date || todayIn(timeZone, now);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new HttpError(400, 'Choose a date as YYYY-MM-DD');
-  const window = createdAtWindow(day, day, timeZone);
+  return { day, timeZone, window: createdAtWindow(day, day, timeZone) };
+};
 
-  const branch = viewer?.role === 'BRANCH' ? viewer.branchId || '00000000-0000-0000-0000-000000000000' : branchId || null;
+/** The branch a viewer may close: a branch account always its own, anyone else the one asked for (or all). */
+export const branchFor = (viewer, branchId) =>
+  viewer?.role === 'BRANCH' ? viewer.branchId || '00000000-0000-0000-0000-000000000000' : branchId || null;
+
+export const closing = async ({ date, branchId } = {}, viewer = null, now = new Date()) => {
+  const { day, timeZone, window } = await dayWindow(date, now);
+  const branch = branchFor(viewer, branchId);
   const branchWhere = branch ? { branchId: branch } : {};
 
   const [paid, others] = await Promise.all([

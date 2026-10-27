@@ -1,5 +1,6 @@
 import { HttpError } from '../middleware/error.js';
 import * as closingService from '../services/closingService.js';
+import * as reconcileService from '../services/reconcileService.js';
 import * as service from '../services/reportService.js';
 
 /** A branch id, or 'none' for orders from before branches existed; empty means all branches. */
@@ -22,3 +23,7 @@ export const report = async (req, res) => {
 // The day's closing sheet; branch accounts get their own branch only (decided in the service from req.user).
 export const closing = async (req, res) =>
   res.json(await closingService.closing({ date: req.query.date, branchId: branchParam(req.query.branchId) }, req.user));
+
+// The day's payments checked against Tap itself.
+export const reconcile = async (req, res) =>
+  res.json(await reconcileService.reconcile({ date: req.query.date, branchId: branchParam(req.query.branchId) }, req.user));

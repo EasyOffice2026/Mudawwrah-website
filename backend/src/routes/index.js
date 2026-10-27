@@ -193,6 +193,10 @@ scoped.delete('/users/:id', requireAdmin, h(users.remove));
 
 // Settings
 scoped.get('/settings', publicCache.longer, h(settings.get));
+// The restaurant's own Tap account (owner only): the key is checked with Tap, stored encrypted, never shown again.
+scoped.get('/settings/payment', requireAdmin, h(payments.settings));
+scoped.put('/settings/payment', requireAdmin, h(payments.saveSettings));
+scoped.delete('/settings/payment', requireAdmin, h(payments.removeSettings));
 // Fees, minimum order, tax and payment methods: owner only (client requirement).
 scoped.put('/settings', requireAdmin, h(settings.update));
 
@@ -222,6 +226,9 @@ scoped.get('/dashboard/branches', requireStaff, h(dashboard.branches));
 scoped.get('/reports', requireStaff, h(reports.report));
 // The day's closing sheet: branch managers close their own branch with it, so the order desk may open it.
 scoped.get('/reports/closing', requireOrderDesk, h(reports.closing));
+// The same day checked against Tap, and recording a payment Tap took whose notice never arrived (staff, not branches).
+scoped.get('/reports/closing/tap', requireOrderDesk, h(reports.reconcile));
+scoped.post('/reports/closing/tap/:reference/record', requireStaff, h(payments.recordMissed));
 
 // A restaurant's own name, banner and logo — the fields the storefront
 // header and the platform picker actually display. requireAdmin, not just
