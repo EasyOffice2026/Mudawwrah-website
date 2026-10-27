@@ -49,5 +49,10 @@ api.interceptors.response.use(
   },
 );
 
-export const apiError = (error) =>
-  error?.response?.data?.details?.[0]?.message || error?.response?.data?.error || error.message || 'Unexpected error';
+// A server failure carries a short reference (ref) that finds it in the server log: shown with the message so a
+// screenshot of the error is enough to trace it.
+export const apiError = (error) => {
+  const data = error?.response?.data;
+  const message = data?.details?.[0]?.message || data?.error || error?.message || 'Unexpected error';
+  return data?.ref ? `${message} (ref ${data.ref})` : message;
+};

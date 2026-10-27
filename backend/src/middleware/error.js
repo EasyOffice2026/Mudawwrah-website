@@ -1,3 +1,6 @@
+import { reportError } from '../services/errorReports.js';
+import { shortRef } from './requestLog.js';
+
 export class HttpError extends Error {
   constructor(status, message, details) {
     super(message);
@@ -20,17 +23,23 @@ export const errorHandler = (err, req, res, next) => {
   } else if (err.details) {
     body.details = err.details;
   }
-  if (status >= 500) console.error(err);
+  // The request id ties this error to its request line in the log, and to the ref the visitor sees.
+  if (status >= 500) {
+    console.error(`[error] request ${req.id || '-'}`, err);
+    reportError(err, { requestId: req.id, tenant: req.tenant?.slug, path: req.originalUrl?.split('?')[0] });
+  }
+  const ref = req.id ? shortRef(req.id) : undefined;
+  if (status >= 500 && ref) body.ref = ref;
   // Customers never see database text. A full connection pool is "busy, try again"; any other
   // unexpected failure is a plain message. The real error stays in the server log above.
   if (status >= 500 && !err.status) {
     const message = String(err.message || '');
     if (/EMAXCONN|max clients reached/i.test(message)) {
       res.set('Retry-After', '2');
-      return res.status(503).json({ error: 'We are busy for a moment. Please try again in a few seconds.' });
+      return res.status(503).json({ error: 'We are busy for a moment. Please try again in a few seconds.', ref });
     }
     // Anything else unexpected (a programming error, a library failure) is not the visitor's business either.
-    return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    return res.status(500).json({ error: 'Something went wrong. Please try again.', ref });
   }
   res.status(status).json(body);
 };

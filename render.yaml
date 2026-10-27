@@ -34,6 +34,9 @@ services:
       # Makes the server refuse to start with a development secret or an open CORS list.
       - key: NODE_ENV
         value: production
+      # Crash reports to Sentry (DEPLOY.md, "Crash reports"). Optional; off when empty.
+      - key: SENTRY_DSN
+        sync: false
       # Supabase SESSION pooler, port 5432 (the transaction pooler on 6543 breaks Prisma). Keep connection_limit small:
       # every server using the same database shares one pool of connections (Supabase "Pool Size"), so the limits of
       # all servers together must stay under it. Example: ...:5432/postgres?connection_limit=5&pool_timeout=20

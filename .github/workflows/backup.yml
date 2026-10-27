@@ -1,0 +1,63 @@
+# Nightly database backup, kept 30 days, encrypted so only someone with the passphrase can read it.
+#
+# Needs two repository secrets (GitHub -> Settings -> Secrets and variables -> Actions):
+#   BACKUP_DATABASE_URL  the database's session-pooler address (the same as Render's DATABASE_URL, without
+#                        connection_limit), for example postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+#   BACKUP_PASSPHRASE    a long random passphrase, stored somewhere safe outside GitHub: without it a backup
+#                        cannot be opened.
+# Restoring: DEPLOY.md, "Backups".
+name: Nightly database backup
+
+on:
+  schedule:
+    - cron: '0 23 * * *' # 23:00 UTC = 02:00 Kuwait, the quietest hour
+  workflow_dispatch: # also runnable by hand from the Actions tab
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    # pg_dump must be at least the server's version (Supabase runs PostgreSQL 17).
+    container: postgres:17
+    timeout-minutes: 20
+    steps:
+      - name: Check the secrets are set
+        env:
+          URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$PASSPHRASE" ]; then
+            echo "BACKUP_DATABASE_URL and BACKUP_PASSPHRASE must be set as repository secrets." >&2
+            exit 1
+          fi
+
+      - name: Dump and encrypt
+        env:
+          URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          apt-get update -qq && apt-get install -y -qq gnupg >/dev/null
+          STAMP=$(date -u +%Y-%m-%d)
+          # The app's own data only (schema public), in pg_restore's format; no owners or grants, so it restores
+          # into any fresh database.
+          pg_dump "$URL" --schema=public --no-owner --no-privileges --format=custom --file="mdawra-$STAMP.dump"
+          # A dump that is suspiciously small means something went wrong; fail loudly rather than keep it.
+          SIZE=$(stat -c %s "mdawra-$STAMP.dump")
+          echo "Dump size: $SIZE bytes"
+          [ "$SIZE" -gt 100000 ] || { echo "Dump is too small ($SIZE bytes)" >&2; exit 1; }
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$PASSPHRASE" \
+            --symmetric --cipher-algo AES256 --output "mdawra-$STAMP.dump.gpg" "mdawra-$STAMP.dump"
+          rm "mdawra-$STAMP.dump"
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+
+      - name: Keep it for 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-${{ env.STAMP }}
+          path: mdawra-*.dump.gpg
+          retention-days: 30
+          if-no-files-found: error

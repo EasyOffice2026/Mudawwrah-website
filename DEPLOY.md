@@ -26,11 +26,12 @@ Neither is part of the system any more; if they are still running, switch them o
    starts the new version. Wait until the service shows **Live** (about 2 minutes; the API restarts for a few seconds).
 3. **Website** (only if the website changed): from the `frontend` folder, with everything committed:
    ```
-   XDG_DATA_HOME="/c/Users/Administrator/AppData/Roaming/xdg.data" npm run deploy
+   npm run deploy
    ```
-   It refuses uncommitted changes, stamps the commit into the build, reads `/version.json` back from the live address,
-   and also prints which commit the server is running. If a change needs both, the server line must show the same commit
-   before anyone says it is live.
+   It refuses uncommitted changes, and **refuses to deploy while the live server lacks this release's server changes**
+   (it compares the newest commit that changed `backend/src`, `backend/prisma` or the backend packages with the commit
+   the server reports at `/api/version`). Then it stamps the commit into the build and reads `/version.json` back from
+   the live address. `npm run deploy -- --force` skips the server check, for an emergency only.
 4. Tell the client only what has been verified live. A change is not fixed until it has been seen working on the real site.
 
 **Order matters when a change needs both:** server first, then the website. A website that calls something the server does
@@ -68,6 +69,63 @@ The orders check says only ok or not ok, never order details. Add one per restau
 Render → the service → **Settings → Health Check Path** must be `/api/health`. Render then keeps the old server
 answering until the new one is healthy; without it, every deploy shows visitors a few seconds of "502".
 
+### Crash reports (set up once)
+
+Unexpected errors go to [Sentry](https://sentry.io) (free plan), which emails them, so a failure is seen when it happens.
+Off until configured:
+
+1. Sentry → create two projects: **Node.js** (server) and **React** (website). Each gives a DSN.
+2. Render → Environment: `SENTRY_DSN` = the Node.js DSN → **Save, rebuild, and deploy**. The log then says
+   `[errors] crash reports are on`.
+3. `frontend/.env.production`: add `VITE_SENTRY_DSN=` the React DSN (a DSN can only send reports, so it may be committed),
+   commit, release. The website loads it on staff pages only (admin, print station, platform console).
+4. Sentry → Alerts: email the owner of the project on every new issue.
+
+Every request has an id (`X-Request-Id`), logged with its line in Render → Logs. A failure shows visitors a short
+`ref` (8 characters, for example "Something went wrong. Please try again. (ref 3f2a9c1b)"): search Render's logs for it
+to find the request and its error.
+
+### Backups (set up once)
+
+`.github/workflows/backup.yml` dumps the database every night at 02:00 Kuwait time, encrypts it, and keeps 30 days.
+
+1. GitHub → the repository → **Settings → Secrets and variables → Actions → New repository secret**:
+   - `BACKUP_DATABASE_URL`: the same address as Render's `DATABASE_URL`, without `connection_limit`/`pool_timeout`.
+   - `BACKUP_PASSPHRASE`: a long random passphrase. **Keep a copy outside GitHub** (a password manager): without it no
+     backup can be opened.
+2. GitHub → **Actions → Nightly database backup → Run workflow** once, and check it finishes green with a
+   `database-<date>` file under the run.
+
+Restoring (into a fresh, empty database, never over the live one without a decision to do so):
+```
+gpg --decrypt mdawra-2026-10-27.dump.gpg > mdawra.dump          # asks for BACKUP_PASSPHRASE
+pg_restore --no-owner --no-privileges --dbname "<new database URL>" mdawra.dump   # PostgreSQL 17 tools
+node backend/scripts/compare-db.mjs "<live URL>" "<restored URL>"  # optional: what differs from live
+```
+
+### Moving the database (to Singapore, next to the server)
+
+The server runs in Singapore and the database in Tokyo, so every query crosses between them (about 0.25 s each). Moving
+the database next to the server makes every page faster. 19 MB of data: plan 30 minutes, at the quietest hour.
+
+1. Supabase → **New project**, region **Southeast Asia (Singapore)**, same plan as today. Set Database → Pool Size as
+   on the old one (25). Copy its **session pooler** address (port 5432).
+2. Close ordering: Admin → Settings → the open/closed switch → closed.
+3. Copy the data (PostgreSQL 17 tools; on this PC from Git Bash):
+   ```
+   pg_dump "<OLD session pooler URL>" --schema=public --no-owner --no-privileges --format=custom --file=move.dump
+   pg_restore --no-owner --no-privileges --dbname "<NEW session pooler URL>" move.dump
+   node backend/scripts/compare-db.mjs "<OLD URL>" "<NEW URL>"     # must end with SAME
+   ```
+4. Render → Environment: `DATABASE_URL` and `DIRECT_URL` → the new address (keep `?connection_limit=10&pool_timeout=20`
+   on `DATABASE_URL`) → **Save, rebuild, and deploy**. Wait for **Live**.
+5. Check: `/api/health` and `/api/health/orders?tenant=mdawra` answer ok; open the menu; place one test order and cancel it.
+6. Open ordering again. Update `backend/.env` on this PC and the `BACKUP_DATABASE_URL` secret to the new address.
+7. Keep the old project paused (not deleted) for a week, then delete it.
+
+If anything looks wrong at step 5: put the old addresses back on Render (step 4), and ordering continues on the old
+database while the cause is found.
+
 ## Server settings (Render → Environment)
 
 The full list, with the reason for each, is in [`render.yaml`](render.yaml). The ones that matter in an emergency:
@@ -83,6 +141,7 @@ The full list, with the reason for each, is in [`render.yaml`](render.yaml). The
 | `NODE_ENV` | `production`: the server then refuses to start with a development secret or an open CORS list. |
 | `CORS_ORIGINS` | Only the restaurants' own addresses. No `*.vercel.app`: that would let any site hosted on Vercel call the API. Staff use `www.madawarah.com/admin`, never a Vercel preview link. |
 | `WHATSAPP_APP_SECRET` | Without it, WhatsApp webhooks are refused (nothing can prove they come from Meta). |
+| `SENTRY_DSN` | Crash reports (see "Crash reports"). Optional. |
 
 ## Branch accounts and the address lock
 
