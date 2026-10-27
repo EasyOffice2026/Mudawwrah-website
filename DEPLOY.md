@@ -134,6 +134,27 @@ the database next to the server makes every page faster. 19 MB of data: plan 30 
 If anything looks wrong at step 5: put the old addresses back on Render (step 4), and ordering continues on the old
 database while the cause is found.
 
+### Upgrading Prisma to 7 (planned, needs a staging copy first)
+
+`npm audit` lists 3 high warnings in `prisma` → `@prisma/config` → `deepmerge-ts`: the command-line tool used at
+build time (`generate`, `migrate`), never run when a visitor uses the site. They go away with Prisma 7, which also
+changes how the server connects, so it is done on a staging copy on a real Supabase project, not straight to live:
+
+1. `backend/prisma/schema.prisma`: generator `provider = "prisma-client"` with `output = "../src/generated/prisma"`;
+   remove `url`/`directUrl` from the datasource. Add `backend/prisma.config.ts` with `defineConfig({ schema, migrations,
+   datasource: { url: env('DIRECT_URL') } })` (migrations go direct, not through the pooler).
+2. `npm i @prisma/client@7 prisma@7 @prisma/adapter-pg pg`. In `src/prisma.js`, build the client with
+   `new PrismaClient({ adapter: new PrismaPg({ connectionString: DATABASE_URL, max: <pool size> }) })`. The pool size
+   now comes from `max` (the `connection_limit` in the address is no longer read); keep it within Supabase's Pool Size.
+3. SSL: check the Supabase pooler connects with certificate checks on (Prisma 7 rejects invalid certificates); if not,
+   pass Supabase's CA certificate, never `rejectUnauthorized: false`.
+4. The retry on a full pool (`isPoolFull` in `src/prisma.js`) matches Prisma 6 error codes; check what the pg adapter
+   reports for "max clients reached" and a dropped connection, and adjust (the resilience tests say what must hold).
+5. Every `import { PrismaClient } from '@prisma/client'` (src, scripts, tests) points to the generated client; scripts
+   that pass `datasources` switch to an adapter. `prisma.$use` is not used (only `$extends`), so nothing else changes.
+6. Run all tests, the database tests and the browser tests against the staging copy; release only when they and a
+   day of real use there are clean.
+
 ## Server settings (Render → Environment)
 
 The full list, with the reason for each, is in [`render.yaml`](render.yaml). The ones that matter in an emergency:
