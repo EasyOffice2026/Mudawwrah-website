@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
 import { currentTenantId } from '../tenantContext.js';
+import { endSessions, forget } from './sessionService.js';
 
 const select = {
   id: true,
@@ -79,19 +80,31 @@ export const update = async (id, { password, email, branchId, ...rest }) => {
   const current = await getById(id);
   const role = rest.role || current.role;
   const nextBranch = branchId !== undefined || rest.role ? await branchFields(role, branchId ?? current.branchId) : {};
-  return prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id },
     data: {
       ...rest,
       ...nextBranch,
       ...(email ? { email: email.toLowerCase() } : {}),
       ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
+      // A new password, or a disabled account, ends every session the account had: a stolen or shared token stops
+      // working at once instead of at its expiry.
+      ...(password || rest.isActive === false ? { tokenVersion: { increment: 1 } } : {}),
     },
     select,
   });
+  forget(id);
+  return updated;
 };
 
 export const remove = async (id) => {
   await getById(id);
   await prisma.user.delete({ where: { id } });
+  forget(id);
+};
+
+/** Ends every session of one of this restaurant's accounts (it signs in again with its password). */
+export const signOut = async (id) => {
+  await getById(id);
+  await endSessions(id);
 };

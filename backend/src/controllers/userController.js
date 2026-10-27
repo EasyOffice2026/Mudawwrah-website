@@ -9,3 +9,9 @@ export const remove = async (req, res) => {
   await service.remove(req.params.id);
   res.status(204).end();
 };
+
+/** Ends every session of an account: for a lost phone, a staff member leaving, a password that got out. */
+export const signOut = async (req, res) => {
+  await service.signOut(req.params.id);
+  res.json({ ok: true });
+};

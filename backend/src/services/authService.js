@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
 import { currentTenantId } from '../tenantContext.js';
+import { checkDevice } from './deviceService.js';
 
 const publicUser = (user) => ({
   id: user.id,
@@ -20,9 +21,10 @@ const publicUser = (user) => ({
 // operator belongs to. Null marks a platform operator with access to all.
 // branchId confines a BRANCH account to its branch's orders.
 // typ tells the two tokens apart: the short-lived one opens the API; the 30-day one can only ask for a new short one.
+// tv is the account's tokenVersion when the token was made: raising it ends every session (sessionService.js).
 const sign = (user, expiresIn, typ = 'access') =>
   jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, name: user.name, tenantId: user.tenantId ?? null, branchId: user.branchId ?? null, typ },
+    { sub: user.id, email: user.email, role: user.role, name: user.name, tenantId: user.tenantId ?? null, branchId: user.branchId ?? null, typ, tv: user.tokenVersion ?? 0 },
     config.jwtSecret,
     { expiresIn },
   );
@@ -73,11 +75,18 @@ export const ipAllowed = (ip, allowed) => {
  * active, and when it lists static IPs the request must come from one of them.
  * Base client on purpose: login runs before any restaurant is in context.
  */
-export const assertBranchAccess = async (user, ip) => {
+export const assertBranchAccess = async (user, ip, deviceKey) => {
   if (user.role !== 'BRANCH') return;
   if (!user.branchId) throw new HttpError(403, 'This branch account is not linked to a branch');
   const branch = await prisma.pickupLocation.findFirst({ where: { id: user.branchId, tenantId: user.tenantId }, select: { isActive: true, allowedIps: true } });
   if (!branch || !branch.isActive) throw new HttpError(403, 'This branch is not active');
+  // Approved devices, when the branch has any, decide alone: they hold on a line whose address keeps changing.
+  const device = await checkDevice(user.branchId, deviceKey);
+  if (device.required) {
+    if (device.ok) return;
+    console.warn(`[branch-access] refused ${user.email || user.branchId}: device not approved for this branch`);
+    throw new HttpError(403, 'This device is not approved for this branch. Ask the owner to approve it in Users → Branch devices.');
+  }
   if (branch.allowedIps.length && !ipAllowed(ip, branch.allowedIps)) {
     // The address is logged so a branch whose line changed can be fixed from the log.
     console.warn(`[branch-access] refused ${user.email || user.branchId} from ${ip || 'unknown address'}`);
@@ -85,7 +94,7 @@ export const assertBranchAccess = async (user, ip) => {
   }
 };
 
-export const login = async ({ email, password }, { ip = '' } = {}) => {
+export const login = async ({ email, password }, { ip = '', deviceKey } = {}) => {
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
     include: { tenant: { select: { slug: true, nameEn: true } } },
@@ -94,7 +103,7 @@ export const login = async ({ email, password }, { ip = '' } = {}) => {
     throw new HttpError(401, 'Invalid email or password');
   }
   if (!user.isActive) throw new HttpError(403, 'Account is deactivated');
-  await assertBranchAccess(user, ip);
+  await assertBranchAccess(user, ip, deviceKey);
   return {
     token: sign(user, config.jwtExpiresIn),
     refreshToken: sign(user, config.refreshExpiresIn, 'refresh'),
@@ -102,7 +111,7 @@ export const login = async ({ email, password }, { ip = '' } = {}) => {
   };
 };
 
-export const refresh = async (refreshToken, { ip = '' } = {}) => {
+export const refresh = async (refreshToken, { ip = '', deviceKey } = {}) => {
   if (!refreshToken) throw new HttpError(400, 'refreshToken is required');
   let payload;
   try {
@@ -114,7 +123,9 @@ export const refresh = async (refreshToken, { ip = '' } = {}) => {
   if (payload.typ === 'access') throw new HttpError(401, 'Invalid or expired refresh token');
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
   if (!user || !user.isActive) throw new HttpError(401, 'User no longer active');
-  await assertBranchAccess(user, ip);
+  // Sessions ended since this token was made (password changed, signed out everywhere) cannot be renewed.
+  if ((payload.tv ?? 0) !== user.tokenVersion) throw new HttpError(401, 'Your session has ended. Please sign in again.');
+  await assertBranchAccess(user, ip, deviceKey);
   return { token: sign(user, config.jwtExpiresIn), user: publicUser(user) };
 };
 

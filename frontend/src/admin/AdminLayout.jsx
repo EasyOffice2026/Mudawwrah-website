@@ -123,6 +123,18 @@ export default function AdminLayout() {
           <button type="button" onClick={logout} className="btn w-full bg-white/15 text-white hover:bg-white/25">
             {t('admin.signOut')}
           </button>
+          {/* Every session of this account, on every device: for a lost phone or a password that got out. */}
+          <button
+            type="button"
+            className="w-full text-center text-[11px] text-white/80 underline"
+            onClick={async () => {
+              if (!window.confirm(t('admin.sessions.confirmSelf'))) return;
+              await api.post('/auth/sign-out-everywhere').catch(() => {});
+              logout();
+            }}
+          >
+            {t('admin.sessions.signOutEverywhere')}
+          </button>
           <BuildLabel className="pt-1 text-[11px] text-white/80" />
         </div>
       </aside>

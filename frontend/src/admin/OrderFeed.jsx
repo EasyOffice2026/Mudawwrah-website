@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { api, API_BASE, tokenKey } from '../lib/api';
+import { api, API_BASE, readDevice, tokenKey } from '../lib/api';
 import { playChime, unlockAudio, watchAudio } from '../lib/chime';
 import { dateTime, kwd, localized } from '../lib/format';
 import { createSseParser, isSilent, POLL_MS, reconnectDelay, shouldPoll } from '../lib/liveStream';
@@ -137,6 +137,8 @@ export function OrderFeedProvider({ slug, user, children }) {
             Authorization: `Bearer ${localStorage.getItem(tokenKey(slug)) || ''}`,
             'X-Tenant': slug,
             'X-Storefront-Host': window.location.hostname,
+            // An approved branch device proves itself here too, or a locked branch's live connection is refused.
+            ...(readDevice(slug)?.key ? { 'X-Device-Key': readDevice(slug).key } : {}),
           },
           signal: controller.signal,
         });

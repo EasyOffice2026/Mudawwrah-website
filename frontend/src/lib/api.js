@@ -16,6 +16,20 @@ export const api = axios.create({
 export const tokenKey = (slug) => storageKey('token', slug);
 export const refreshKey = (slug) => storageKey('refresh', slug);
 
+/**
+ * This browser's approval as a branch device (Users → Branch devices), if the owner gave it one: { key, id,
+ * branchId, name }. The key goes with every request; a branch with approved devices accepts its branch accounts
+ * from those devices only.
+ */
+export const deviceKey = (slug) => storageKey('device', slug);
+export const readDevice = (slug = currentTenantSlug()) => {
+  try {
+    return JSON.parse(localStorage.getItem(deviceKey(slug)) || 'null');
+  } catch {
+    return null;
+  }
+};
+
 api.interceptors.request.use((config) => {
   const slug = currentTenantSlug();
   // Tells the API which restaurant this request belongs to. The API also
@@ -31,6 +45,8 @@ api.interceptors.request.use((config) => {
   config.headers['X-Storefront-Host'] = window.location.hostname;
   const token = localStorage.getItem(tokenKey(slug));
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const device = readDevice(slug);
+  if (device?.key) config.headers['X-Device-Key'] = device.key;
   return config;
 });
 

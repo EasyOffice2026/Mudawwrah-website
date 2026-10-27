@@ -1,23 +1,32 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { assertBranchAccess, clientIp } from '../services/authService.js';
+import { hashKey } from '../services/deviceService.js';
+import { sessionValid } from '../services/sessionService.js';
 import { HttpError } from './error.js';
 
-export const authenticate = (req, res, next) => {
+export const authenticate = async (req, res, next) => {
   // x-app-authorization lets a reverse proxy that owns the Authorization
   // header (e.g. one adding its own basic auth) still forward the app's JWT.
   const header = req.headers['x-app-authorization'] || req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return next(new HttpError(401, 'Authentication required'));
+  let payload;
   try {
-    const payload = jwt.verify(token, config.jwtSecret);
+    payload = jwt.verify(token, config.jwtSecret);
     // The 30-day renewal token only ever buys a new short one; it never opens the API itself.
     if (payload.typ === 'refresh') throw new Error('refresh token used as access token');
-    req.user = payload;
-    next();
   } catch {
-    next(new HttpError(401, 'Invalid or expired token'));
+    return next(new HttpError(401, 'Invalid or expired token'));
   }
+  // A session ended since (password changed, account disabled, signed out everywhere) is refused at once.
+  try {
+    if (!(await sessionValid(payload))) return next(new HttpError(401, 'Your session has ended. Please sign in again.'));
+  } catch (error) {
+    return next(error);
+  }
+  req.user = payload;
+  next();
 };
 
 /**
@@ -28,13 +37,14 @@ export const authenticate = (req, res, next) => {
  * here, never from the request body — otherwise anyone could file an order
  * against someone else's account.
  */
-export const optionalAuth = (req, res, next) => {
+export const optionalAuth = async (req, res, next) => {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (token) {
     try {
       const payload = jwt.verify(token, config.jwtSecret);
-      if (payload.typ !== 'refresh') req.user = payload;
+      // An ended session orders as a guest rather than as that account.
+      if (payload.typ !== 'refresh' && (await sessionValid(payload))) req.user = payload;
     } catch {
       // An expired token should not stop a guest checkout.
     }
@@ -89,11 +99,12 @@ const branchChecks = new Map();
 export const requireBranchAccess = async (req, res, next) => {
   if (req.user?.role !== 'BRANCH') return next();
   const ip = clientIp(req);
-  const key = `${req.user.sub}|${ip}`;
+  const deviceKey = req.get('x-device-key') || undefined;
+  const key = `${req.user.sub}|${ip}|${deviceKey ? hashKey(deviceKey) : '-'}`;
   const cached = branchChecks.get(key);
   if (cached && cached.expires > Date.now()) return cached.error ? next(cached.error) : next();
   try {
-    await assertBranchAccess({ role: 'BRANCH', branchId: req.user.branchId, tenantId: req.user.tenantId }, ip);
+    await assertBranchAccess({ role: 'BRANCH', branchId: req.user.branchId, tenantId: req.user.tenantId }, ip, deviceKey);
     branchChecks.set(key, { expires: Date.now() + 60_000 });
     next();
   } catch (error) {

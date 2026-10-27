@@ -695,6 +695,31 @@
         "matchedSome_one": "1 payment matches Tap and is ticked. Look at the ones listed above.",
         "matchedSome_other": "{{count}} payments match Tap and are ticked. Look at the ones listed above."
       }
+    },
+    "sessions": {
+      "signOut": "Sign out everywhere",
+      "confirm": "Sign {{name}} out on every device? They will need their password to sign in again.",
+      "done": "{{name}} has been signed out on every device.",
+      "signOutEverywhere": "Sign out on all devices",
+      "confirmSelf": "Sign out on every device where you are signed in, this one included?"
+    },
+    "devices": {
+      "title": "Branch devices",
+      "intro": "Approve the computer or tablet at each branch. Once a branch has an approved device, its branch accounts only work on approved devices, even when the branch internet address changes (5G). To approve a device, open this page on that device, signed in as the owner.",
+      "locked_one": "Locked to 1 device",
+      "locked_other": "Locked to {{count}} devices",
+      "open": "Not locked: any device",
+      "thisApproved": "This device is approved for {{branch}}.",
+      "thisNot": "This device is not approved for any branch.",
+      "chooseBranch": "Choose the branch",
+      "name": "Device name",
+      "approveThis": "Approve this device",
+      "thisOne": "this device",
+      "lastSeen": "last used {{when}}",
+      "neverSeen": "not used yet",
+      "revoke": "Revoke",
+      "confirmRevoke": "Revoke \"{{name}}\"? Branch accounts stop working on it at once. If it is the branch's only device, the branch is no longer locked.",
+      "storageBlocked": "This browser could not keep the approval (private window or blocked storage). Use a normal window."
     }
   },
   "store": {

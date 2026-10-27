@@ -136,6 +136,7 @@ model Tenant {
   siteVisits      SiteVisit[]
   deliveryZones   DeliveryZone[]
   branchSoldOut   BranchSoldOut[]
+  trustedDevices  TrustedDevice[]
 }
 
 /// A voucher a customer can apply at checkout. Discounts are always recomputed
@@ -177,6 +178,9 @@ model User {
   phone     String?
   role      Role     @default(CUSTOMER)
   isActive  Boolean  @default(true)
+  /// Raised to end every session of this account at once (password changed, account disabled, "sign out everywhere"):
+  /// a token carries the version it was issued with, and one with an older version is refused.
+  tokenVersion Int    @default(0)
   /// The branch a BRANCH user works at. SetNull: removing a branch locks its accounts out rather than deleting them.
   branchId  String?
   branch    PickupLocation? @relation("BranchStaff", fields: [branchId], references: [id], onDelete: SetNull)
@@ -490,6 +494,7 @@ model PickupLocation {
   updatedAt    DateTime @updatedAt
   orders       Order[]  @relation("OrderPickupLocation")
   branchOrders Order[]  @relation("OrderBranch")
+  trustedDevices TrustedDevice[]
   staff        User[]   @relation("BranchStaff")
   zones        DeliveryZone[]
   soldOut      BranchSoldOut[]
@@ -608,4 +613,22 @@ model SiteVisit {
   sessions Int    @default(0)
 
   @@id([tenantId, day])
+}
+
+/// A device the owner has approved for one branch: once a branch has any, its branch accounts work only on them (a
+/// lock that holds on a 5G line, whose address keeps changing). The browser keeps a random key; only its hash is stored.
+model TrustedDevice {
+  id         String         @id @default(uuid())
+  tenantId   String
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId   String
+  branch     PickupLocation @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name       String
+  keyHash    String         @unique
+  createdAt  DateTime       @default(now())
+  lastSeenAt DateTime?
+  revokedAt  DateTime?
+
+  @@index([tenantId])
+  @@index([branchId])
 }
