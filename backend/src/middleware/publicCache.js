@@ -4,7 +4,8 @@
  *
  * Each of those answers takes the server several round trips to the database, and a menu page asks
  * for all of them at once, so a customer waited a second or two for data that changes a few times a
- * day. Here an answer is kept for 20 seconds per restaurant and the restaurant lookup for 60, and
+ * day. Here an answer is kept for 20 seconds per restaurant (5 minutes for the menu, offers, settings and the
+ * restaurant itself, which only change when staff edit them) and the restaurant lookup for 60, and
  * anything staff change clears everything at once, so a sold-out toggle or a price edit is live
  * immediately, not after the timer.
  */
@@ -13,7 +14,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 // public lists show. Every other write clears the memory.
 const NOT_A_MENU_CHANGE = /^[/](orders|visits|promotions[/]preview|auth|payments|whatsapp|feedback|print)/;
 
-export const createPublicCache = ({ ttlMs = 20_000, lookupTtlMs = 60_000, now = Date.now } = {}) => {
+export const createPublicCache = ({ ttlMs = 20_000, contentTtlMs = 5 * 60_000, lookupTtlMs = 60_000, now = Date.now } = {}) => {
   const responses = new Map();
   const lookups = new Map();
 
@@ -22,12 +23,16 @@ export const createPublicCache = ({ ttlMs = 20_000, lookupTtlMs = 60_000, now = 
     lookups.clear();
   };
 
-  /** Route middleware for a public GET: answer from memory when fresh, otherwise remember the answer. */
-  const middleware = (req, res, next) => {
+  /**
+   * Route middleware for a public GET: answer from memory when fresh, otherwise remember the answer. `keepMs`
+   * lets content that only changes when staff edit it (the menu, offers, settings) be kept longer: any staff
+   * change clears it at once anyway. Answers that depend on the clock ("open now") keep the short default.
+   */
+  const cacheFor = (keepMs) => (req, res, next) => {
     if (req.method !== 'GET' || !req.tenant) return next();
     const key = `${req.tenant.id}|${req.originalUrl}`;
     const hit = responses.get(key);
-    if (hit && now() - hit.at < ttlMs) {
+    if (hit && now() - hit.at < keepMs) {
       res.set('X-Cache', 'HIT');
       return res.type('json').send(hit.body);
     }
@@ -38,6 +43,8 @@ export const createPublicCache = ({ ttlMs = 20_000, lookupTtlMs = 60_000, now = 
     };
     return next();
   };
+  const middleware = cacheFor(ttlMs);
+  const longer = cacheFor(contentTtlMs);
 
   /** Mounted ahead of the routes: a successful change by staff empties the memory. */
   const invalidateOnWrite = (req, res, next) => {
@@ -62,7 +69,7 @@ export const createPublicCache = ({ ttlMs = 20_000, lookupTtlMs = 60_000, now = 
     return value ?? null;
   };
 
-  return { middleware, invalidateOnWrite, remember, clear };
+  return { middleware, longer, invalidateOnWrite, remember, clear };
 };
 
 export const publicCache = createPublicCache();

@@ -22,6 +22,8 @@ const isPicks = (category) => /(^|-)picks?(-|$)/.test(category.slug);
 export const listPublic = async () => {
   const categories = await prisma.category.findMany({
     where: { isVisible: true },
+    // The whole menu (categories, items, pictures, options) in one query instead of one per level.
+    relationLoadStrategy: 'join',
     orderBy: { displayOrder: 'asc' },
     include: {
       items: {

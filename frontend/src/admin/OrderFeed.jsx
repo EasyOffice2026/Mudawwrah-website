@@ -4,12 +4,9 @@ import { Link } from 'react-router-dom';
 import { api, API_BASE, tokenKey } from '../lib/api';
 import { playChime, unlockAudio, watchAudio } from '../lib/chime';
 import { dateTime, kwd, localized } from '../lib/format';
-import { createSseParser, reconnectDelay } from '../lib/liveStream';
+import { createSseParser, isSilent, POLL_MS, reconnectDelay, shouldPoll } from '../lib/liveStream';
 import { shouldChimeAgain, waitingAlarm } from '../lib/waiting';
 
-// Small and cheap (a few KB), so polling often costs nothing: this is what
-// makes a new order show up within seconds on every admin page.
-const POLL_MS = 10000;
 
 const FeedContext = createContext(null);
 
@@ -98,6 +95,11 @@ export function OrderFeedProvider({ slug, user, children }) {
     }
   }, [announce]);
 
+  // Whether the live connection is open, when the feed was last fetched, and when the connection last spoke.
+  const live = useRef(false);
+  const lastLoadAt = useRef(0);
+  const lastByteAt = useRef(0);
+
   const loadRef = useRef(load);
   const feedRef = useRef(feed);
   useEffect(() => {
@@ -105,10 +107,17 @@ export function OrderFeedProvider({ slug, user, children }) {
     feedRef.current = feed;
   }, [load, feed]);
 
-  // The regular check stays as the safety net; the live connection below makes it instant.
+  // The regular check is the safety net: every 10 s while the live connection is down, once a minute while it is
+  // up (the connection already brings every change at once, and each check costs the server several queries).
   useEffect(() => {
-    load();
-    const id = setInterval(load, POLL_MS);
+    const check = () => {
+      if (!shouldPoll({ live: live.current, lastLoadAt: lastLoadAt.current, now: Date.now() })) return;
+      lastLoadAt.current = Date.now();
+      load();
+    };
+    lastLoadAt.current = 0;
+    check();
+    const id = setInterval(check, POLL_MS);
     return () => clearInterval(id);
   }, [load]);
 
@@ -133,27 +142,38 @@ export function OrderFeedProvider({ slug, user, children }) {
         });
         if (!response.ok || !response.body) throw new Error(`stream ${response.status}`);
         attempt = 0;
+        live.current = true;
+        lastByteAt.current = Date.now();
         const parse = createSseParser(() => loadRef.current());
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         for (;;) {
           const { value, done } = await reader.read();
           if (done) break;
+          lastByteAt.current = Date.now();
           parse(decoder.decode(value, { stream: true }));
         }
       } catch {
         /* dropped or refused: try again below */
       }
+      // Until it is back, the regular check runs every 10 s again.
+      live.current = false;
       if (!stopped) {
         timer = setTimeout(connect, reconnectDelay(attempt));
         attempt += 1;
       }
     };
     connect();
+    // A connection can die without closing (a phone network switching, a laptop waking): no heartbeat for 45 s
+    // means it is gone, so it is dropped and opened again rather than trusted while orders go unseen.
+    const watchdog = setInterval(() => {
+      if (isSilent({ live: live.current, lastByteAt: lastByteAt.current, now: Date.now() })) controller?.abort();
+    }, 15000);
     return () => {
       stopped = true;
       controller?.abort();
       clearTimeout(timer);
+      clearInterval(watchdog);
     };
   }, [slug]);
 

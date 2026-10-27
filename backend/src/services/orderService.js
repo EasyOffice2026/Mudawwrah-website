@@ -344,6 +344,8 @@ export const list = async ({ status, channel, from, to, search, branchId, page =
       tx.order.findMany({
         where,
         include,
+        // One query for the orders and everything shown with them, not one per relation.
+        relationLoadStrategy: 'join',
         orderBy: { createdAt: 'desc' },
         skip: (Number(page) - 1) * Number(pageSize),
         take: Number(pageSize),
@@ -354,7 +356,7 @@ export const list = async ({ status, channel, from, to, search, branchId, page =
 };
 
 export const getById = async (id, viewer = null) => {
-  const order = await prisma.order.findUnique({ where: { id }, include });
+  const order = await prisma.order.findUnique({ where: { id }, include, relationLoadStrategy: 'join' });
   // Another branch's order is reported as not found rather than forbidden: no hint it exists.
   if (!order || (viewer?.role === 'BRANCH' && order.branchId !== viewer.branchId)) throw new HttpError(404, 'Order not found');
   return order;

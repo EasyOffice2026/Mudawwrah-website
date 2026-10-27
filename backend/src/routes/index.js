@@ -71,7 +71,7 @@ router.get('/my-address', (req, res) => {
 
 // Platform level — no restaurant in context.
 router.get('/tenants', h(tenants.listPublic));
-router.get('/tenants/current', publicCache.middleware, h(tenants.current));
+router.get('/tenants/current', publicCache.longer, h(tenants.current));
 router.get('/tenants/all', authenticate, requirePlatformAdmin, h(tenants.listAll));
 router.post('/tenants', authenticate, requirePlatformAdmin, h(tenants.create));
 router.put('/tenants/:id', authenticate, requirePlatformAdmin, h(tenants.update));
@@ -90,7 +90,7 @@ const scoped = Router();
 scoped.use(requireTenant);
 
 // Categories
-scoped.get('/categories', publicCache.middleware, h(categories.listPublic));
+scoped.get('/categories', publicCache.longer, h(categories.listPublic));
 scoped.get('/categories/all', requireStaff, h(categories.listAll));
 scoped.post('/categories/reorder', requireStaff, h(categories.reorder));
 scoped.get('/categories/:id', h(categories.getById));
@@ -170,6 +170,7 @@ scoped.put('/banners/:id', requireStaff, h(banners.update));
 scoped.delete('/banners/:id', requireStaff, h(banners.remove));
 
 // Promotions
+// Offers start and end at set times, so they keep the short cache.
 scoped.get('/promotions', publicCache.middleware, h(promotions.listPublic));
 scoped.post('/promotions/preview', promoLimit, h(promotions.preview));
 scoped.get('/promotions/all', requireStaff, h(promotions.listAll));
@@ -191,7 +192,7 @@ scoped.put('/users/:id', requireAdmin, h(users.update));
 scoped.delete('/users/:id', requireAdmin, h(users.remove));
 
 // Settings
-scoped.get('/settings', publicCache.middleware, h(settings.get));
+scoped.get('/settings', publicCache.longer, h(settings.get));
 // Fees, minimum order, tax and payment methods: owner only (client requirement).
 scoped.put('/settings', requireAdmin, h(settings.update));
 

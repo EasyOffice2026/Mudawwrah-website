@@ -56,3 +56,14 @@ test('the live connection is read line by line, even when a message is split acr
 test('it reconnects after 3, 6, 12, 24 and then every 30 seconds', () => {
   assert.deepEqual([0, 1, 2, 3, 4, 9].map(reconnectDelay), [3000, 6000, 12000, 24000, 30000, 30000]);
 });
+
+test('with the live connection up the regular check runs once a minute; without it, every time', async () => {
+  const { shouldPoll, isSilent, LIVE_POLL_MS, SILENT_MS } = await import('../src/lib/liveStream.js');
+  assert.equal(shouldPoll({ live: false, lastLoadAt: 0, now: 1 }), true);
+  assert.equal(shouldPoll({ live: true, lastLoadAt: 0, now: LIVE_POLL_MS - 1 }), false);
+  assert.equal(shouldPoll({ live: true, lastLoadAt: 0, now: LIVE_POLL_MS }), true);
+  // A connection silent past the heartbeat window is treated as dropped.
+  assert.equal(isSilent({ live: true, lastByteAt: 0, now: SILENT_MS + 1 }), true);
+  assert.equal(isSilent({ live: true, lastByteAt: 0, now: SILENT_MS }), false);
+  assert.equal(isSilent({ live: false, lastByteAt: 0, now: SILENT_MS * 10 }), false);
+});
