@@ -10,7 +10,10 @@ import { getAttribution } from '../../lib/tracking';
 import { useCart } from '../../store/cart';
 import { legalFor, PAGE_PATH } from '../legal/index.js';
 import LocationPicker from './LocationPicker.jsx';
-import PaymentLogos from './PaymentLogos.jsx';
+import { DeliveryInstructions, TipPicker } from './checkout/DeliveryExtras.jsx';
+import OrderPlaced from './checkout/OrderPlaced.jsx';
+import PaymentChoices from './checkout/PaymentChoices.jsx';
+import PaymentSummary from './checkout/PaymentSummary.jsx';
 import SheetShell from './SheetShell.jsx';
 
 const buildWhatsappMessage = ({ lines, order, settings, lang, t }) => {
@@ -44,16 +47,11 @@ const buildWhatsappMessage = ({ lines, order, settings, lang, t }) => {
     .join('\n');
 };
 
-// Order of progress, used to decide which steps on the tracker are done. A
-// pickup order never goes out with a rider, so it skips those two steps.
-const TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'];
-
 // Kuwait mobile: exactly 8 digits starting with 9, 6, 5 or 4. Spaces, dashes
 // and a pasted +965 / 965 country code are tolerated and stripped first, so
 // what is validated — and sent — is always the bare 8-digit number.
 const normalisePhone = (value) => value.replace(/[\s-]/g, '').replace(/^\+?965/, '');
 const phoneValid = (value) => /^[4569]\d{7}$/.test(normalisePhone(value));
-const PICKUP_TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'];
 
 // Used by the location step when the map is unavailable and the restaurant
 // has not set up delivery zones of its own.
@@ -223,14 +221,6 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
 
   // Driven by the restaurant's own settings, so a shop that does not take cash simply never offers it. The
   // customer picks the method here, and the payment page opens straight on it (KNET, the card form, Apple Pay).
-  // Laid out as on the payment page itself: KNET, Credit Card (Visa, Mastercard), American Express, Apple Pay.
-  const paymentText = {
-    KNET: [t('checkout.knet'), t('checkout.knetHint')],
-    CARD: [t('checkout.card'), t('checkout.cardHint')],
-    AMEX: [t('checkout.amex'), t('checkout.amexHint')],
-    APPLE_PAY: [t('checkout.applePay'), t('checkout.applePayHint')],
-    CASH: [t('checkout.cash'), ''],
-  };
   const choices = paymentChoices(offeredPayments(settings?.paymentMethods, { applePay }));
   // American Express and Credit Card are both a CARD order, so the choice itself is remembered separately.
   const currentChoice = choices.includes(payChoice) && methodOfChoice(payChoice) === form.paymentMethod ? payChoice : form.paymentMethod;
@@ -359,54 +349,15 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   if (placed) {
     return (
       <SheetShell label={t('checkout.title')}>
-        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        <div className="animate-pop flex h-20 w-20 items-center justify-center rounded-full bg-discount/10 text-4xl">
-          ✓
-        </div>
-        <p className="mt-6 text-xl font-extrabold">{t('checkout.success', { orderNumber: placed.orderNumber })}</p>
-        <p className="mt-2 text-sm text-ink-soft">
-          {placed.orderType === 'PICKUP'
-            ? t('checkout.successPickup', { minutes: settings?.pickupWaitMinutes || 15 })
-            : t('checkout.successBody', { phone: placed.customerPhone })}
-        </p>
-        <p className="mt-6 text-3xl font-extrabold">{kwd(placed.total)}</p>
-
-        {/* Progress the customer can watch without leaving the page. Before
-            this, a web order simply went quiet after checkout. */}
-        <div className="mt-8 w-full max-w-xs">
-          <p className="text-xs font-bold uppercase tracking-wide text-ink-soft">{t('checkout.trackTitle')}</p>
-          <ol className="mt-3 space-y-2.5">
-            {(placed.orderType === 'PICKUP' ? PICKUP_TRACK_STAGES : TRACK_STAGES).map((stage, index, stages) => {
-              const reached = stages.indexOf(tracked?.status || placed.status) >= index;
-              return (
-                <li key={stage} className="flex items-center gap-3 text-start">
-                  <span
-                    aria-hidden
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                      reached ? 'bg-discount text-white' : 'bg-hairline text-ink-soft'
-                    }`}
-                  >
-                    {reached ? '✓' : ''}
-                  </span>
-                  <span className={`text-sm ${reached ? 'font-semibold' : 'text-ink-soft'}`}>
-                    {t(`checkout.status_${stage}`)}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-        <button
-          type="button"
-          className="btn-primary mt-8 w-full max-w-xs py-3.5"
-          onClick={() => {
+        <OrderPlaced
+          placed={placed}
+          tracked={tracked}
+          pickupWaitMinutes={settings?.pickupWaitMinutes}
+          onNewOrder={() => {
             setPlaced(null);
             onClose();
           }}
-        >
-          {t('checkout.newOrder')}
-        </button>
-        </div>
+        />
       </SheetShell>
     );
   }
@@ -641,137 +592,25 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
               ) : null}
             </section>
 
-            <section className="mt-3 bg-white px-3 py-4">
-              <h3 className="text-[15px] font-extrabold">{t('checkout.instructions')}</h3>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {['callOnArrival', 'dontRingBell', 'leaveAtReception', 'ringDoorbell'].map((key) => {
-                  const label = t(`checkout.${key}`);
-                  const active = deliveryNote === label;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setDeliveryNote(active ? '' : label)}
-                      className={`rounded-xl border p-2.5 text-xs font-semibold transition active:scale-[0.98] ${
-                        active ? 'border-brand bg-brand-light text-brand' : 'border-hairline bg-white text-ink-soft'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
+            <DeliveryInstructions value={deliveryNote} onChange={setDeliveryNote} />
 
-            {settings?.tipsEnabled === 'true' && tipPresets.length ? (
-              <section className="mt-3 bg-white px-3 py-4">
-                <h3 className="text-[15px] font-extrabold">{t('checkout.tipTitle')}</h3>
-                <p className="mt-0.5 text-xs text-ink-soft">{t('checkout.tipHint')}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {tipPresets.map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setTip(tip === preset ? 0 : preset)}
-                      className={`rounded-xl border px-3.5 py-2.5 text-sm font-bold transition active:scale-95 ${
-                        tip === preset ? 'border-brand bg-brand-light text-brand' : 'border-hairline bg-white'
-                      }`}
-                    >
-                      {kwd(preset)}
-                    </button>
-                  ))}
-                  {tip > 0 ? (
-                    <button type="button" onClick={() => setTip(0)} className="px-2 text-sm font-bold text-ink-soft underline">
-                      {t('cart.remove')}
-                    </button>
-                  ) : null}
-                </div>
-              </section>
-            ) : null}
+            {settings?.tipsEnabled === 'true' && tipPresets.length ? <TipPicker presets={tipPresets} tip={tip} onChange={setTip} /> : null}
           </>
         ) : null}
 
-        <section className="mt-3 bg-white px-3 py-4">
-          <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-ink-soft">{t('checkout.selectPayment')}</h3>
-          <div className="mt-3 space-y-2.5">
-            {choices.map((choice) => {
-              const [label, hint] = paymentText[choice];
-              const selected = currentChoice === choice;
-              return (
-                <label
-                  key={choice}
-                  className={`flex min-h-[62px] cursor-pointer items-center gap-3.5 rounded-lg border bg-white px-4 py-2.5 transition-colors ${
-                    selected ? 'border-brand' : 'border-[#e3e3e3]'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="paymentChoice"
-                    value={choice}
-                    checked={selected}
-                    onChange={() => choose(choice)}
-                    className="h-5 w-5 shrink-0 accent-brand"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-bold text-ink">{label}</span>
-                    {hint ? <span className="block text-xs text-ink-soft">{hint}</span> : null}
-                  </span>
-                  <PaymentLogos choice={choice} />
-                </label>
-              );
-            })}
-          </div>
-        </section>
+        <PaymentChoices choices={choices} current={currentChoice} onChoose={choose} />
 
-        <section className="mt-3 bg-white px-3 py-4">
-          <h3 className="text-[15px] font-extrabold">{t('cart.paymentSummary')}</h3>
-          <div className="mt-3 space-y-2.5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-ink-soft">{t('cart.subtotal')}</span>
-              <span className="font-medium">{kwd(sub)}</span>
-            </div>
-            {discount > 0 ? (
-              <div className="flex justify-between">
-                <span className="text-ink-soft">{t('cart.couponDiscount')}</span>
-                <span className="font-semibold text-discount">− {kwd(discount)}</span>
-              </div>
-            ) : null}
-            {!isPickup ? (
-              <div className="flex justify-between">
-                <span className="text-ink-soft">{t('cart.deliveryFee')}</span>
-                <span className="font-medium">{deliveryFee > 0 ? kwd(deliveryFee) : t('store.freeDelivery')}</span>
-              </div>
-            ) : null}
-            {!isPickup && zone?.etaMinutes ? (
-              <div className="flex justify-between">
-                <span className="text-ink-soft">{t('checkout.deliveryTime')}</span>
-                <span className="font-medium">{t('checkout.etaMinutes', { minutes: zone.etaMinutes })}</span>
-              </div>
-            ) : null}
-            {serviceCharge > 0 ? (
-              <div className="flex justify-between">
-                <span className="text-ink-soft">{t('cart.serviceCharge')}</span>
-                <span className="font-medium">{kwd(serviceCharge)}</span>
-              </div>
-            ) : null}
-            {tax > 0 ? (
-              <div className="flex justify-between">
-                <span className="text-ink-soft">{t('cart.tax')}</span>
-                <span className="font-medium">{kwd(tax)}</span>
-              </div>
-            ) : null}
-            {effectiveTip > 0 ? (
-              <div className="flex justify-between">
-                <span className="text-ink-soft">{t('checkout.tipTitle')}</span>
-                <span className="font-medium">{kwd(effectiveTip)}</span>
-              </div>
-            ) : null}
-            <div className="flex justify-between border-t border-hairline pt-2.5">
-              <span className="font-extrabold">{t('cart.total')}</span>
-              <span className="font-extrabold">{kwd(total)}</span>
-            </div>
-          </div>
-        </section>
+        <PaymentSummary
+          subtotal={sub}
+          discount={discount}
+          isPickup={isPickup}
+          deliveryFee={deliveryFee}
+          etaMinutes={zone?.etaMinutes}
+          serviceCharge={serviceCharge}
+          tax={tax}
+          tip={effectiveTip}
+          total={total}
+        />
       </div>
 
       <div className="border-t border-hairline bg-white p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
