@@ -720,6 +720,34 @@
       "revoke": "Revoke",
       "confirmRevoke": "Revoke \"{{name}}\"? Branch accounts stop working on it at once. If it is the branch's only device, the branch is no longer locked.",
       "storageBlocked": "This browser could not keep the approval (private window or blocked storage). Use a normal window."
+    },
+    "menuImport": {
+      "open": "Import from Excel",
+      "title": "Import the menu from Excel",
+      "intro": "One row per item: its category, name in English and Arabic, and price (KWD), and if you like a description, calories and whether it is available. Items already on the menu (same category and name) are updated; new ones are added. Nothing is ever deleted, and pictures are added afterwards. You will see what changes before anything is saved.",
+      "template": "Download the template",
+      "choose": "Choose the file (.xlsx or .csv)",
+      "reading": "Reading…",
+      "empty": "The file has no rows.",
+      "summary": "{{create}} to add, {{update}} to update, {{unchanged}} already the same.",
+      "newCategories": "New categories: {{names}}.",
+      "fixFirst_one": "Fix this row first; nothing will be imported until then:",
+      "fixFirst_other": "Fix these {{count}} rows first; nothing will be imported until then:",
+      "row": "Row {{row}}",
+      "willCreate": "new item",
+      "willUpdate": "update: {{fields}}",
+      "fields": {
+        "price": "price",
+        "nameAr": "Arabic name",
+        "descriptionEn": "description",
+        "descriptionAr": "Arabic description",
+        "calories": "calories",
+        "isAvailable": "availability"
+      },
+      "import_one": "Import 1 change",
+      "import_other": "Import {{count}} changes",
+      "importing": "Importing…",
+      "done": "Done: {{create}} added, {{update}} updated."
     }
   },
   "store": {

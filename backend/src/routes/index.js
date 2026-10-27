@@ -7,6 +7,7 @@ import * as dashboard from '../controllers/dashboardController.js';
 import * as csp from '../controllers/cspController.js';
 import * as devices from '../controllers/deviceController.js';
 import * as feedback from '../controllers/feedbackController.js';
+import * as menuImport from '../controllers/menuImportController.js';
 import * as foodics from '../controllers/foodicsController.js';
 import * as items from '../controllers/itemController.js';
 import * as media from '../controllers/mediaController.js';
@@ -106,6 +107,9 @@ scoped.get('/categories/all', requireStaff, h(categories.listAll));
 scoped.post('/categories/reorder', requireStaff, h(categories.reorder));
 scoped.get('/categories/:id', h(categories.getById));
 scoped.post('/categories', requireStaff, h(categories.create));
+// The menu from a spreadsheet: what it would change, then the change itself (all or nothing, never deleting).
+scoped.post('/menu/import/preview', requireStaff, h(menuImport.preview));
+scoped.post('/menu/import', requireStaff, h(menuImport.apply));
 scoped.put('/categories/:id', requireStaff, h(categories.update));
 scoped.delete('/categories/:id', requireAdmin, h(categories.remove));
 

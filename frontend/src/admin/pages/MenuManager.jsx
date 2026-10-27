@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Modal from '../../components/Modal.jsx';
+import MenuImport from '../components/MenuImport.jsx';
 import { api, apiError } from '../../lib/api';
 import { kwd, localized } from '../../lib/format';
 import ImagePicker from '../components/ImagePicker.jsx';
@@ -38,6 +39,7 @@ export default function MenuManager() {
   const [categories, setCategories] = useState([]);
   const [activeCategoryId, setActiveCategoryId] = useState(null);
   const [categoryForm, setCategoryForm] = useState(null);
+  const [importing, setImporting] = useState(false);
   const [itemForm, setItemForm] = useState(null);
   const [selected, setSelected] = useState([]);
   const [error, setError] = useState(null);
@@ -167,6 +169,9 @@ export default function MenuManager() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-extrabold">{t('admin.menu')}</h1>
         <div className="flex gap-2">
+          <button type="button" className="btn-ghost" onClick={() => setImporting(true)}>
+            {t('admin.menuImport.open')}
+          </button>
           <button type="button" className="btn-ghost" onClick={() => setCategoryForm({ ...emptyCategory })}>
             {t('admin.newCategory')}
           </button>
@@ -182,6 +187,8 @@ export default function MenuManager() {
       </div>
 
       {error ? <p className="text-sm font-semibold text-brand">{error}</p> : null}
+
+      <MenuImport open={importing} onClose={() => setImporting(false)} onImported={load} />
 
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <section className="card space-y-2">
