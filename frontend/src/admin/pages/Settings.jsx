@@ -4,6 +4,7 @@ import { api, apiError } from '../../lib/api';
 import SiteOpenSwitch from '../components/SiteOpenSwitch.jsx';
 import BrandingSection from '../components/BrandingSection.jsx';
 import FoodicsSection from '../components/FoodicsSection.jsx';
+import PaymentSection from '../components/PaymentSection.jsx';
 import PickupLocationsSection from '../components/PickupLocationsSection.jsx';
 
 const TEXT_FIELDS = [
@@ -129,6 +130,8 @@ export default function Settings() {
       </section>
 
       <PickupLocationsSection />
+
+      <PaymentSection />
 
       <FoodicsSection />
 

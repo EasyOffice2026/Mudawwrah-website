@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
 import sharp from 'sharp';
-import { config } from './config.js';
+import { config, isStaging } from './config.js';
 import { HttpError } from './middleware/error.js';
 
 // Cloudinary configures itself from CLOUDINARY_URL. Without it we fall back to
@@ -78,6 +78,9 @@ export const put = async (buffer, { folder = 'mdawra' } = {}) => {
 
 export const destroy = async (storageKey) => {
   if (driver === 'cloudinary') {
+    // Staging's pictures are the live site's (scripts/copy-to-staging.mjs): one shared Cloudinary account would
+    // let a test there delete a picture from the real menu.
+    if (isStaging()) return;
     await cloudinary.uploader.destroy(storageKey).catch(() => {});
     return;
   }

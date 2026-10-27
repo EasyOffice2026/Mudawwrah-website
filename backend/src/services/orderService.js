@@ -2,6 +2,7 @@ import { HttpError } from '../middleware/error.js';
 import { prisma } from '../prisma.js';
 import { currentTenant } from '../tenantContext.js';
 import { resolve as resolvePromotion } from './promotionService.js';
+import { acceptedMethods, deliveryFeeFor, orderTotals, priceLines, subtotalOf } from './pricing.js';
 import { getAll as getSettings } from './settingService.js';
 import { pushIfDue as pushToFoodics } from './foodicsService.js';
 import { nextOrderNumber } from './orderNumber.js';
@@ -30,7 +31,6 @@ const include = {
 /** Branch staff only ever see their own branch's orders; a branch account without a branch sees none. */
 const viewerScope = (viewer) => (viewer?.role === 'BRANCH' ? { branchId: viewer.branchId || '00000000-0000-0000-0000-000000000000' } : {});
 
-const round3 = (value) => Number(Number(value).toFixed(3));
 
 // What a newly placed order is answered with: its lines and the branch handling it. The confirmation page, the
 // payment page, WhatsApp and Foodics read nothing else, and every further relation is one more database round
@@ -65,10 +65,7 @@ export const create = async (payload) => {
   // for it, and the WhatsApp bot (channel WHATSAPP) has its own payment step.
   // An order that names no method takes the restaurant's first accepted one —
   // never cash by default, which a restaurant may have switched off.
-  const accepted = String(settings.paymentMethods || 'KNET,CARD')
-    .split(',')
-    .map((method) => method.trim())
-    .filter(Boolean);
+  const accepted = acceptedMethods(settings);
   const isWeb = (payload.channel || 'WEB') === 'WEB';
   const paymentMethod = payload.paymentMethod || (isWeb && accepted[0]) || 'CASH';
   if (isWeb && paymentMethod !== 'WHATSAPP' && !accepted.includes(paymentMethod)) {
@@ -80,31 +77,9 @@ export const create = async (payload) => {
   const payOnline =
     isWeb && ['KNET', 'CARD', 'APPLE_PAY'].includes(paymentMethod) && isOnlinePaymentEnabled(payload.customerPhone);
 
-  const lines = payload.items.map((line) => {
-    const item = menuItems.find((m) => m.id === line.menuItemId);
-    if (!item) throw new HttpError(400, `Menu item ${line.menuItemId} not found`);
-    if (!item.isAvailable || item.isOutOfStock) throw new HttpError(409, `${item.nameEn} is currently unavailable`);
-    const selected = (line.optionIds || []).map((optionId) => {
-      const option = options.find((o) => o.id === optionId && o.menuItemId === item.id);
-      if (!option) throw new HttpError(400, `Customization option ${optionId} is not valid for ${item.nameEn}`);
-      return option;
-    });
-    const extras = selected.reduce((sum, o) => sum + Number(o.extraPrice), 0);
-    const unitPrice = round3(Number(item.price) + extras);
-    return {
-      menuItemId: item.id,
-      nameEn: item.nameEn,
-      nameAr: item.nameAr,
-      unitPrice,
-      quantity: line.quantity,
-      lineTotal: round3(unitPrice * line.quantity),
-      customizations: selected.length
-        ? selected.map((o) => ({ id: o.id, nameEn: o.nameEn, nameAr: o.nameAr, extraPrice: Number(o.extraPrice) }))
-        : undefined,
-    };
-  });
-
-  const subtotal = round3(lines.reduce((sum, l) => sum + l.lineTotal, 0));
+  // Prices come from the menu only (services/pricing.js), never from the client.
+  const lines = priceLines(payload.items, menuItems, options);
+  const subtotal = subtotalOf(lines);
 
   const orderType = payload.orderType === 'PICKUP' ? 'PICKUP' : 'DELIVERY';
   if (orderType === 'PICKUP' && settings.pickupEnabled !== 'true') {
@@ -144,12 +119,12 @@ export const create = async (payload) => {
   }
 
   // Collecting in person is never charged for delivery, and carries no address.
-  let deliveryFee = orderType === 'PICKUP' ? 0 : round3(zone?.deliveryFee ?? settings.deliveryFee);
+  const baseDeliveryFee = deliveryFeeFor(orderType, zone, settings);
 
   // The sold-out check and the voucher (re-resolved from the database; the client only sends a code) are read
   // together, but still judged in the order the customer is told about them: sold out, minimum, then the code.
   const soldOutCheck = firstSoldOut(branchId, lines.map((l) => l.menuItemId));
-  const promoCheck = resolvePromotion(payload.promoCode, subtotal, deliveryFee);
+  const promoCheck = resolvePromotion(payload.promoCode, subtotal, baseDeliveryFee);
   promoCheck.catch(() => {}); // judged below; never an unhandled rejection when an earlier check fails first
 
   const soldOut = await soldOutCheck;
@@ -161,14 +136,15 @@ export const create = async (payload) => {
   }
 
   const { promotion, discount, freeDelivery } = await promoCheck;
-  if (freeDelivery) deliveryFee = 0;
-
-  const discountedSubtotal = round3(subtotal - discount);
-  const serviceCharge = round3((discountedSubtotal * Number(settings.serviceChargePercent)) / 100);
-  // taxPercent was previously editable in admin but never applied to a total.
-  const tax = round3(((discountedSubtotal + serviceCharge) * Number(settings.taxPercent || 0)) / 100);
-  const tip = orderType === 'PICKUP' ? 0 : Math.max(0, round3(payload.tip || 0));
-  const total = round3(discountedSubtotal + deliveryFee + serviceCharge + tax + tip);
+  const { deliveryFee, serviceCharge, tax, tip, total } = orderTotals({
+    subtotal,
+    orderType,
+    deliveryFee: baseDeliveryFee,
+    discount,
+    freeDelivery,
+    settings,
+    tip: payload.tip,
+  });
 
   const order = await prisma.order.create({
     data: {
@@ -344,6 +320,8 @@ export const list = async ({ status, channel, from, to, search, branchId, page =
       tx.order.findMany({
         where,
         include,
+        // One query for the orders and everything shown with them, not one per relation.
+        relationLoadStrategy: 'join',
         orderBy: { createdAt: 'desc' },
         skip: (Number(page) - 1) * Number(pageSize),
         take: Number(pageSize),
@@ -354,7 +332,7 @@ export const list = async ({ status, channel, from, to, search, branchId, page =
 };
 
 export const getById = async (id, viewer = null) => {
-  const order = await prisma.order.findUnique({ where: { id }, include });
+  const order = await prisma.order.findUnique({ where: { id }, include, relationLoadStrategy: 'join' });
   // Another branch's order is reported as not found rather than forbidden: no hint it exists.
   if (!order || (viewer?.role === 'BRANCH' && order.branchId !== viewer.branchId)) throw new HttpError(404, 'Order not found');
   return order;

@@ -1,7 +1,7 @@
 import { config } from '../../config.js';
 import { HttpError } from '../../middleware/error.js';
 import { prisma } from '../../prisma.js';
-import { currentTenant } from '../../tenantContext.js';
+import { currentTenant, runWithTenant } from '../../tenantContext.js';
 import { announce } from '../orderEvents.js';
 import { statusStamp } from '../statusTimes.js';
 import * as mock from './mock.js';
@@ -10,15 +10,22 @@ import * as tap from './tap.js';
 
 const providers = { tap, myfatoorah, mock };
 
-export const getProvider = (name = config.payment.provider) => providers[name] || null;
+/** Whether the current restaurant holds its own Tap account (its own key, saved by its owner). */
+export const hasOwnTapAccount = (tenant = currentTenant()) => Boolean(tap.ownKeyOf(tenant));
+
+// A restaurant with its own Tap account always pays through Tap; any other uses the platform's gateway.
+export const getProvider = (name) => providers[name || (hasOwnTapAccount() ? 'tap' : config.payment.provider)] || null;
 
 /**
- * Online payment is on for the current restaurant only if it is listed in ONLINE_PAYMENT_TENANTS.
- * With a customer's phone given, a pilot list (ONLINE_PAYMENT_PILOT_PHONES) narrows it to those customers.
+ * Online payment is on for the current restaurant when it has its own Tap account, or when it is listed in
+ * ONLINE_PAYMENT_TENANTS (and may use the platform's key: the platform's account belongs to one business, so a
+ * restaurant that is not listed never reaches it). With a customer's phone given, a pilot list
+ * (ONLINE_PAYMENT_PILOT_PHONES) narrows it to those customers.
  */
 export const isOnlinePaymentEnabled = (customerPhone) => {
   const slug = String(currentTenant()?.slug || '').toLowerCase();
-  if (!slug || !config.payment.tenants.includes(slug)) return false;
+  if (!slug) return false;
+  if (!hasOwnTapAccount() && !config.payment.tenants.includes(slug)) return false;
   const pilot = config.payment.pilotPhones;
   if (customerPhone !== undefined && pilot.length && !pilot.includes(String(customerPhone).replace(/[^0-9]/g, '').slice(-8))) return false;
   const provider = getProvider();
@@ -67,24 +74,34 @@ export const handleCallback = async (providerName, query) => {
   const invoiceId = query.invoiceId || query.InvoiceId || query.Id || null;
   if (!paymentId && !invoiceId) throw new HttpError(400, 'Missing payment reference');
 
+  // The call carries no restaurant, and each restaurant may have its own Tap account: the order is found from
+  // the reference first, so its restaurant's key is the one that asks Tap.
+  const byReference = (references) =>
+    prisma.order.findFirst({
+      where: {
+        paymentProvider: provider.name,
+        OR: [
+          ...references.filter(Boolean).map((reference) => ({ paymentRef: String(reference) })),
+          ...(paymentId ? [{ orderNumber: String(paymentId) }] : []),
+        ],
+      },
+      include: { items: true },
+    });
+  let order = await byReference([paymentId, invoiceId]);
+  const tenant = order ? await prisma.tenant.findUnique({ where: { id: order.tenantId } }) : null;
+
   // The gateway is the authority on the payment. If it cannot say (it is down, or does not know
   // the reference), nothing changes, and a webhook is answered with an error so it is sent again.
-  const status = await provider.getPaymentStatus({ paymentId, invoiceId }).catch((error) => {
+  const status = await runWithTenant(tenant, () => provider.getPaymentStatus({ paymentId, invoiceId })).catch((error) => {
     console.error(`[payment] ${provider.name}: status lookup failed`, error.message);
     throw new HttpError(502, 'The payment could not be confirmed');
   });
-  const order = await prisma.order.findFirst({
-    where: {
-      paymentProvider: provider.name,
-      OR: [
-        { paymentRef: status.reference },
-        ...(invoiceId ? [{ paymentRef: String(invoiceId) }] : []),
-        ...(paymentId ? [{ orderNumber: String(paymentId) }] : []),
-      ],
-    },
-    include: { items: true },
-  });
+  order ||= await byReference([status.reference]);
   if (!order) throw new HttpError(404, 'Order for this payment was not found');
+  // Tap's answer must be about this order's own charge, not merely about some charge.
+  if (provider.name === 'tap' && order.paymentRef && status.reference && order.paymentRef !== String(status.reference)) {
+    throw new HttpError(404, 'Order for this payment was not found');
+  }
   if (order.paymentStatus === 'PAID') return { order, alreadyProcessed: true };
   if (!status.paid && !status.failed) return { order, pending: true };
   // The charge must be for this order's total; anything else is not a payment of it.

@@ -34,6 +34,9 @@ services:
       # Makes the server refuse to start with a development secret or an open CORS list.
       - key: NODE_ENV
         value: production
+      # Crash reports to Sentry (DEPLOY.md, "Crash reports"). Optional; off when empty.
+      - key: SENTRY_DSN
+        sync: false
       # Supabase SESSION pooler, port 5432 (the transaction pooler on 6543 breaks Prisma). Keep connection_limit small:
       # every server using the same database shares one pool of connections (Supabase "Pool Size"), so the limits of
       # all servers together must stay under it. Example: ...:5432/postgres?connection_limit=5&pool_timeout=20
@@ -69,3 +72,54 @@ services:
       #   ONLINE_PAYMENT_PILOT_PHONES=55551234     (while testing, only these phones are sent to the payment page;
       #                                             empty = every customer of the listed restaurants)
       # Never set SEED_* here and never run db:setup or db:reset against live data: they can erase it.
+
+  # The staging copy (DEPLOY.md, "Staging"): the same code on a separate database, for trying a change (or a
+  # Prisma upgrade, or a database move) before it reaches the restaurants. It deploys from the `staging` branch, so
+  # a change is tried there first and merged into the production branch afterwards.
+  # - APP_ENV=staging: it refuses to start with a live Tap key, never sends a WhatsApp message, and never deletes a
+  #   picture from a shared Cloudinary account (the menu pictures it shows are the live ones).
+  # - Free plan: it sleeps when idle (the first request after a quiet spell takes about a minute) and has no disk,
+  #   so a picture uploaded on staging is gone after its next deploy. Neither matters for testing.
+  # - Its own database (a separate Supabase project), filled from live by backend/scripts/copy-to-staging.mjs.
+  - type: web
+    name: mudawwrah-staging
+    runtime: node
+    region: singapore
+    plan: free
+    branch: staging
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npx prisma generate && npx prisma migrate deploy
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      # The same production safety checks as the live server.
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: staging
+      # The STAGING Supabase project's session pooler (port 5432), never the live one.
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      # Its own secret, not the live one: a staging sign-in must never work on the live site.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PUBLIC_URL
+        value: https://mudawarah-staging.vercel.app
+      - key: STOREFRONT_URL
+        value: https://mudawarah-staging.vercel.app
+      - key: CORS_ORIGINS
+        value: https://mudawarah-staging.vercel.app
+      - key: API_URL
+        value: https://mudawwrah-staging.onrender.com
+      # Tap's TEST key only (sk_test_...): a live key stops the server at start. Test cards: DEPLOY.md, "Staging".
+      - key: PAYMENT_PROVIDER
+        value: tap
+      - key: TAP_SECRET_KEY
+        sync: false
+      - key: ONLINE_PAYMENT_TENANTS
+        value: mdawra
+      # No WHATSAPP_*, FOODICS_*, CLOUDINARY_URL or SENTRY_DSN here: staging talks to nobody outside.

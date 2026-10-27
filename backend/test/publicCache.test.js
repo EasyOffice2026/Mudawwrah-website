@@ -25,6 +25,10 @@ beforeEach(async () => {
     calls.menu += 1;
     res.json({ tenant: req.tenant?.id, n: calls.menu, q: req.query.q ?? null });
   });
+  app.get('/content', cache.longer, (req, res) => {
+    calls.menu += 1;
+    res.json({ n: calls.menu });
+  });
   app.get('/broken', cache.middleware, (req, res) => {
     calls.menu += 1;
     res.status(500).json({ error: 'boom' });
@@ -163,4 +167,17 @@ test('clearing forgets lookups too', async () => {
   cache.clear();
   await cache.remember('slug:x', load);
   assert.equal(calls.lookups, 2);
+});
+
+test('content only staff change (menu, settings) is kept 5 minutes, and still cleared by any staff change', async () => {
+  await get('/content');
+  clock += 4 * 60_000;
+  await get('/content');
+  assert.equal(calls.menu, 1, 'kept past the short 20 seconds');
+  clock += 61_000;
+  await get('/content');
+  assert.equal(calls.menu, 2, 'looked up again after 5 minutes');
+  await send('PUT', '/settings');
+  await get('/content');
+  assert.equal(calls.menu, 3, 'a staff change clears it at once');
 });

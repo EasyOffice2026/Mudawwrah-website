@@ -666,7 +666,88 @@
       "empty": "No online payments on this day.",
       "howTo": "How to close: open the Tap dashboard → Transactions, choose the same day, and tick each payment here as you find it (same amount and reference). The day is closed when every line is ticked and the totals match. Refund-needed payments are refunded from the Tap dashboard.",
       "notPaidOnlineNote_one": "1 order that day was not paid online ({{total}}): it was settled another way, so it is not in this list.",
-      "notPaidOnlineNote_other": "{{count}} orders that day were not paid online ({{total}}): they were settled another way, so they are not in this list."
+      "notPaidOnlineNote_other": "{{count}} orders that day were not paid online ({{total}}): they were settled another way, so they are not in this list.",
+      "tap": {
+        "title": "Check with Tap",
+        "intro": "Compares this day's payments with what Tap itself took, and ticks every one that matches.",
+        "check": "Check with Tap",
+        "checking": "Checking with Tap…",
+        "unavailable": "Online payment is not connected, so there is nothing to check with Tap.",
+        "allMatch_one": "The payment matches Tap. The day can be closed.",
+        "allMatch_other": "All {{count}} payments match Tap. The day can be closed.",
+        "record": "Record payment",
+        "notPaidHere": {
+          "title": "Paid at Tap, not marked paid here",
+          "what": "Tap took the money but the order was never marked paid (the payment notice did not arrive). Record it: Tap is asked again first, and the order then goes to the branch and printer."
+        },
+        "amountDiffers": {
+          "title": "Amounts differ",
+          "what": "Both have the payment, with different amounts. Check it in the Tap dashboard before closing."
+        },
+        "notInTap": {
+          "title": "Marked paid here, not found at Tap",
+          "what": "Tap has no payment for these on this day. Check the Tap dashboard; do not send the order before the payment is confirmed."
+        },
+        "unknown": {
+          "title": "At Tap with no order here",
+          "what": "Tap took these payments but no order here has them (another system on the same Tap account, or a test). Check them in the Tap dashboard."
+        },
+        "matchedSome_one": "1 payment matches Tap and is ticked. Look at the ones listed above.",
+        "matchedSome_other": "{{count}} payments match Tap and are ticked. Look at the ones listed above."
+      }
+    },
+    "sessions": {
+      "signOut": "Sign out everywhere",
+      "confirm": "Sign {{name}} out on every device? They will need their password to sign in again.",
+      "done": "{{name}} has been signed out on every device.",
+      "signOutEverywhere": "Sign out on all devices",
+      "confirmSelf": "Sign out on every device where you are signed in, this one included?"
+    },
+    "devices": {
+      "title": "Branch devices",
+      "intro": "Approve the computer or tablet at each branch. Once a branch has an approved device, its branch accounts only work on approved devices, even when the branch internet address changes (5G). To approve a device, open this page on that device, signed in as the owner.",
+      "locked_one": "Locked to 1 device",
+      "locked_other": "Locked to {{count}} devices",
+      "open": "Not locked: any device",
+      "thisApproved": "This device is approved for {{branch}}.",
+      "thisNot": "This device is not approved for any branch.",
+      "chooseBranch": "Choose the branch",
+      "name": "Device name",
+      "approveThis": "Approve this device",
+      "thisOne": "this device",
+      "lastSeen": "last used {{when}}",
+      "neverSeen": "not used yet",
+      "revoke": "Revoke",
+      "confirmRevoke": "Revoke \"{{name}}\"? Branch accounts stop working on it at once. If it is the branch's only device, the branch is no longer locked.",
+      "storageBlocked": "This browser could not keep the approval (private window or blocked storage). Use a normal window."
+    },
+    "menuImport": {
+      "open": "Import from Excel",
+      "title": "Import the menu from Excel",
+      "intro": "One row per item: its category, name in English and Arabic, and price (KWD), and if you like a description, calories and whether it is available. Items already on the menu (same category and name) are updated; new ones are added. Nothing is ever deleted, and pictures are added afterwards. You will see what changes before anything is saved.",
+      "template": "Download the template",
+      "choose": "Choose the file (.xlsx or .csv)",
+      "reading": "Reading…",
+      "empty": "The file has no rows.",
+      "summary": "{{create}} to add, {{update}} to update, {{unchanged}} already the same.",
+      "newCategories": "New categories: {{names}}.",
+      "fixFirst_one": "Fix this row first; nothing will be imported until then:",
+      "fixFirst_other": "Fix these {{count}} rows first; nothing will be imported until then:",
+      "row": "Row {{row}}",
+      "willCreate": "new item",
+      "willUpdate": "update: {{fields}}",
+      "fields": {
+        "price": "price",
+        "nameAr": "Arabic name",
+        "descriptionEn": "description",
+        "descriptionAr": "Arabic description",
+        "calories": "calories",
+        "isAvailable": "availability"
+      },
+      "import_one": "Import 1 change",
+      "import_other": "Import {{count}} changes",
+      "importing": "Importing…",
+      "done": "Done: {{create}} added, {{update}} updated."
     }
   },
   "store": {

@@ -1,10 +1,14 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
+import { config } from '../config.js';
 import * as auth from '../controllers/authController.js';
 import { clientIpInfo } from '../services/authService.js';
 import * as banners from '../controllers/bannerController.js';
 import * as categories from '../controllers/categoryController.js';
 import * as dashboard from '../controllers/dashboardController.js';
+import * as csp from '../controllers/cspController.js';
+import * as devices from '../controllers/deviceController.js';
 import * as feedback from '../controllers/feedbackController.js';
+import * as menuImport from '../controllers/menuImportController.js';
 import * as foodics from '../controllers/foodicsController.js';
 import * as items from '../controllers/itemController.js';
 import * as media from '../controllers/mediaController.js';
@@ -34,7 +38,7 @@ import {
 } from '../middleware/auth.js';
 import { asyncHandler as h } from '../middleware/error.js';
 import { publicCache } from '../middleware/publicCache.js';
-import { loginLimit, orderLimit, promoLimit, refreshLimit } from '../middleware/rateLimit.js';
+import { cspLimit, loginLimit, orderLimit, promoLimit, refreshLimit } from '../middleware/rateLimit.js';
 import { requirePrintKey } from '../middleware/printKey.js';
 import { reattachTenant, requireTenant } from '../middleware/tenant.js';
 import { upload } from '../middleware/upload.js';
@@ -42,13 +46,24 @@ import { upload } from '../middleware/upload.js';
 const router = Router();
 
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
+// Reports of what the website's Content-Security-Policy would block (see controllers/cspController.js).
+router.post(
+  '/csp-report',
+  cspLimit,
+  express.json({ type: ['application/csp-report', 'application/reports+json', 'application/json'], limit: '16kb' }),
+  csp.report,
+);
 
 // Which code this server is running (Render sets RENDER_GIT_COMMIT) and since when. The website release script reads
 // it, so a release that needs a server change cannot be called live while the server is still on the old code.
 const STARTED_AT = new Date().toISOString();
 router.get('/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json({ commit: String(process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '').slice(0, 7) || null, startedAt: STARTED_AT });
+  res.json({
+    commit: String(process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '').slice(0, 7) || null,
+    startedAt: STARTED_AT,
+    environment: config.appEnv,
+  });
 });
 
 // "What address does the server see for me?" Open it on a branch computer to read the address its
@@ -71,10 +86,11 @@ router.get('/my-address', (req, res) => {
 
 // Platform level — no restaurant in context.
 router.get('/tenants', h(tenants.listPublic));
-router.get('/tenants/current', publicCache.middleware, h(tenants.current));
+router.get('/tenants/current', publicCache.longer, h(tenants.current));
 router.get('/tenants/all', authenticate, requirePlatformAdmin, h(tenants.listAll));
 router.post('/tenants', authenticate, requirePlatformAdmin, h(tenants.create));
 router.put('/tenants/:id', authenticate, requirePlatformAdmin, h(tenants.update));
+router.get('/tenants/:id/setup', authenticate, requirePlatformAdmin, h(tenants.setup));
 router.get('/tenants/icon', h(icons.icon));
 router.get('/tenants/:slug', h(tenants.getBySlug));
 
@@ -82,6 +98,8 @@ router.get('/tenants/:slug', h(tenants.getBySlug));
 router.post('/auth/login', loginLimit, h(auth.login));
 router.post('/auth/refresh', refreshLimit, h(auth.refresh));
 router.get('/auth/me', authenticate, h(auth.me));
+// Ends every session of the signed-in account, on every device.
+router.post('/auth/sign-out-everywhere', authenticate, h(auth.signOutEverywhere));
 
 // ---------------------------------------------------------------------------
 // Everything below belongs to exactly one restaurant.
@@ -90,11 +108,14 @@ const scoped = Router();
 scoped.use(requireTenant);
 
 // Categories
-scoped.get('/categories', publicCache.middleware, h(categories.listPublic));
+scoped.get('/categories', publicCache.longer, h(categories.listPublic));
 scoped.get('/categories/all', requireStaff, h(categories.listAll));
 scoped.post('/categories/reorder', requireStaff, h(categories.reorder));
 scoped.get('/categories/:id', h(categories.getById));
 scoped.post('/categories', requireStaff, h(categories.create));
+// The menu from a spreadsheet: what it would change, then the change itself (all or nothing, never deleting).
+scoped.post('/menu/import/preview', requireStaff, h(menuImport.preview));
+scoped.post('/menu/import', requireStaff, h(menuImport.apply));
 scoped.put('/categories/:id', requireStaff, h(categories.update));
 scoped.delete('/categories/:id', requireAdmin, h(categories.remove));
 
@@ -170,6 +191,7 @@ scoped.put('/banners/:id', requireStaff, h(banners.update));
 scoped.delete('/banners/:id', requireStaff, h(banners.remove));
 
 // Promotions
+// Offers start and end at set times, so they keep the short cache.
 scoped.get('/promotions', publicCache.middleware, h(promotions.listPublic));
 scoped.post('/promotions/preview', promoLimit, h(promotions.preview));
 scoped.get('/promotions/all', requireStaff, h(promotions.listAll));
@@ -189,9 +211,18 @@ scoped.get('/users/:id', requireAdmin, h(users.getById));
 scoped.post('/users', requireAdmin, h(users.create));
 scoped.put('/users/:id', requireAdmin, h(users.update));
 scoped.delete('/users/:id', requireAdmin, h(users.remove));
+scoped.post('/users/:id/sign-out', requireAdmin, h(users.signOut));
+// Branch devices: the branch lock that holds on a 5G line (owner only).
+scoped.get('/branch-devices', requireAdmin, h(devices.list));
+scoped.post('/branch-devices/:branchId', requireAdmin, h(devices.approve));
+scoped.delete('/branch-devices/:id', requireAdmin, h(devices.revoke));
 
 // Settings
-scoped.get('/settings', publicCache.middleware, h(settings.get));
+scoped.get('/settings', publicCache.longer, h(settings.get));
+// The restaurant's own Tap account (owner only): the key is checked with Tap, stored encrypted, never shown again.
+scoped.get('/settings/payment', requireAdmin, h(payments.settings));
+scoped.put('/settings/payment', requireAdmin, h(payments.saveSettings));
+scoped.delete('/settings/payment', requireAdmin, h(payments.removeSettings));
 // Fees, minimum order, tax and payment methods: owner only (client requirement).
 scoped.put('/settings', requireAdmin, h(settings.update));
 
@@ -221,6 +252,9 @@ scoped.get('/dashboard/branches', requireStaff, h(dashboard.branches));
 scoped.get('/reports', requireStaff, h(reports.report));
 // The day's closing sheet: branch managers close their own branch with it, so the order desk may open it.
 scoped.get('/reports/closing', requireOrderDesk, h(reports.closing));
+// The same day checked against Tap, and recording a payment Tap took whose notice never arrived (staff, not branches).
+scoped.get('/reports/closing/tap', requireOrderDesk, h(reports.reconcile));
+scoped.post('/reports/closing/tap/:reference/record', requireStaff, h(payments.recordMissed));
 
 // A restaurant's own name, banner and logo — the fields the storefront
 // header and the platform picker actually display. requireAdmin, not just

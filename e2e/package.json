@@ -1,0 +1,13 @@
+{
+  "name": "mdawra-e2e",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end checks of the money path in a real browser: see checkout.e2e.test.mjs.",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 checkout.e2e.test.mjs"
+  },
+  "devDependencies": {
+    "express": "^5.2.1",
+    "playwright": "^1.57.0"
+  }
+}

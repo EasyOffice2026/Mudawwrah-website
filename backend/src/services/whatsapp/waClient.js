@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { config } from '../../config.js';
+import { config, isStaging } from '../../config.js';
 import { prisma } from '../../prisma.js';
 import { currentTenant } from '../../tenantContext.js';
 
@@ -36,6 +36,11 @@ const describe = (payload) => {
 
 const send = async (payload) => {
   await logOutbound(payload.to, payload);
+  // The staging copy holds real customers' phone numbers only if someone copies them in; it never messages anyone.
+  if (isStaging()) {
+    console.log('[staging] WhatsApp message not sent:', describe(payload));
+    return { skipped: true, staging: true };
+  }
   if (!isConfigured()) {
     console.warn('[whatsapp] not configured for this restaurant — message not delivered:', describe(payload));
     return { skipped: true };

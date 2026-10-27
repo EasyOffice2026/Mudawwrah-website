@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, apiError } from '../lib/api';
 import { setPageMeta } from '../lib/pageMeta';
 import { resetTheme } from '../lib/theme';
+import { legalFor } from '../customer/legal/index.js';
 import { useAuth } from '../store/auth';
 import { fetchCurrentUser, isPlatformOperator } from './PlatformLogin.jsx';
 
@@ -155,6 +156,73 @@ const StoreRow = ({ tenant, counts, onSaved }) => {
           </p>
         ) : null}
       </div>
+      <SetupChecklist tenant={tenant} />
+    </div>
+  );
+};
+
+const STEP_LABELS = {
+  logo: 'Logo',
+  owner: 'Owner account',
+  branches: 'Branches and opening hours',
+  branchAccounts: 'A login for each branch',
+  zones: 'Delivery areas',
+  menu: 'Menu',
+  pictures: 'Item pictures',
+  domain: 'Own domain',
+  payment: 'Online payment',
+  contact: 'Contact phone',
+  devices: 'Branch devices approved',
+  open: 'Taking orders',
+  legal: 'About, Terms and Refund pages',
+};
+const STATUS_STYLE = { done: 'bg-green-100 text-green-800', missing: 'bg-red-100 text-red-800', advice: 'bg-amber-100 text-amber-800' };
+const STATUS_TEXT = { done: 'Done', missing: 'Missing', advice: 'To do' };
+
+/**
+ * A restaurant's setup, step by step: what is done, what is missing (it cannot work properly without it) and what
+ * is still to do. The legal pages live in the website's code, so that step is checked here.
+ */
+const SetupChecklist = ({ tenant }) => {
+  const [open, setOpen] = useState(false);
+  const [steps, setSteps] = useState(null);
+  const [error, setError] = useState(null);
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (!next || steps) return;
+    try {
+      const { data } = await api.get(`/tenants/${tenant.id}/setup`);
+      const legal = legalFor(tenant.slug);
+      setSteps([
+        ...data,
+        { key: 'legal', status: legal ? 'done' : 'missing', detail: legal ? null : 'Add the restaurant\'s legal pages to the website (customer/legal/pages).' },
+      ]);
+    } catch (err) {
+      setError(apiError(err));
+    }
+  };
+
+  const missing = steps?.filter((s) => s.status === 'missing').length;
+  return (
+    <div className="mt-3 border-t pt-3">
+      <button type="button" className="text-sm font-semibold underline" onClick={toggle}>
+        {open ? 'Hide setup checklist' : 'Setup checklist'}
+        {steps ? ` (${missing ? `${missing} missing` : 'nothing missing'})` : ''}
+      </button>
+      {open && error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
+      {open && steps ? (
+        <ul className="mt-2 space-y-1 text-sm">
+          {steps.map((s) => (
+            <li key={s.key} className="flex flex-wrap items-baseline gap-2">
+              <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${STATUS_STYLE[s.status]}`}>{STATUS_TEXT[s.status]}</span>
+              <span className="font-medium">{STEP_LABELS[s.key] || s.key}</span>
+              {s.detail ? <span className="text-gray-500">{s.detail}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 };

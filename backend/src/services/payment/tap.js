@@ -1,12 +1,23 @@
-import { config } from '../../config.js';
+import { config, isStaging } from '../../config.js';
+import { currentTenant } from '../../tenantContext.js';
+import { open } from '../secretBox.js';
 
 // Tap Payments (https://developers.tap.company): a hosted checkout page that offers KNET, Visa,
 // Mastercard, Apple Pay and Google Pay. The customer is sent to Tap with a charge, comes back to
 // our redirect, and Tap also posts the result to the same address. Either way the status is read
 // back from Tap with the secret key, so a forged callback changes nothing.
 
-const request = async (method, path, body) => {
-  const { secretKey, baseUrl } = config.payment.tap;
+/**
+ * The Tap key for a restaurant: its own (each restaurant can hold its own Tap account), else the platform's
+ * TAP_SECRET_KEY. Which restaurants may use the platform's key at all is decided in payment/index.js.
+ */
+export const ownKeyOf = (tenant) => open(tenant?.tapSecretKey);
+export const secretKeyFor = (tenant) => ownKeyOf(tenant) || config.payment.tap.secretKey;
+
+const request = async (method, path, body, secretKey = secretKeyFor(currentTenant())) => {
+  const { baseUrl } = config.payment.tap;
+  // The staging copy never takes real money, whatever key reaches it.
+  if (isStaging() && String(secretKey).startsWith('sk_live_')) throw new Error('Tap request failed: a live key is never used on staging');
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' },
@@ -22,7 +33,48 @@ const request = async (method, path, body) => {
 
 export const name = 'tap';
 
-export const isConfigured = () => Boolean(config.payment.tap.secretKey);
+export const isConfigured = () => Boolean(secretKeyFor(currentTenant()));
+
+/**
+ * Checks a secret key with Tap before it is saved: a wrong key would only show itself when a customer pays.
+ * Listing one charge is the cheapest call that needs a valid key.
+ */
+export const verifyKey = async (secretKey) => {
+  await request('POST', '/v2/charges/list', { limit: 1 }, secretKey);
+  return true;
+};
+
+/**
+ * Every charge Tap captured between two moments, for the daily reconciliation. Tap returns pages of up to 50;
+ * all pages are read (a day of a restaurant is a few hundred at most; the cap only guards against a loop).
+ */
+export const capturedCharges = async ({ from, to }) => {
+  const charges = [];
+  let after;
+  for (let page = 0; page < 40; page += 1) {
+    const body = {
+      period: { date: { from: String(from.getTime()), to: String(to.getTime()) }, type: 'CHARGE' },
+      status: 'CAPTURED',
+      limit: 50,
+      ...(after ? { starting_after: after } : {}),
+    };
+    const data = await request('POST', '/v2/charges/list', body);
+    const batch = data?.charges || [];
+    charges.push(
+      ...batch.map((charge) => ({
+        id: String(charge.id),
+        amount: Number(charge.amount),
+        currency: charge.currency,
+        orderNumber: charge.reference?.order || null,
+        createdAt: charge.transaction?.created ? new Date(Number(charge.transaction.created)) : null,
+        method: methodFor(charge),
+      })),
+    );
+    if (!data?.has_more || !batch.length) break;
+    after = batch[batch.length - 1].id;
+  }
+  return charges;
+};
 
 // Tap wants the phone without the country code, as digits.
 const localPhone = (phone) => String(phone).replace(/\D/g, '').replace(/^965/, '').slice(-8);

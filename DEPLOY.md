@@ -20,17 +20,19 @@ Neither is part of the system any more; if they are still running, switch them o
 
 ## Releasing a change
 
-1. Open a pull request into `devin/1784920877-mdawra-ordering-platform`. The CI checks (lint, tests, build, and every
-   migration on an empty database) must pass.
+1. Open a pull request into `devin/1784920877-mdawra-ordering-platform`. The CI checks must pass: lint, tests, build,
+   every migration on an empty database, and the money path in a real browser (`e2e/`: a customer orders and pays with
+   KNET, the order reaches its branch; an unpaid order never does; a branch sees only its own orders).
 2. **Merge it.** Render deploys the server by itself from that branch: the build applies any new migration, then
    starts the new version. Wait until the service shows **Live** (about 2 minutes; the API restarts for a few seconds).
 3. **Website** (only if the website changed): from the `frontend` folder, with everything committed:
    ```
-   XDG_DATA_HOME="/c/Users/Administrator/AppData/Roaming/xdg.data" npm run deploy
+   npm run deploy
    ```
-   It refuses uncommitted changes, stamps the commit into the build, reads `/version.json` back from the live address,
-   and also prints which commit the server is running. If a change needs both, the server line must show the same commit
-   before anyone says it is live.
+   It refuses uncommitted changes, and **refuses to deploy while the live server lacks this release's server changes**
+   (it compares the newest commit that changed `backend/src`, `backend/prisma` or the backend packages with the commit
+   the server reports at `/api/version`). Then it stamps the commit into the build and reads `/version.json` back from
+   the live address. `npm run deploy -- --force` skips the server check, for an emergency only.
 4. Tell the client only what has been verified live. A change is not fixed until it has been seen working on the real site.
 
 **Order matters when a change needs both:** server first, then the website. A website that calls something the server does
@@ -68,6 +70,91 @@ The orders check says only ok or not ok, never order details. Add one per restau
 Render → the service → **Settings → Health Check Path** must be `/api/health`. Render then keeps the old server
 answering until the new one is healthy; without it, every deploy shows visitors a few seconds of "502".
 
+### Crash reports (set up once)
+
+Unexpected errors go to [Sentry](https://sentry.io) (free plan), which emails them, so a failure is seen when it happens.
+Off until configured:
+
+1. Sentry → create two projects: **Node.js** (server) and **React** (website). Each gives a DSN.
+2. Render → Environment: `SENTRY_DSN` = the Node.js DSN → **Save, rebuild, and deploy**. The log then says
+   `[errors] crash reports are on`.
+3. `frontend/.env.production`: add `VITE_SENTRY_DSN=` the React DSN (a DSN can only send reports, so it may be committed),
+   commit, release. The website loads it on staff pages only (admin, print station, platform console).
+4. Sentry → Alerts: email the owner of the project on every new issue.
+
+Every request has an id (`X-Request-Id`), logged with its line in Render → Logs. A failure shows visitors a short
+`ref` (8 characters, for example "Something went wrong. Please try again. (ref 3f2a9c1b)"): search Render's logs for it
+to find the request and its error.
+
+### Content-Security-Policy (report-only for now)
+
+`frontend/vercel.json` sends the website's policy as `Content-Security-Policy-Report-Only`: nothing is blocked yet, but
+browsers report what it would block to `/api/csp-report`, logged in Render → Logs as lines like
+`{"csp":"script-src-elem","blocked":"some.host","page":"/r/mdawra"}`. After a week or two, when the log shows only things
+that should be blocked, rename the header to `Content-Security-Policy` to enforce it (adding any legitimate host first).
+
+### Backups (set up once)
+
+`.github/workflows/backup.yml` dumps the database every night at 02:00 Kuwait time, encrypts it, and keeps 30 days.
+
+1. GitHub → the repository → **Settings → Secrets and variables → Actions → New repository secret**:
+   - `BACKUP_DATABASE_URL`: the same address as Render's `DATABASE_URL`, without `connection_limit`/`pool_timeout`.
+   - `BACKUP_PASSPHRASE`: a long random passphrase. **Keep a copy outside GitHub** (a password manager): without it no
+     backup can be opened.
+2. GitHub → **Actions → Nightly database backup → Run workflow** once, and check it finishes green with a
+   `database-<date>` file under the run.
+
+Restoring (into a fresh, empty database, never over the live one without a decision to do so):
+```
+gpg --decrypt mdawra-2026-10-27.dump.gpg > mdawra.dump          # asks for BACKUP_PASSPHRASE
+pg_restore --no-owner --no-privileges --dbname "<new database URL>" mdawra.dump   # PostgreSQL 17 tools
+node backend/scripts/compare-db.mjs "<live URL>" "<restored URL>"  # optional: what differs from live
+```
+
+### Moving the database (to Singapore, next to the server)
+
+The server runs in Singapore and the database in Tokyo, so every query crosses between them (about 0.25 s each). Moving
+the database next to the server makes every page faster. 19 MB of data: plan 30 minutes, at the quietest hour.
+
+1. Supabase → **New project**, region **Southeast Asia (Singapore)**, same plan as today. Set Database → Pool Size as
+   on the old one (25). Copy its **session pooler** address (port 5432).
+2. Close ordering: Admin → Settings → the open/closed switch → closed.
+3. Copy the data (PostgreSQL 17 tools; on this PC from Git Bash):
+   ```
+   pg_dump "<OLD session pooler URL>" --schema=public --no-owner --no-privileges --format=custom --file=move.dump
+   pg_restore --no-owner --no-privileges --dbname "<NEW session pooler URL>" move.dump
+   node backend/scripts/compare-db.mjs "<OLD URL>" "<NEW URL>"     # must end with SAME
+   ```
+4. Render → Environment: `DATABASE_URL` and `DIRECT_URL` → the new address (keep `?connection_limit=10&pool_timeout=20`
+   on `DATABASE_URL`) → **Save, rebuild, and deploy**. Wait for **Live**.
+5. Check: `/api/health` and `/api/health/orders?tenant=mdawra` answer ok; open the menu; place one test order and cancel it.
+6. Open ordering again. Update `backend/.env` on this PC and the `BACKUP_DATABASE_URL` secret to the new address.
+7. Keep the old project paused (not deleted) for a week, then delete it.
+
+If anything looks wrong at step 5: put the old addresses back on Render (step 4), and ordering continues on the old
+database while the cause is found.
+
+### Upgrading Prisma to 7 (planned, on staging first: see "Staging")
+
+`npm audit` lists 3 high warnings in `prisma` → `@prisma/config` → `deepmerge-ts`: the command-line tool used at
+build time (`generate`, `migrate`), never run when a visitor uses the site. They go away with Prisma 7, which also
+changes how the server connects, so it is done on a staging copy on a real Supabase project, not straight to live:
+
+1. `backend/prisma/schema.prisma`: generator `provider = "prisma-client"` with `output = "../src/generated/prisma"`;
+   remove `url`/`directUrl` from the datasource. Add `backend/prisma.config.ts` with `defineConfig({ schema, migrations,
+   datasource: { url: env('DIRECT_URL') } })` (migrations go direct, not through the pooler).
+2. `npm i @prisma/client@7 prisma@7 @prisma/adapter-pg pg`. In `src/prisma.js`, build the client with
+   `new PrismaClient({ adapter: new PrismaPg({ connectionString: DATABASE_URL, max: <pool size> }) })`. The pool size
+   now comes from `max` (the `connection_limit` in the address is no longer read); keep it within Supabase's Pool Size.
+3. SSL: check the Supabase pooler connects with certificate checks on (Prisma 7 rejects invalid certificates); if not,
+   pass Supabase's CA certificate, never `rejectUnauthorized: false`.
+4. The retry on a full pool (`isPoolFull` in `src/prisma.js`) matches Prisma 6 error codes; check what the pg adapter
+   reports for "max clients reached" and a dropped connection, and adjust (the resilience tests say what must hold).
+5. Every `import { PrismaClient } from '@prisma/client'` (src, scripts, tests) points to the generated client; scripts
+   that pass `datasources` switch to an adapter. `prisma.$use` is not used (only `$extends`), so nothing else changes.
+6. Run all tests, the database tests and the browser tests against the staging copy; release only when they and a
+   day of real use there are clean.
+
 ## Server settings (Render → Environment)
 
 The full list, with the reason for each, is in [`render.yaml`](render.yaml). The ones that matter in an emergency:
@@ -83,10 +170,24 @@ The full list, with the reason for each, is in [`render.yaml`](render.yaml). The
 | `NODE_ENV` | `production`: the server then refuses to start with a development secret or an open CORS list. |
 | `CORS_ORIGINS` | Only the restaurants' own addresses. No `*.vercel.app`: that would let any site hosted on Vercel call the API. Staff use `www.madawarah.com/admin`, never a Vercel preview link. |
 | `WHATSAPP_APP_SECRET` | Without it, WhatsApp webhooks are refused (nothing can prove they come from Meta). |
+| `SENTRY_DSN` | Crash reports (see "Crash reports"). Optional. |
 
-## Branch accounts and the address lock
+## Branch accounts and the device lock
 
-A branch login (`ardiya@madawarah.com`) only sees its own branch's orders. Each branch can also be locked to its own
+A branch login (`ardiya@madawarah.com`) only sees its own branch's orders.
+
+**Approved devices (recommended, works on 5G).** Admin → Users → **Branch devices**. The owner opens that page **on the
+branch's own computer or tablet**, signed in as the owner, picks the branch and presses **Approve this device**. From the
+first approved device on, that branch's accounts work on approved devices only, whatever the internet address. A device
+keeps a random key in its browser (only its hash is stored). **Revoke** stops a device at once; approve the replacement
+first, or the branch is unlocked until a device is approved again. Clearing the browser's data removes the approval:
+approve it again. When a branch has approved devices, they decide alone; the address lock below is not used for it.
+
+**Ending sessions.** Admin → Users → **Sign out everywhere** ends every session of an account at once (a lost phone,
+someone leaving). Changing an account's password or disabling it does the same. Anyone can end all their own sessions
+from the menu (**Sign out on all devices**).
+
+**The older address lock.** Each branch can also be locked to its own
 internet addresses (Admin → Settings → Branches → the branch → Allowed IPs), checked on every request. When a branch's line changes
 address, its screen is refused. To fix it:
 
@@ -127,6 +228,53 @@ old computer, suspend the old `mdawra-api` Render service, then raise the Render
 - Never paste a key, token or password into chat or a commit. If one was, regenerate it.
 - Never test payments with the live key before the pilot-phone step above.
 - The Free Render plan sleeps and has no disk; do not downgrade the service to save money without moving the pictures first.
+
+## Staging (the test copy)
+
+The same system on its own database, at **https://mudawarah-staging.vercel.app/r/mdawra**, for trying a change, a
+Prisma upgrade or a database move before the restaurants see it. Every page has an amber frame and a **TEST SITE**
+badge, and the tab title ends in "· TEST". It holds a copy of the live menu, branches, delivery areas, offers, banners
+and settings, but no orders, customers, staff accounts or secrets. It cannot take real money (the server refuses to
+start with a live Tap key, and a restaurant's own live key is refused), never sends a WhatsApp message, and has no
+domain of its own. Its menu pictures are the live ones, read from the live site.
+
+**Set up once** (about an hour; it also rehearses "Moving the database" above):
+
+1. **Supabase**: New project `mudawarah-staging`, region **Southeast Asia (Singapore)**. Copy its **session pooler**
+   address (port 5432) with the password filled in.
+2. **Render**: New → **Web Service** (not a Blueprint: a Blueprint reads both services in [`render.yaml`](render.yaml)
+   and could change the live one), with the settings of `mudawwrah-staging` in that file. Enter `DATABASE_URL` (the
+   staging address plus `?connection_limit=5&pool_timeout=20`), `DIRECT_URL` (the same, without them),
+   `TAP_SECRET_KEY` (the **test** key, `sk_test_...`) and a new `JWT_SECRET`
+   (`node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`), never the live one. It deploys from the `staging` branch: create it once with
+   `git push origin <production branch>:staging`. The first build creates the tables. Check
+   `https://mudawwrah-staging.onrender.com/api/version` says `"environment":"staging"`.
+3. **Copy the live set-up into it** (from Git Bash in `backend`; it only reads live, and shows what it would do first):
+   ```
+   node scripts/copy-to-staging.mjs "<LIVE session pooler URL>" "<STAGING session pooler URL>"
+   node scripts/copy-to-staging.mjs "<LIVE session pooler URL>" "<STAGING session pooler URL>" --apply
+   ```
+   It prints one owner sign-in per restaurant (`staging-owner@mdawra.test` and a password, shown once). Run it again
+   whenever staging should catch up with the live menu: it replaces those restaurants on staging, staging orders
+   included. `--tenant mdawra` copies one restaurant.
+4. **Vercel** (the existing project): Settings → Environment Variables → `UPSTREAM_API_URL`: **Production** keeps the
+   live server; add a **Preview** value `https://mudawwrah-staging.onrender.com`. Settings → Deployment Protection:
+   turn **Vercel Authentication** off for previews, or only people with a Vercel login can open staging.
+5. **Google Cloud** → the Maps key → Website restrictions: add `https://mudawarah-staging.vercel.app/*`, or the
+   checkout map stays grey on staging.
+
+**Using it:**
+
+1. Push the change to the `staging` branch (`git push origin HEAD:staging`); Render deploys the staging server.
+2. When it shows **Live**: `cd frontend && npm run deploy:staging`. It builds a preview against the staging server
+   (and refuses any server that does not say it is staging), never touches the live site, and allows uncommitted
+   changes.
+3. Test at `https://mudawarah-staging.vercel.app/r/mdawra` and `/r/mdawra/admin/login`. Tap test cards: KNET → bank
+   "KNET Test Card [KNET1]", card `8888880000000001`, expiry 09/30, PIN 1234. Card → `4508750015741019`, CVV 100.
+4. When it is right, merge into the production branch and release as usual ("Releasing a change").
+
+Staging runs on Render's free plan: the first request after a quiet spell takes about a minute, and a picture uploaded
+there is gone after its next deploy.
 
 ## Setting up a copy from scratch (staging, or a new restaurant group)
 

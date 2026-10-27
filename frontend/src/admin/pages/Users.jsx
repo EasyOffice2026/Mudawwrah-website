@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Modal from '../../components/Modal.jsx';
 import { api, apiError } from '../../lib/api';
 import { dateTime, kwd, localized } from '../../lib/format';
+import BranchDevices from '../components/BranchDevices.jsx';
 
 const ROLES = ['ADMIN', 'STAFF', 'BRANCH', 'CUSTOMER'];
 const empty = { email: '', password: '', name: '', phone: '', role: 'STAFF', branchId: '', isActive: true };
@@ -77,6 +78,17 @@ export default function Users() {
     }
   };
 
+  // Ends every session of an account at once: a lost phone, someone leaving, a password that got out.
+  const signOut = async (user) => {
+    if (!window.confirm(t('admin.sessions.confirm', { name: user.name }))) return;
+    try {
+      await api.post(`/users/${user.id}/sign-out`);
+      window.alert(t('admin.sessions.done', { name: user.name }));
+    } catch (err) {
+      setError(apiError(err));
+    }
+  };
+
   const openDetail = async (id) => {
     try {
       const { data } = await api.get(`/users/${id}`);
@@ -145,6 +157,11 @@ export default function Users() {
                     <button type="button" className="underline" onClick={() => setForm({ ...user, branchId: user.branchId || '', password: '' })}>
                       {t('common.edit')}
                     </button>
+                    {user.role !== 'CUSTOMER' ? (
+                      <button type="button" className="underline" onClick={() => signOut(user)}>
+                        {t('admin.sessions.signOut')}
+                      </button>
+                    ) : null}
                     <button type="button" className="text-brand underline" onClick={() => remove(user.id)}>
                       {t('common.delete')}
                     </button>
@@ -267,6 +284,8 @@ export default function Users() {
           </div>
         ) : null}
       </Modal>
+
+      {branches.length ? <BranchDevices branches={branches} /> : null}
     </div>
   );
 }
