@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
+import StagingBar, { isStagingBuild } from './components/StagingBar.jsx';
 import './i18n/index.js';
 import './index.css';
 import { startErrorReports } from './lib/errorReports.js';
@@ -20,6 +21,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <App />
+      {isStagingBuild && <StagingBar />}
     </BrowserRouter>
   </React.StrictMode>,
 );

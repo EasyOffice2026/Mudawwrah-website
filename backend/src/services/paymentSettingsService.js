@@ -1,4 +1,4 @@
-import { config } from '../config.js';
+import { config, isStaging } from '../config.js';
 import { HttpError } from '../middleware/error.js';
 import { publicCache } from '../middleware/publicCache.js';
 import { prisma } from '../prisma.js';
@@ -39,6 +39,7 @@ const saveKey = async (sealed) => {
 export const setKey = async (secretKey) => {
   const key = String(secretKey || '').trim();
   if (!KEY_SHAPE.test(key)) throw new HttpError(400, 'That does not look like a Tap secret key (it starts with sk_live_ or sk_test_).');
+  if (isStaging() && key.startsWith('sk_live_')) throw new HttpError(400, 'This is the staging copy: use a Tap test key (sk_test_), never a live one.');
   try {
     await tap.verifyKey(key);
   } catch (error) {

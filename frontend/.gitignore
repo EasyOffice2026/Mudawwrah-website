@@ -24,9 +24,11 @@ dist-ssr
 *.sw?
 .vercel
 
-# Local secrets. The two committed files are deliberate: .env.example
-# documents the variables, and .env.production carries the public API URL
-# Vercel needs at build time (it holds no secrets).
+# Local secrets. The three committed files are deliberate: .env.example
+# documents the variables, .env.production carries the public API URL
+# Vercel needs at build time, and .env.staging the staging addresses (none
+# of them holds a secret).
 .env*
 !.env.example
 !.env.production
+!.env.staging

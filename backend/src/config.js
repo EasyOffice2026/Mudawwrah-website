@@ -6,6 +6,8 @@ dotenv.config();
 export const config = {
   port: Number(process.env.PORT || 4000),
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-me',
+  // 'staging' for the test copy (DEPLOY.md, "Staging"): no live payments, no real WhatsApp messages.
+  appEnv: String(process.env.APP_ENV || 'production').toLowerCase(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1d',
   refreshExpiresIn: process.env.REFRESH_EXPIRES_IN || '30d',
   uploadDir: process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads'),
@@ -82,6 +84,21 @@ export const isOriginAllowed = (origin) => {
 
 export const isWhatsappConfigured = () =>
   Boolean(config.whatsapp.token && config.whatsapp.phoneNumberId && config.whatsapp.verifyToken);
+
+export const isStaging = () => config.appEnv === 'staging';
+
+/**
+ * The staging copy must never take real money or message real customers: it refuses to start with a live Tap
+ * key. (A restaurant's own live key is refused when saved, and never used, on staging: payment/tap.js.)
+ */
+export const assertStagingSafety = () => {
+  if (!isStaging()) return;
+  if (String(process.env.TAP_SECRET_KEY || '').startsWith('sk_live_')) {
+    console.error('Refusing to start: this is staging (APP_ENV=staging) and TAP_SECRET_KEY is a LIVE key. Use the sk_test_ key.');
+    process.exit(1);
+  }
+  console.log('[staging] test copy: no live payments, no WhatsApp messages are sent');
+};
 
 /**
  * Refuses to start a production deployment on development defaults.

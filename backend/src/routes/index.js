@@ -1,4 +1,5 @@
 import express, { Router } from 'express';
+import { config } from '../config.js';
 import * as auth from '../controllers/authController.js';
 import { clientIpInfo } from '../services/authService.js';
 import * as banners from '../controllers/bannerController.js';
@@ -58,7 +59,11 @@ router.post(
 const STARTED_AT = new Date().toISOString();
 router.get('/version', (req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json({ commit: String(process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '').slice(0, 7) || null, startedAt: STARTED_AT });
+  res.json({
+    commit: String(process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '').slice(0, 7) || null,
+    startedAt: STARTED_AT,
+    environment: config.appEnv,
+  });
 });
 
 // "What address does the server see for me?" Open it on a branch computer to read the address its

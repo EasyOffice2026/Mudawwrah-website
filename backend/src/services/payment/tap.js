@@ -1,4 +1,4 @@
-import { config } from '../../config.js';
+import { config, isStaging } from '../../config.js';
 import { currentTenant } from '../../tenantContext.js';
 import { open } from '../secretBox.js';
 
@@ -16,6 +16,8 @@ export const secretKeyFor = (tenant) => ownKeyOf(tenant) || config.payment.tap.s
 
 const request = async (method, path, body, secretKey = secretKeyFor(currentTenant())) => {
   const { baseUrl } = config.payment.tap;
+  // The staging copy never takes real money, whatever key reaches it.
+  if (isStaging() && String(secretKey).startsWith('sk_live_')) throw new Error('Tap request failed: a live key is never used on staging');
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' },

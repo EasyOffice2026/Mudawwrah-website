@@ -134,7 +134,7 @@ the database next to the server makes every page faster. 19 MB of data: plan 30 
 If anything looks wrong at step 5: put the old addresses back on Render (step 4), and ordering continues on the old
 database while the cause is found.
 
-### Upgrading Prisma to 7 (planned, needs a staging copy first)
+### Upgrading Prisma to 7 (planned, on staging first: see "Staging")
 
 `npm audit` lists 3 high warnings in `prisma` → `@prisma/config` → `deepmerge-ts`: the command-line tool used at
 build time (`generate`, `migrate`), never run when a visitor uses the site. They go away with Prisma 7, which also
@@ -228,6 +228,52 @@ old computer, suspend the old `mdawra-api` Render service, then raise the Render
 - Never paste a key, token or password into chat or a commit. If one was, regenerate it.
 - Never test payments with the live key before the pilot-phone step above.
 - The Free Render plan sleeps and has no disk; do not downgrade the service to save money without moving the pictures first.
+
+## Staging (the test copy)
+
+The same system on its own database, at **https://mudawarah-staging.vercel.app/r/mdawra**, for trying a change, a
+Prisma upgrade or a database move before the restaurants see it. Every page has an amber frame and a **TEST SITE**
+badge, and the tab title ends in "· TEST". It holds a copy of the live menu, branches, delivery areas, offers, banners
+and settings, but no orders, customers, staff accounts or secrets. It cannot take real money (the server refuses to
+start with a live Tap key, and a restaurant's own live key is refused), never sends a WhatsApp message, and has no
+domain of its own. Its menu pictures are the live ones, read from the live site.
+
+**Set up once** (about an hour; it also rehearses "Moving the database" above):
+
+1. **Supabase**: New project `mudawarah-staging`, region **Southeast Asia (Singapore)**. Copy its **session pooler**
+   address (port 5432) with the password filled in.
+2. **Render**: New → Blueprint from this repository, keep only the `mudawwrah-staging` service from
+   [`render.yaml`](render.yaml), or New → Web Service with the same settings. Enter `DATABASE_URL` (the staging
+   address plus `?connection_limit=5&pool_timeout=20`), `DIRECT_URL` (the same, without them) and `TAP_SECRET_KEY`
+   (the **test** key, `sk_test_...`). It deploys from the `staging` branch: create it once with
+   `git push origin <production branch>:staging`. The first build creates the tables. Check
+   `https://mudawwrah-staging.onrender.com/api/version` says `"environment":"staging"`.
+3. **Copy the live set-up into it** (from Git Bash in `backend`; it only reads live, and shows what it would do first):
+   ```
+   node scripts/copy-to-staging.mjs "<LIVE session pooler URL>" "<STAGING session pooler URL>"
+   node scripts/copy-to-staging.mjs "<LIVE session pooler URL>" "<STAGING session pooler URL>" --apply
+   ```
+   It prints one owner sign-in per restaurant (`staging-owner@mdawra.test` and a password, shown once). Run it again
+   whenever staging should catch up with the live menu: it replaces those restaurants on staging, staging orders
+   included. `--tenant mdawra` copies one restaurant.
+4. **Vercel** (the existing project): Settings → Environment Variables → `UPSTREAM_API_URL`: **Production** keeps the
+   live server; add a **Preview** value `https://mudawwrah-staging.onrender.com`. Settings → Deployment Protection:
+   turn **Vercel Authentication** off for previews, or only people with a Vercel login can open staging.
+5. **Google Cloud** → the Maps key → Website restrictions: add `https://mudawarah-staging.vercel.app/*`, or the
+   checkout map stays grey on staging.
+
+**Using it:**
+
+1. Push the change to the `staging` branch (`git push origin HEAD:staging`); Render deploys the staging server.
+2. When it shows **Live**: `cd frontend && npm run deploy:staging`. It builds a preview against the staging server
+   (and refuses any server that does not say it is staging), never touches the live site, and allows uncommitted
+   changes.
+3. Test at `https://mudawarah-staging.vercel.app/r/mdawra` and `/r/mdawra/admin/login`. Tap test cards: KNET → bank
+   "KNET Test Card [KNET1]", card `8888880000000001`, expiry 09/30, PIN 1234. Card → `4508750015741019`, CVV 100.
+4. When it is right, merge into the production branch and release as usual ("Releasing a change").
+
+Staging runs on Render's free plan: the first request after a quiet spell takes about a minute, and a picture uploaded
+there is gone after its next deploy.
 
 ## Setting up a copy from scratch (staging, or a new restaurant group)
 
