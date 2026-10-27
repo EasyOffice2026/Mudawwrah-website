@@ -85,6 +85,7 @@ router.get('/tenants/current', publicCache.longer, h(tenants.current));
 router.get('/tenants/all', authenticate, requirePlatformAdmin, h(tenants.listAll));
 router.post('/tenants', authenticate, requirePlatformAdmin, h(tenants.create));
 router.put('/tenants/:id', authenticate, requirePlatformAdmin, h(tenants.update));
+router.get('/tenants/:id/setup', authenticate, requirePlatformAdmin, h(tenants.setup));
 router.get('/tenants/icon', h(icons.icon));
 router.get('/tenants/:slug', h(tenants.getBySlug));
 

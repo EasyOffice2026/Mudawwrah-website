@@ -1,3 +1,4 @@
+import { checklist } from '../services/setupService.js';
 import { HttpError } from '../middleware/error.js';
 import * as service from '../services/tenantService.js';
 import { tenantBrandingSchema, tenantCreateSchema, tenantUpdateSchema } from '../validators.js';
@@ -19,3 +20,6 @@ export const update = async (req, res) =>
   res.json(await service.update(req.params.id, tenantUpdateSchema.parse(req.body)));
 
 export const updateOwn = async (req, res) => res.json(await service.updateOwn(tenantBrandingSchema.parse(req.body)));
+
+// A restaurant's setup, step by step (platform owner only).
+export const setup = async (req, res) => res.json(await checklist(req.params.id));
