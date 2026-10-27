@@ -20,8 +20,9 @@ Neither is part of the system any more; if they are still running, switch them o
 
 ## Releasing a change
 
-1. Open a pull request into `devin/1784920877-mdawra-ordering-platform`. The CI checks (lint, tests, build, and every
-   migration on an empty database) must pass.
+1. Open a pull request into `devin/1784920877-mdawra-ordering-platform`. The CI checks must pass: lint, tests, build,
+   every migration on an empty database, and the money path in a real browser (`e2e/`: a customer orders and pays with
+   KNET, the order reaches its branch; an unpaid order never does; a branch sees only its own orders).
 2. **Merge it.** Render deploys the server by itself from that branch: the build applies any new migration, then
    starts the new version. Wait until the service shows **Live** (about 2 minutes; the API restarts for a few seconds).
 3. **Website** (only if the website changed): from the `frontend` folder, with everything committed:

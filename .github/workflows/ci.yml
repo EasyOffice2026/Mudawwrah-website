@@ -69,3 +69,43 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npm run lint
       - run: npm test
+
+  e2e:
+    name: Money path in a real browser (order, pay, branch screen)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/e2e
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/e2e
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Server
+        working-directory: backend
+        run: npm ci && npx prisma migrate deploy
+      - name: Website, built to call the test server
+        working-directory: frontend
+        run: npm ci && npm run build
+        env:
+          VITE_API_URL: http://127.0.0.1:4100/api
+      - name: Browser
+        working-directory: e2e
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: Run the checks
+        working-directory: e2e
+        run: npm test
