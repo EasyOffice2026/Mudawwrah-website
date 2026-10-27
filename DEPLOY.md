@@ -86,6 +86,13 @@ Every request has an id (`X-Request-Id`), logged with its line in Render → Log
 `ref` (8 characters, for example "Something went wrong. Please try again. (ref 3f2a9c1b)"): search Render's logs for it
 to find the request and its error.
 
+### Content-Security-Policy (report-only for now)
+
+`frontend/vercel.json` sends the website's policy as `Content-Security-Policy-Report-Only`: nothing is blocked yet, but
+browsers report what it would block to `/api/csp-report`, logged in Render → Logs as lines like
+`{"csp":"script-src-elem","blocked":"some.host","page":"/r/mdawra"}`. After a week or two, when the log shows only things
+that should be blocked, rename the header to `Content-Security-Policy` to enforce it (adding any legitimate host first).
+
 ### Backups (set up once)
 
 `.github/workflows/backup.yml` dumps the database every night at 02:00 Kuwait time, encrypts it, and keeps 30 days.
@@ -144,9 +151,22 @@ The full list, with the reason for each, is in [`render.yaml`](render.yaml). The
 | `WHATSAPP_APP_SECRET` | Without it, WhatsApp webhooks are refused (nothing can prove they come from Meta). |
 | `SENTRY_DSN` | Crash reports (see "Crash reports"). Optional. |
 
-## Branch accounts and the address lock
+## Branch accounts and the device lock
 
-A branch login (`ardiya@madawarah.com`) only sees its own branch's orders. Each branch can also be locked to its own
+A branch login (`ardiya@madawarah.com`) only sees its own branch's orders.
+
+**Approved devices (recommended, works on 5G).** Admin → Users → **Branch devices**. The owner opens that page **on the
+branch's own computer or tablet**, signed in as the owner, picks the branch and presses **Approve this device**. From the
+first approved device on, that branch's accounts work on approved devices only, whatever the internet address. A device
+keeps a random key in its browser (only its hash is stored). **Revoke** stops a device at once; approve the replacement
+first, or the branch is unlocked until a device is approved again. Clearing the browser's data removes the approval:
+approve it again. When a branch has approved devices, they decide alone; the address lock below is not used for it.
+
+**Ending sessions.** Admin → Users → **Sign out everywhere** ends every session of an account at once (a lost phone,
+someone leaving). Changing an account's password or disabling it does the same. Anyone can end all their own sessions
+from the menu (**Sign out on all devices**).
+
+**The older address lock.** Each branch can also be locked to its own
 internet addresses (Admin → Settings → Branches → the branch → Allowed IPs), checked on every request. When a branch's line changes
 address, its screen is refused. To fix it:
 

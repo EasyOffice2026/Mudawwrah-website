@@ -40,5 +40,7 @@ export const loginLimit = createRateLimit({ name: 'login', windowMs: 15 * 60_000
 export const refreshLimit = createRateLimit({ name: 'refresh', windowMs: 15 * 60_000, max: 120 });
 // Placing orders: far above what one household orders, far below a flood.
 export const orderLimit = createRateLimit({ name: 'orders', windowMs: 10 * 60_000, max: 60 });
+// Browsers reporting what the website's Content-Security-Policy would block.
+export const cspLimit = createRateLimit({ name: 'csp', windowMs: 60_000, max: 30 });
 // Trying promo codes.
 export const promoLimit = createRateLimit({ name: 'promo', windowMs: 10 * 60_000, max: 30 });

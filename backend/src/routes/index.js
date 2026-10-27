@@ -1,9 +1,11 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import * as auth from '../controllers/authController.js';
 import { clientIpInfo } from '../services/authService.js';
 import * as banners from '../controllers/bannerController.js';
 import * as categories from '../controllers/categoryController.js';
 import * as dashboard from '../controllers/dashboardController.js';
+import * as csp from '../controllers/cspController.js';
+import * as devices from '../controllers/deviceController.js';
 import * as feedback from '../controllers/feedbackController.js';
 import * as foodics from '../controllers/foodicsController.js';
 import * as items from '../controllers/itemController.js';
@@ -34,7 +36,7 @@ import {
 } from '../middleware/auth.js';
 import { asyncHandler as h } from '../middleware/error.js';
 import { publicCache } from '../middleware/publicCache.js';
-import { loginLimit, orderLimit, promoLimit, refreshLimit } from '../middleware/rateLimit.js';
+import { cspLimit, loginLimit, orderLimit, promoLimit, refreshLimit } from '../middleware/rateLimit.js';
 import { requirePrintKey } from '../middleware/printKey.js';
 import { reattachTenant, requireTenant } from '../middleware/tenant.js';
 import { upload } from '../middleware/upload.js';
@@ -42,6 +44,13 @@ import { upload } from '../middleware/upload.js';
 const router = Router();
 
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
+// Reports of what the website's Content-Security-Policy would block (see controllers/cspController.js).
+router.post(
+  '/csp-report',
+  cspLimit,
+  express.json({ type: ['application/csp-report', 'application/reports+json', 'application/json'], limit: '16kb' }),
+  csp.report,
+);
 
 // Which code this server is running (Render sets RENDER_GIT_COMMIT) and since when. The website release script reads
 // it, so a release that needs a server change cannot be called live while the server is still on the old code.
@@ -82,6 +91,8 @@ router.get('/tenants/:slug', h(tenants.getBySlug));
 router.post('/auth/login', loginLimit, h(auth.login));
 router.post('/auth/refresh', refreshLimit, h(auth.refresh));
 router.get('/auth/me', authenticate, h(auth.me));
+// Ends every session of the signed-in account, on every device.
+router.post('/auth/sign-out-everywhere', authenticate, h(auth.signOutEverywhere));
 
 // ---------------------------------------------------------------------------
 // Everything below belongs to exactly one restaurant.
@@ -190,6 +201,11 @@ scoped.get('/users/:id', requireAdmin, h(users.getById));
 scoped.post('/users', requireAdmin, h(users.create));
 scoped.put('/users/:id', requireAdmin, h(users.update));
 scoped.delete('/users/:id', requireAdmin, h(users.remove));
+scoped.post('/users/:id/sign-out', requireAdmin, h(users.signOut));
+// Branch devices: the branch lock that holds on a 5G line (owner only).
+scoped.get('/branch-devices', requireAdmin, h(devices.list));
+scoped.post('/branch-devices/:branchId', requireAdmin, h(devices.approve));
+scoped.delete('/branch-devices/:id', requireAdmin, h(devices.revoke));
 
 // Settings
 scoped.get('/settings', publicCache.longer, h(settings.get));
