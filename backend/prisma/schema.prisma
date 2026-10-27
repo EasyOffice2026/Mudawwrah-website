@@ -115,6 +115,9 @@ model Tenant {
   foodicsAccessToken    String?
   foodicsBranchId       String?
   foodicsWebhookSecret  String?
+  /// This restaurant's own Tap secret key, encrypted (services/secretBox.js). Without one, a restaurant listed in
+  /// ONLINE_PAYMENT_TENANTS uses the platform's TAP_SECRET_KEY.
+  tapSecretKey          String?
   isActive     Boolean @default(true)
 
   createdAt DateTime @default(now())
