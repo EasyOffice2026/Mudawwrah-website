@@ -4,6 +4,7 @@
  *
  *   npm run deploy                 (from the frontend folder)
  *   npm run deploy -- --allow-dirty
+ *   npm run deploy -- --force      (emergency only: skips the "server first" check)
  *
  * Why this exists instead of a bare `vercel --prod`:
  * - Vercel publishes whatever is in this folder, committed or not. Refusing
@@ -16,8 +17,9 @@
  * Needs the Vercel login this machine already has (on this PC it lives under
  * XDG_DATA_HOME=/c/Users/Administrator/AppData/Roaming/xdg.data).
  */
-import { execSync, spawnSync } from 'node:child_process';
+import { execFileSync, execSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { checkServerReady } from './serverGuard.mjs';
 
 const LIVE_URL = process.env.VERIFY_URL || 'https://www.madawarah.com';
 // trimEnd, not trim: the first line of `git status` starts with a space that means something.
@@ -42,6 +44,34 @@ if (changes && !process.argv.includes('--allow-dirty')) {
       'Vercel would publish them, but afterwards nobody could say what is live.\n' +
       'Commit them first. (Or add --allow-dirty to publish anyway; the version label then ends in +.)',
   );
+}
+
+// The server first, always: the website is refused while the live server lacks this release's server changes
+// (see serverGuard.mjs). --force skips it for an emergency, and says so.
+function liveApi() {
+  try {
+    return (readFileSync('.env.production', 'utf8').match(/^VITE_API_URL=(.+)$/m) || [])[1]?.trim().replace(/\/+$/, '') || '';
+  } catch {
+    return '';
+  }
+}
+if (process.argv.includes('--force')) {
+  console.log('\n--force: NOT checking that the live server has this release\'s server changes.');
+} else {
+  const api = process.env.VERIFY_API || liveApi();
+  const guard = await checkServerReady({
+    git: (args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }),
+    serverVersion: async () => {
+      try {
+        const res = await fetch(`${api}/version`, { cache: 'no-store' });
+        return res.ok ? await res.json() : null;
+      } catch {
+        return null;
+      }
+    },
+  });
+  if (!guard.ok) fail(`NOT DEPLOYED. ${guard.message}\n(For an emergency only: npm run deploy -- --force)`);
+  console.log(`\n${guard.message}`);
 }
 
 console.log(`\nDeploying commit ${commit}${changes ? ' plus uncommitted changes' : ''} to production...\n`);
