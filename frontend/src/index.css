@@ -172,7 +172,7 @@ body {
  * one rule that can't be defeated by a nesting change elsewhere later.
  */
 @media print {
-  /* Receipt mode, the default: only the 80mm ticket prints. */
+  /* Receipt mode, the default: only the ticket prints. */
   body:not(.print-report) * {
     visibility: hidden;
   }
@@ -186,7 +186,10 @@ body {
     display: block !important;
     position: absolute;
     inset: 0;
-    width: 80mm;
+    /* As wide as the paper (58 mm on a Sunmi handheld, 80 mm on a counter printer), never wider than a receipt
+       when printed to an office printer. */
+    width: auto;
+    max-width: 80mm;
     margin: 0 auto;
   }
 

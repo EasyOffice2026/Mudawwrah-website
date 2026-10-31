@@ -5,6 +5,7 @@ import { api, apiError } from '../../lib/api';
 import { dateTime, kwd, localized } from '../../lib/format';
 import { useAuth } from '../../store/auth';
 import OrderReceipt from '../components/OrderReceipt.jsx';
+import { thermalLogo } from '../../lib/receiptLogo';
 import { useOrderFeed } from '../OrderFeed.jsx';
 
 const STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
@@ -30,6 +31,7 @@ export default function Orders() {
   const [live, setLive] = useState(true);
   const [newIds, setNewIds] = useState(() => new Set());
   const [restaurantName, setRestaurantName] = useState('');
+  const [receiptLogo, setReceiptLogo] = useState(null);
   const seenIds = useRef(null);
   const feed = useOrderFeed();
   const lastVersion = useRef(null);
@@ -37,7 +39,10 @@ export default function Orders() {
   useEffect(() => {
     api
       .get('/tenants/current')
-      .then(({ data }) => setRestaurantName(data.nameEn))
+      .then(({ data }) => {
+        setRestaurantName(data.nameEn);
+        return thermalLogo(data.logoUrl).then(setReceiptLogo);
+      })
       .catch(() => {});
   }, []);
 
@@ -517,7 +522,7 @@ export default function Orders() {
 
       {/* Off-screen until printed — index.css's print rule hides everything
           else on the page and reveals only this. */}
-      <OrderReceipt order={detail} restaurantName={restaurantName} lang={lang} />
+      <OrderReceipt order={detail} restaurantName={restaurantName} logo={receiptLogo} lang={lang} />
     </div>
   );
 }

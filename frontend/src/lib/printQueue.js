@@ -25,10 +25,22 @@ export const STATION_PROFILE_DIR = 'C:\\PrintStation';
 export const chromeShortcut = (url) =>
   `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing --user-data-dir="${STATION_PROFILE_DIR}" --app="${url}"`;
 
-// How a ticket sits on an 80 mm receipt printer. With no page margins Chrome has nowhere to print the date, page
-// title and address it otherwise adds to every page, and as the printer only reaches the middle 72 mm of its paper,
-// the ticket keeps 4 mm clear on each side so nothing at the edges (the prices) is cut off.
-export const STATION_PRINT_CSS = '@media print { @page { margin: 0; } .print-receipt { padding: 0 4mm; } }';
+// How a ticket sits on the paper. With no page margins Chrome has nowhere to print the date, page title and
+// address it otherwise adds to every page. A printer only reaches the middle of its paper (72 mm of 80 mm, 48 mm of
+// the 58 mm in a Sunmi handheld), so the ticket keeps 5 mm clear on each side and nothing at the edges is cut off.
+export const STATION_PRINT_CSS = '@media print { @page { margin: 0; } .print-receipt { padding: 0 5mm; } }';
+
+const METHOD = { KNET: 'KNET', CARD: 'Card', APPLE_PAY: 'Apple Pay', CASH: 'Cash', WHATSAPP: 'WhatsApp' };
+const money = (value) => `KWD ${Number(value || 0).toFixed(3)}`;
+
+/** The ticket's payment box: what the driver and the counter must know about the money, in one line. */
+export const paymentLine = (order) => {
+  const method = METHOD[order.paymentMethod] || order.paymentMethod || '';
+  if (order.paymentStatus === 'PAID') return `PAID · ${method}`;
+  if (order.paymentStatus === 'REFUNDED') return `REFUNDED · ${method}`;
+  if (order.paymentStatus === 'FAILED') return 'PAYMENT FAILED · NOT PAID';
+  return `NOT PAID · ${method} · collect ${money(order.total)}`;
+};
 
 /** A fake order for the "print a test ticket" button. */
 export const testTicket = (now = new Date()) => ({
@@ -40,7 +52,16 @@ export const testTicket = (now = new Date()) => ({
   area: 'Test area',
   customerName: 'Test customer',
   customerPhone: '00000000',
-  items: [{ id: 'test-item', quantity: 1, nameEn: 'Test item', lineTotal: 1, customizations: [] }],
+  items: [
+    {
+      id: 'test-item',
+      quantity: 1,
+      nameEn: 'Test item',
+      nameAr: 'صنف تجريبي',
+      lineTotal: 1,
+      customizations: [{ id: 'test-option', nameEn: 'Test option', nameAr: 'إضافة تجريبية' }],
+    },
+  ],
   subtotal: 1,
   deliveryFee: 0,
   serviceCharge: 0,
