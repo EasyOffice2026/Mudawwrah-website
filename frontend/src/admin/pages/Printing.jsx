@@ -57,6 +57,7 @@ export default function Printing() {
           <li>{t('admin.printing.step2')}</li>
           <li>{t('admin.printing.step3')}</li>
         </ol>
+        <p className="pt-1 text-gray-700">{t('admin.printing.handheld')}</p>
         <p className="pt-1 text-xs font-semibold text-amber-700">{t('admin.printing.private')}</p>
       </div>
 

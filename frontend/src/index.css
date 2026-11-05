@@ -168,24 +168,21 @@ body {
  * Hiding everything else with print:hidden classes scattered through the
  * layout works only until one wrapper is missed, and a sidebar or overlay
  * printed alongside a receipt is a real waste of a small thermal printer's
- * paper. Hiding the whole page and re-revealing only .print-receipt is the
- * one rule that can't be defeated by a nesting change elsewhere later.
+ * paper. The ticket sits directly in <body>, beside the app (OrderReceipt
+ * puts it there), so dropping every other child of <body> is the one rule
+ * that can't be defeated by a nesting change elsewhere later. Dropped, not
+ * just made invisible: an invisible page still takes up its length, and a
+ * long order list printed as pages of blank paper around the ticket.
  */
 @media print {
   /* Receipt mode, the default: only the ticket prints. */
-  body:not(.print-report) * {
-    visibility: hidden;
-  }
-  body:not(.print-report) .print-receipt,
-  body:not(.print-report) .print-receipt * {
-    visibility: visible;
+  body:not(.print-report) > :not(.print-receipt) {
+    display: none !important;
   }
   body:not(.print-report) .print-receipt {
     /* Overrides the `hidden` (display:none) Tailwind class it carries on
-       screen — visibility alone can never reveal a display:none element. */
+       screen. */
     display: block !important;
-    position: absolute;
-    inset: 0;
     /* As wide as the paper (58 mm on a Sunmi handheld, 80 mm on a counter printer), never wider than a receipt
        when printed to an office printer. */
     width: auto;

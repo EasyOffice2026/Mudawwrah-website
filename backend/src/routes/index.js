@@ -150,10 +150,11 @@ scoped.get('/orders/feed', requireOrderDesk, h(orders.feed));
 scoped.get('/orders/stream', requireOrderDesk, orders.stream);
 scoped.get('/branches/presence', requireStaff, h(presence.branches));
 // Automatic printing. A branch's print station asks for its waiting tickets with a private key (no
-// login to expire on an unattended computer); the owner lists the stations; the order desk can reprint.
+// login to expire on an unattended computer); the order desk lists its stations (a branch account only its own)
+// and can reprint.
 scoped.get('/print/jobs', requirePrintKey, h(printing.jobs));
 scoped.post('/print/jobs/:id/printed', requirePrintKey, h(printing.printed));
-scoped.get('/print/stations', requireStaff, h(printing.stations));
+scoped.get('/print/stations', requireOrderDesk, h(printing.stations));
 scoped.post('/orders/:id/reprint', requireOrderDesk, h(printing.reprint));
 scoped.get('/orders/:id', requireOrderDesk, h(orders.getById));
 scoped.patch('/orders/:id/status', requireOrderDesk, h(orders.updateStatus));

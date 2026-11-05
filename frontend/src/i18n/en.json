@@ -590,6 +590,7 @@
       "step1": "In Windows, make the receipt printer the default printer and set its paper to 80 mm.",
       "step2": "Click \"Copy Chrome shortcut\" for the branch below, create a new Windows shortcut on that computer and paste it as the target. Put the shortcut in the Startup folder (Win+R, type shell:startup) so it opens by itself after a restart.",
       "step3": "Open the shortcut and press \"Print a test ticket\". It must print without any pop-up. Keep the computer awake and the window open.",
+      "handheld": "On a handheld with a built-in printer (Sunmi): open the branch's link in Chrome on the device, press \"Print a test ticket\" and choose the 58 mm paper (50 mm if 58 is not listed). For now each ticket asks you to tap Print.",
       "private": "Keep these links private: anyone who has one can read that branch's orders.",
       "waiting": "{{count}} waiting to print",
       "noneWaiting": "Nothing waiting",

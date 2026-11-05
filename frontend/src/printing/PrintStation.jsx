@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import OrderReceipt from '../admin/components/OrderReceipt.jsx';
 import { api } from '../lib/api';
 import { localized } from '../lib/format';
-import { pickJobs, SILENT_PRINT_MS, STATION_PRINT_CSS, testTicket } from '../lib/printQueue';
+import { pickJobs, SILENT_PRINT_MS, testTicket } from '../lib/printQueue';
 import { thermalLogo } from '../lib/receiptLogo';
 import { cachedPath, refresh } from '../lib/storefrontApi';
 
@@ -242,7 +242,6 @@ export default function PrintStation() {
         </button>
       </main>
 
-      <style>{STATION_PRINT_CSS}</style>
       <OrderReceipt
         order={printing}
         restaurantName={restaurant ? localized(restaurant, 'name', 'en') : ''}

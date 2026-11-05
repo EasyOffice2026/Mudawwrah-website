@@ -42,7 +42,8 @@ const links = [
   { to: 'promotions', labelKey: 'admin.promotions', roles: STAFF },
   { to: 'feedback', labelKey: 'admin.feedback', roles: STAFF },
   { to: 'zones', labelKey: 'admin.zones', roles: OWNER },
-  { to: 'printing', labelKey: 'admin.printing.title', roles: STAFF },
+  // A branch account sees its own branch's print station only, so each branch sets up its printer itself.
+  { to: 'printing', labelKey: 'admin.printing.title', roles: DESK },
   { to: 'users', labelKey: 'admin.users', roles: OWNER },
   { to: 'settings', labelKey: 'admin.settings', roles: STAFF },
 ];

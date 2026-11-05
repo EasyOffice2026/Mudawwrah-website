@@ -8,7 +8,7 @@ export const jobs = async (req, res) => {
 
 export const printed = async (req, res) => res.json(await printService.markPrinted(req.printBranch, req.params.id));
 
-// For the owner's Printing page and the order screen's "print again".
-export const stations = async (req, res) => res.json(await printService.stations());
+// For the Printing page: every branch for the owner and staff, its own for a branch account.
+export const stations = async (req, res) => res.json(await printService.stations(req.user));
 
 export const reprint = async (req, res) => res.json(await printService.reprint(req.params.id, req.user));

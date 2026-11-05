@@ -5,7 +5,7 @@ import {
   pickJobs,
   RETRY_AFTER_MS,
   SILENT_PRINT_MS,
-  STATION_PRINT_CSS,
+  RECEIPT_PRINT_CSS,
   stationUrl,
   testTicket,
 } from '../src/lib/printQueue.js';
@@ -46,9 +46,9 @@ test('the shortcut uses a Chrome profile of its own, so silent printing holds ev
 });
 
 test('a ticket prints with no page margins, so Chrome adds no date or address, and keeps clear of the paper edges', () => {
-  assert.match(STATION_PRINT_CSS, /^@media print \{/);
-  assert.match(STATION_PRINT_CSS, /@page \{ margin: 0; \}/);
-  assert.match(STATION_PRINT_CSS, /\.print-receipt \{ padding: 0 5mm; \}/);
+  assert.match(RECEIPT_PRINT_CSS, /^@media print \{/);
+  assert.match(RECEIPT_PRINT_CSS, /@page \{ margin: 0; \}/);
+  assert.match(RECEIPT_PRINT_CSS, /\.print-receipt \{ padding: 0 5mm; \}/);
 });
 
 test('a print that takes longer than 1.5 s is treated as a dialog waiting for someone', () => {

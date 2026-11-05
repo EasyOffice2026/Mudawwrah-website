@@ -68,16 +68,21 @@ export const reprint = async (orderId, viewer = null) => {
   });
 };
 
-/** For the owner: every station's link, how many tickets it has waiting, and when it last printed. */
-export const stations = async () => {
+/**
+ * Every station's link, how many tickets it has waiting, and when it last printed. The owner and staff see every
+ * branch; a branch account sees only its own, so each branch sets up its printer without an owner's login.
+ */
+export const stations = async (viewer = null) => {
   const tenantId = currentTenantId();
+  const ownBranchOnly = viewer?.role === 'BRANCH';
   const branches = await prisma.pickupLocation.findMany({
+    where: ownBranchOnly ? { id: viewer.branchId ?? '' } : undefined,
     orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
     select: { id: true, nameEn: true, nameAr: true, isActive: true },
   });
   const rows = [
     ...branches.map(({ id, nameEn, nameAr, isActive }) => ({ id, nameEn, nameAr, isActive })),
-    { id: UNASSIGNED, nameEn: 'Orders without a branch', nameAr: 'طلبات بدون فرع', isActive: true },
+    ...(ownBranchOnly ? [] : [{ id: UNASSIGNED, nameEn: 'Orders without a branch', nameAr: 'طلبات بدون فرع', isActive: true }]),
   ];
   const result = [];
   for (const row of rows) {
