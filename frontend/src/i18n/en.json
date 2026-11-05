@@ -207,8 +207,8 @@
       "newOrder": "New order {{number}}",
       "empty": "No orders yet",
       "viewAll": "View all orders",
-      "soundOff": "Sound is off",
-      "soundOffHint": "After a page loads, browsers keep sound off until you click. Click here to turn on the new-order chime."
+      "soundOff": "Tap to turn on the order sound",
+      "soundOffHint": "The browser keeps sound off after the page opens until someone taps it. New orders ring loudly until they are accepted."
     },
     "update": {
       "banner": "A new version is available.",

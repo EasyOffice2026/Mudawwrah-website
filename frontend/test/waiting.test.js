@@ -26,11 +26,11 @@ test('a clock slightly ahead of the server never gives a negative wait', () => {
   assert.equal(waitingAlarm({ count: 1, oldestAt: new Date(NOW + 5000).toISOString() }, NOW).minutes, 0);
 });
 
-test('the chime repeats only after the first minute, and not more than every 30 seconds', () => {
+test('the ring keeps going every 10 seconds while an order waits, from its first minute on', () => {
   const alarm = (m) => waitingAlarm({ count: 1, oldestAt: ago(m) }, NOW);
-  assert.equal(shouldChimeAgain(alarm(0.5), 0, NOW), false, 'a brand-new order has already chimed on arrival');
-  assert.equal(shouldChimeAgain(alarm(1), 0, NOW), true);
-  assert.equal(shouldChimeAgain(alarm(10), NOW - REPEAT_MS + 1, NOW), false, 'chimed 29 seconds ago');
+  assert.equal(REPEAT_MS, 10_000);
+  assert.equal(shouldChimeAgain(alarm(0.2), NOW - REPEAT_MS, NOW), true, 'a new order rings again 10 seconds after arriving');
+  assert.equal(shouldChimeAgain(alarm(0.2), NOW - REPEAT_MS + 1, NOW), false, 'rang 9 seconds ago');
   assert.equal(shouldChimeAgain(alarm(10), NOW - REPEAT_MS, NOW), true);
   assert.equal(shouldChimeAgain({ level: 'none', minutes: 0, count: 0 }, 0, NOW), false);
 });
