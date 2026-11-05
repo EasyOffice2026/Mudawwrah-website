@@ -179,7 +179,7 @@ export function OrderFeedProvider({ slug, user, children }) {
     };
   }, [slug]);
 
-  // An order nobody has accepted keeps chiming (every 30 s, after its first minute) until it is accepted.
+  // An order nobody has accepted keeps ringing, every 10 s, until it is accepted.
   useEffect(() => {
     const id = setInterval(() => {
       const alarm = waitingAlarm(feedRef.current.waiting);
@@ -187,15 +187,17 @@ export function OrderFeedProvider({ slug, user, children }) {
         lastChime.current = Date.now();
         playChime();
       }
-    }, 10000);
+    }, 2000);
     return () => clearInterval(id);
   }, []);
 
-  // Sound only works after the page has been touched once; take the first click anywhere.
+  // Sound only works after the page has been touched; every tap, click or key tries, so it comes back on by
+  // itself whenever the browser stopped it (a reload, a tablet waking up).
   useEffect(() => {
     const unlock = () => unlockAudio();
-    window.addEventListener('pointerdown', unlock, { once: true });
-    return () => window.removeEventListener('pointerdown', unlock);
+    const events = ['pointerdown', 'keydown', 'touchend'];
+    events.forEach((name) => window.addEventListener(name, unlock, true));
+    return () => events.forEach((name) => window.removeEventListener(name, unlock, true));
   }, []);
 
   // "(3) Orders…" in the tab, so a new order is visible from another tab too.
@@ -240,10 +242,11 @@ export function OrderFeedProvider({ slug, user, children }) {
 }
 
 /**
- * Shown only while the browser is keeping this page silent. One click turns the
- * chime on; the first click anywhere does too, so it disappears on its own.
+ * Covers the screen while the browser is keeping this page silent. A browser never lets a page make sound before
+ * someone touches it, so the sound cannot simply be on after a reload; the client wants it always on (5 November
+ * 2026), so the first tap is one nobody can miss. Any tap turns the sound on and the cover goes away by itself.
  */
-export function SoundOffPill() {
+export function SoundOffScreen() {
   const { t } = useTranslation();
   const feed = useOrderFeed();
   if (!feed || feed.soundOn) return null;
@@ -251,10 +254,13 @@ export function SoundOffPill() {
     <button
       type="button"
       onClick={feed.enableSound}
-      title={t('admin.notifications.soundOffHint')}
-      className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-200"
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3 bg-black/75 p-6 text-center text-white"
     >
-      <span aria-hidden="true">🔇</span> {t('admin.notifications.soundOff')}
+      <span className="text-6xl" aria-hidden="true">
+        🔔
+      </span>
+      <span className="text-2xl font-extrabold">{t('admin.notifications.soundOff')}</span>
+      <span className="max-w-sm text-sm text-white/85">{t('admin.notifications.soundOffHint')}</span>
     </button>
   );
 }

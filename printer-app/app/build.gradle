@@ -1,0 +1,32 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.madawarah.printer'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.madawarah.printer'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Sunmi's own library for the printer built into its handhelds (the V3e among them).
+    implementation 'com.sunmi:printerlibrary:1.0.24'
+}

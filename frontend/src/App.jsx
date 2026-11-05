@@ -57,6 +57,8 @@ export default function App() {
         <Route path="sold-out" element={<SoldOut />} />
         {/* Branch managers close their own branch's day with it, so it belongs to the order desk too. */}
         <Route path="closing" element={<Closing />} />
+        {/* Each branch sets up its own printer: a branch account sees its own station only (the server decides). */}
+        <Route path="printing" element={<Printing />} />
         <Route element={<StaffOnly />}>
           <Route index element={<Dashboard />} />
           <Route path="menu" element={<MenuManager />} />
@@ -81,7 +83,6 @@ export default function App() {
               </AdminOnly>
             }
           />
-          <Route path="printing" element={<Printing />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Route>

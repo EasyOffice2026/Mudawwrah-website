@@ -83,7 +83,13 @@ test('the owner sees every branch station with its own private key', { skip }, a
   assert.ok(ids.keys[ids.jahra] && ids.keys[ids.ardiya] && ids.keys.unassigned, JSON.stringify(ids.keys));
   assert.notEqual(ids.keys[ids.jahra], ids.keys[ids.ardiya]);
   assert.equal((await call('GET', '/print/stations')).status, 401, 'not for the public');
-  assert.equal((await call('GET', '/print/stations', { token: ids.jahraDesk })).status, 403, 'not for a branch desk');
+});
+
+test('a branch account sees its own branch station only, so it can set up its printer without the owner', { skip }, async () => {
+  const { status, body } = await call('GET', '/print/stations', { token: ids.jahraDesk });
+  assert.equal(status, 200);
+  assert.deepEqual(body.map((s) => s.id), [ids.jahra], 'not the other branch, nor the orders without a branch');
+  assert.equal(body[0].key, ids.keys[ids.jahra]);
 });
 
 test('a placed order is waiting at its own branch\'s printer, and only there', { skip }, async () => {

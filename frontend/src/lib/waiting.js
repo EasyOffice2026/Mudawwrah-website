@@ -15,11 +15,12 @@ export const waitingAlarm = (waiting, now = Date.now()) => {
   return { level, minutes: Math.floor(age / MINUTE), count: waiting.count };
 };
 
-export const REPEAT_MS = 30_000;
+// The client asked for a ring that keeps going (5 November 2026): like a phone, until somebody answers.
+export const REPEAT_MS = 10_000;
 
-/** Sound the chime again: only for an order that has waited a minute, and never more often than every 30 seconds. */
+/** Ring again: while any order is waiting to be accepted, every 10 seconds from when it arrived. */
 export const shouldChimeAgain = (alarm, lastChimeAt, now = Date.now()) =>
-  alarm.level !== 'none' && alarm.minutes >= 1 && now - lastChimeAt >= REPEAT_MS;
+  alarm.level !== 'none' && now - lastChimeAt >= REPEAT_MS;
 
 /** "just now", "5 min ago", "3 h ago", "2 d ago" as a { key, count } for translation. */
 export const agoParts = (iso, now = Date.now()) => {

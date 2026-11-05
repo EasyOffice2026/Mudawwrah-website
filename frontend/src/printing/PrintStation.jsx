@@ -4,8 +4,9 @@ import { useParams } from 'react-router-dom';
 import OrderReceipt from '../admin/components/OrderReceipt.jsx';
 import { api } from '../lib/api';
 import { localized } from '../lib/format';
-import { pickJobs, SILENT_PRINT_MS, STATION_PRINT_CSS, testTicket } from '../lib/printQueue';
+import { pickJobs, SILENT_PRINT_MS, testTicket } from '../lib/printQueue';
 import { thermalLogo } from '../lib/receiptLogo';
+import { forgetSunmiStation, hasSunmi, printOnSunmi, sunmiStatus } from '../lib/sunmi';
 import { cachedPath, refresh } from '../lib/storefrontApi';
 
 const POLL_MS = 3000;
@@ -24,6 +25,8 @@ const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => req
  *
  * For tickets to print without a pop-up, Chrome must be started with --kiosk-printing and the receipt printer
  * must be the Windows default (see Admin → Printing). If a print dialog does appear, the page says so.
+ * On a Sunmi handheld the page runs inside our Android app instead, which prints on the built-in printer
+ * (lib/sunmi.js): Chrome on Android always shows a print preview.
  */
 export default function PrintStation() {
   const { t, i18n } = useTranslation();
@@ -41,6 +44,8 @@ export default function PrintStation() {
   const [lastCheck, setLastCheck] = useState(null);
   const [dialogSeen, setDialogSeen] = useState(false);
   const [logo, setLogo] = useState(null);
+  const [sunmi] = useState(hasSunmi);
+  const [printerState, setPrinterState] = useState(null);
   const busy = useRef(false);
   const done = useRef(new Set());
   const failedAt = useRef(new Map());
@@ -96,6 +101,10 @@ export default function PrintStation() {
     await Promise.all(
       [...document.querySelectorAll('.print-receipt img')].map((img) => (img.decode ? img.decode().catch(() => {}) : null)),
     );
+    if (sunmi) {
+      await printOnSunmi(document.querySelector('.print-receipt'), order.id);
+      return order;
+    }
     const began = Date.now();
     window.print();
     if (Date.now() - began > SILENT_PRINT_MS) setDialogSeen(true);
@@ -124,6 +133,7 @@ export default function PrintStation() {
         const { data } = await api.get('/print/jobs', { params, headers });
         setLastCheck(new Date());
         setStatus('ready');
+        if (sunmi) setPrinterState(sunmiStatus());
         for (const job of pickJobs(data.jobs, { done: done.current, failedAt: failedAt.current })) {
           if (stopped) break;
           setBranchName(localized(job.branch || {}, 'name', lang) || '');
@@ -213,6 +223,19 @@ export default function PrintStation() {
           </div>
         </section>
 
+        {sunmi ? (
+          <p
+            className={`rounded-xl p-3 text-sm font-semibold ${
+              !printerState || printerState === 'ready' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+            }`}
+            data-testid="station-sunmi"
+          >
+            {!printerState || printerState === 'ready'
+              ? t('admin.printing.station.sunmiReady')
+              : t(`admin.printing.station.sunmiState.${printerState}`, { defaultValue: t('admin.printing.station.sunmiState.error') })}
+          </p>
+        ) : null}
+
         {dialogSeen ? (
           <p className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800" data-testid="station-dialog-warning">
             {t('admin.printing.station.silentWarning')}
@@ -240,9 +263,13 @@ export default function PrintStation() {
         <button type="button" className="btn-ghost" onClick={testPrint} disabled={Boolean(printing)}>
           🖨️ {t('admin.printing.station.test')}
         </button>
+        {sunmi ? (
+          <button type="button" className="block text-xs text-ink-soft underline" onClick={forgetSunmiStation}>
+            {t('admin.printing.station.otherBranch')}
+          </button>
+        ) : null}
       </main>
 
-      <style>{STATION_PRINT_CSS}</style>
       <OrderReceipt
         order={printing}
         restaurantName={restaurant ? localized(restaurant, 'name', 'en') : ''}

@@ -1,5 +1,6 @@
+import { createPortal } from 'react-dom';
 import { dateTime, kwd } from '../../lib/format';
-import { paymentLine } from '../../lib/printQueue';
+import { paymentLine, RECEIPT_PRINT_CSS } from '../../lib/printQueue';
 
 const amount = (value) => Number(value || 0).toFixed(3);
 
@@ -13,9 +14,11 @@ const Row = ({ label, value, strong = false }) => (
 );
 
 /**
- * The paper ticket for one order: always rendered, kept off-screen until printing. `.print-receipt` is exactly
- * what index.css's print rule reveals and everything else on the page hides, so this is the only thing that
- * reaches the paper, whichever screen it was printed from.
+ * The paper ticket for one order: always rendered, kept off-screen until printing. It is placed straight in
+ * <body>, beside the app rather than inside it, and index.css's print rule drops everything in <body> but this.
+ * The printed page is then exactly as long as the ticket, whichever screen printed it: inside a long page (the
+ * order list) it was printed as several pages, and a printer with a set paper length put the end of the ticket
+ * at the top of the next one.
  *
  * Black on white only, sized to the paper (58 mm handhelds like the Sunmi V3e, 80 mm counter printers). The logo
  * comes ready for a thermal printer (lib/receiptLogo.js): without it the restaurant's name stands in.
@@ -26,8 +29,10 @@ export default function OrderReceipt({ order, restaurantName, logo = null, lang 
   const pickup = order.orderType === 'PICKUP';
   const branch = (pickup ? order.pickupLocation : order.branch) || order.pickupLocation || order.branch;
 
-  return (
-    <div className="print-receipt hidden bg-white font-sans text-[12px] leading-snug text-black">
+  return createPortal(
+    // Laid out left to right whatever the page's language; the Arabic in it sits in <bdi>.
+    <div dir="ltr" className="print-receipt hidden bg-white font-sans text-[12px] leading-snug text-black">
+      <style>{RECEIPT_PRINT_CSS}</style>
       <header className="text-center">
         {logo ? <img src={logo} alt="" className="mx-auto mb-1 max-h-[22mm] max-w-[60%] object-contain" /> : null}
         <p className="text-[14px] font-extrabold">{restaurantName || 'Order'}</p>
@@ -114,6 +119,7 @@ export default function OrderReceipt({ order, restaurantName, logo = null, lang 
       <p className="text-center">
         Thank you · <bdi>شكراً لكم</bdi>
       </p>
-    </div>
+    </div>,
+    document.body,
   );
 }

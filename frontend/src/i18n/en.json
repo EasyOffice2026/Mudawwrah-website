@@ -207,8 +207,8 @@
       "newOrder": "New order {{number}}",
       "empty": "No orders yet",
       "viewAll": "View all orders",
-      "soundOff": "Sound is off",
-      "soundOffHint": "After a page loads, browsers keep sound off until you click. Click here to turn on the new-order chime."
+      "soundOff": "Tap to turn on the order sound",
+      "soundOffHint": "The browser keeps sound off after the page opens until someone taps it. New orders ring loudly until they are accepted."
     },
     "update": {
       "banner": "A new version is available.",
@@ -590,6 +590,8 @@
       "step1": "In Windows, make the receipt printer the default printer and set its paper to 80 mm.",
       "step2": "Click \"Copy Chrome shortcut\" for the branch below, create a new Windows shortcut on that computer and paste it as the target. Put the shortcut in the Startup folder (Win+R, type shell:startup) so it opens by itself after a restart.",
       "step3": "Open the shortcut and press \"Print a test ticket\". It must print without any pop-up. Keep the computer awake and the window open.",
+      "handheld": "On a Sunmi handheld: install the \"Madawarah Printer\" app on the device (download link below), open it, sign in with the branch account, and on this page tap \"Open\" next to the branch. From then on every order prints by itself on the built-in printer, with no preview or pop-up, also after the device restarts.",
+      "handheldDownload": "Download the app for Sunmi",
       "private": "Keep these links private: anyone who has one can read that branch's orders.",
       "waiting": "{{count}} waiting to print",
       "noneWaiting": "Nothing waiting",
@@ -613,7 +615,17 @@
         "printedHere": "Printed on this computer",
         "nothingYet": "Nothing yet",
         "test": "Print a test ticket",
-        "silentWarning": "Printing is waiting for someone to confirm. Start Chrome with --kiosk-printing (see Admin → Printing) so tickets print without a pop-up."
+        "silentWarning": "Printing is waiting for someone to confirm. Start Chrome with --kiosk-printing (see Admin → Printing) so tickets print without a pop-up.",
+        "sunmiReady": "Printing on this device's built-in printer, without any pop-up.",
+        "sunmiState": {
+          "connecting": "Connecting to the printer…",
+          "no-printer": "No printer found on this device.",
+          "out-of-paper": "The printer is out of paper. Put in a new roll; waiting tickets print by themselves.",
+          "cover-open": "The printer cover is open. Close it; waiting tickets print by themselves.",
+          "overheated": "The printer is too hot. It carries on once it has cooled down.",
+          "error": "The printer needs attention. Check the paper and the cover."
+        },
+        "otherBranch": "Use this device for another branch"
       }
     },
     "site": {

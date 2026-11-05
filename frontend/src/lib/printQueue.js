@@ -25,10 +25,11 @@ export const STATION_PROFILE_DIR = 'C:\\PrintStation';
 export const chromeShortcut = (url) =>
   `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing --user-data-dir="${STATION_PROFILE_DIR}" --app="${url}"`;
 
-// How a ticket sits on the paper. With no page margins Chrome has nowhere to print the date, page title and
-// address it otherwise adds to every page. A printer only reaches the middle of its paper (72 mm of 80 mm, 48 mm of
-// the 58 mm in a Sunmi handheld), so the ticket keeps 5 mm clear on each side and nothing at the edges is cut off.
-export const STATION_PRINT_CSS = '@media print { @page { margin: 0; } .print-receipt { padding: 0 5mm; } }';
+// How a ticket sits on the paper, whichever page prints it (the print station, or "Print ticket" on the order
+// screen). With no page margins Chrome has nowhere to print the date, page title and address it otherwise adds to
+// every page. A printer only reaches the middle of its paper (72 mm of 80 mm, 48 mm of the 58 mm in a Sunmi
+// handheld), so the ticket keeps 5 mm clear on each side and nothing at the edges is cut off.
+export const RECEIPT_PRINT_CSS = '@media print { @page { margin: 0; } .print-receipt { padding: 0 5mm; } }';
 
 const METHOD = { KNET: 'KNET', CARD: 'Card', APPLE_PAY: 'Apple Pay', CASH: 'Cash', WHATSAPP: 'WhatsApp' };
 const money = (value) => `KWD ${Number(value || 0).toFixed(3)}`;

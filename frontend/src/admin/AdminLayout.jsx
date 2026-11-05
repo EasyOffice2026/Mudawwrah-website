@@ -6,7 +6,7 @@ import { localized } from '../lib/format';
 import { applyTheme } from '../lib/theme';
 import { useAuth } from '../store/auth';
 import BuildLabel from '../components/BuildLabel.jsx';
-import { NotificationBell, OrderFeedProvider, SoundOffPill, useOrderFeed, WaitingBanner } from './OrderFeed.jsx';
+import { NotificationBell, OrderFeedProvider, SoundOffScreen, useOrderFeed, WaitingBanner } from './OrderFeed.jsx';
 import UpdateBanner from './UpdateBanner.jsx';
 
 // Who sees each page. ADMIN is the owner; a BRANCH account only ever gets the
@@ -42,7 +42,8 @@ const links = [
   { to: 'promotions', labelKey: 'admin.promotions', roles: STAFF },
   { to: 'feedback', labelKey: 'admin.feedback', roles: STAFF },
   { to: 'zones', labelKey: 'admin.zones', roles: OWNER },
-  { to: 'printing', labelKey: 'admin.printing.title', roles: STAFF },
+  // A branch account sees its own branch's print station only, so each branch sets up its printer itself.
+  { to: 'printing', labelKey: 'admin.printing.title', roles: DESK },
   { to: 'users', labelKey: 'admin.users', roles: OWNER },
   { to: 'settings', labelKey: 'admin.settings', roles: STAFF },
 ];
@@ -147,7 +148,7 @@ export default function AdminLayout() {
             ☰
           </button>
           <div className="flex items-center gap-2">
-            <SoundOffPill />
+            <SoundOffScreen />
             <NotificationBell base={base} />
             {branch ? (
               <span className="rounded-full bg-brand-light px-3 py-1 text-xs font-bold text-brand">

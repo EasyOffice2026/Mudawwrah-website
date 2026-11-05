@@ -46,25 +46,39 @@ export const watchAudio = (callback) => {
   return () => audio.removeEventListener('statechange', report);
 };
 
+// A telephone ring: two high notes flipping quickly, in two bursts (about 1.4 s). Square waves at near full
+// volume carry over a kitchen's noise, where the old soft two-note chime went unheard.
+const RING_NOTES = [1046.5, 1318.5];
+const FLIPS = 8;
+const FLIP_S = 0.07;
+const BURST_GAP_S = 0.24;
+
 export const playChime = () => {
   try {
     const audio = context();
     if (!audio) return;
     audio.resume();
-    [880, 1320].forEach((freq, index) => {
-      const osc = audio.createOscillator();
-      const gain = audio.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      osc.connect(gain);
-      gain.connect(audio.destination);
-      const start = audio.currentTime + index * 0.18;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
-      osc.start(start);
-      osc.stop(start + 0.18);
-    });
+    // The compressor keeps the ring as loud as the speaker allows without crackling.
+    const limiter = audio.createDynamicsCompressor();
+    limiter.connect(audio.destination);
+    const begin = audio.currentTime + 0.03;
+    for (let burst = 0; burst < 2; burst += 1) {
+      for (let flip = 0; flip < FLIPS; flip += 1) {
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.type = 'square';
+        osc.frequency.value = RING_NOTES[flip % 2];
+        osc.connect(gain);
+        gain.connect(limiter);
+        const start = begin + burst * (FLIPS * FLIP_S + BURST_GAP_S) + flip * FLIP_S;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.9, start + 0.005);
+        gain.gain.setValueAtTime(0.9, start + FLIP_S - 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + FLIP_S);
+        osc.start(start);
+        osc.stop(start + FLIP_S);
+      }
+    }
   } catch {
     /* audio is a nicety, never a failure */
   }
