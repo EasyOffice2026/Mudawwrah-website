@@ -5,6 +5,7 @@ import OrderReceipt from '../admin/components/OrderReceipt.jsx';
 import { api } from '../lib/api';
 import { localized } from '../lib/format';
 import { pickJobs, SILENT_PRINT_MS, STATION_PRINT_CSS, testTicket } from '../lib/printQueue';
+import { thermalLogo } from '../lib/receiptLogo';
 import { cachedPath, refresh } from '../lib/storefrontApi';
 
 const POLL_MS = 3000;
@@ -39,6 +40,7 @@ export default function PrintStation() {
   const [branchName, setBranchName] = useState('');
   const [lastCheck, setLastCheck] = useState(null);
   const [dialogSeen, setDialogSeen] = useState(false);
+  const [logo, setLogo] = useState(null);
   const busy = useRef(false);
   const done = useRef(new Set());
   const failedAt = useRef(new Map());
@@ -47,6 +49,17 @@ export default function PrintStation() {
   useEffect(() => {
     refresh('/tenants/current').then(setRestaurant).catch(() => {});
   }, []);
+
+  // The logo, turned black on white for the receipt printer, once; until it is ready (or if it cannot be made) the
+  // ticket prints the name alone.
+  const logoUrl = restaurant?.logoUrl;
+  const logoReady = useRef(Promise.resolve(null));
+  useEffect(() => {
+    logoReady.current = thermalLogo(logoUrl).then((made) => {
+      setLogo(made);
+      return made;
+    });
+  }, [logoUrl]);
 
   useEffect(() => {
     document.title = `${t('admin.printing.station.title')}${branchName ? ` · ${branchName}` : ''}`;
@@ -75,8 +88,14 @@ export default function PrintStation() {
   const params = { branch: branchId };
 
   const printTicket = async (order) => {
+    // A few seconds at most for the logo the first time; a ticket is never held up for it.
+    await Promise.race([logoReady.current, pause(3000)]);
     setPrinting(order);
     await nextPaint();
+    // The logo is a data: picture already made, so it is decoded at once; this only waits for that.
+    await Promise.all(
+      [...document.querySelectorAll('.print-receipt img')].map((img) => (img.decode ? img.decode().catch(() => {}) : null)),
+    );
     const began = Date.now();
     window.print();
     if (Date.now() - began > SILENT_PRINT_MS) setDialogSeen(true);
@@ -224,7 +243,12 @@ export default function PrintStation() {
       </main>
 
       <style>{STATION_PRINT_CSS}</style>
-      <OrderReceipt order={printing} restaurantName={restaurant ? localized(restaurant, 'name', 'en') : ''} lang="en" />
+      <OrderReceipt
+        order={printing}
+        restaurantName={restaurant ? localized(restaurant, 'name', 'en') : ''}
+        logo={logo}
+        lang="en"
+      />
     </div>
   );
 }
