@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Madawarah Printer</string>
+    <string name="autostart_title">Start by itself after a restart</string>
+    <string name="autostart_message">So that orders keep printing after the device restarts, allow this app to \"Display over other apps\" on the next screen, then come back.\n\nحتى تستمر الطباعة بعد إعادة تشغيل الجهاز، اسمح للتطبيق بـ «الظهور فوق التطبيقات الأخرى» في الشاشة التالية ثم ارجع.</string>
+    <string name="autostart_allow">Allow</string>
+    <string name="autostart_later">Later</string>
+</resources>

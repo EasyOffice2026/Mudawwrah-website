@@ -58,6 +58,10 @@ export default function Printing() {
           <li>{t('admin.printing.step3')}</li>
         </ol>
         <p className="pt-1 text-gray-700">{t('admin.printing.handheld')}</p>
+        {/* The Android app in printer-app/ (how to build it and put it here: printer-app/README.md). */}
+        <a className="btn-ghost w-fit" href="/downloads/madawarah-printer.apk" download>
+          ⬇️ {t('admin.printing.handheldDownload')}
+        </a>
         <p className="pt-1 text-xs font-semibold text-amber-700">{t('admin.printing.private')}</p>
       </div>
 

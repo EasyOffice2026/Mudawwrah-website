@@ -30,7 +30,8 @@ export default function OrderReceipt({ order, restaurantName, logo = null, lang 
   const branch = (pickup ? order.pickupLocation : order.branch) || order.pickupLocation || order.branch;
 
   return createPortal(
-    <div className="print-receipt hidden bg-white font-sans text-[12px] leading-snug text-black">
+    // Laid out left to right whatever the page's language; the Arabic in it sits in <bdi>.
+    <div dir="ltr" className="print-receipt hidden bg-white font-sans text-[12px] leading-snug text-black">
       <style>{RECEIPT_PRINT_CSS}</style>
       <header className="text-center">
         {logo ? <img src={logo} alt="" className="mx-auto mb-1 max-h-[22mm] max-w-[60%] object-contain" /> : null}
