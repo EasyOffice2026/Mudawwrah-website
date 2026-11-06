@@ -44,7 +44,8 @@ test('a screen that went away stops being told, and one that fails is dropped', 
   assert.equal(watcherCount(), before);
 });
 
-test('a branch screen is "connected" for 45 seconds after it last checked in', () => {
+test('a branch screen is "connected" for 3 minutes after it last checked in, so a short drop never shows', () => {
+  assert.equal(ONLINE_MS, 3 * 60_000);
   forgetAll();
   const branches = [
     { id: 'jahra', nameEn: 'Al Jahra', nameAr: 'الجهراء' },
@@ -67,4 +68,26 @@ test('one restaurant\'s branch is never reported for another restaurant', () => 
   assert.equal(statuses('t2', [{ id: 'jahra', nameEn: 'x', nameAr: 'x' }], 6)[0].online, false);
   touch('t1', null, '1.1.1.1', 5);
   touch(null, 'jahra', '1.1.1.1', 5);
+});
+
+test('the printer is reported apart from the order screen, so a branch that only prints still shows connected', () => {
+  forgetAll();
+  const branches = [{ id: 'sabah', nameEn: 'Sabah', nameAr: 'صباح' }];
+  touch('t1', 'sabah', '1.1.1.1', 1_000_000, 'printer');
+  const [sabah] = statuses('t1', branches, 1_000_000 + 60_000);
+  assert.equal(sabah.printer.online, true);
+  assert.equal(sabah.printer.lastSeenAt, new Date(1_000_000).toISOString());
+  assert.equal(sabah.online, false, 'no order screen open');
+});
+
+test('after a server restart the saved times stand in, until the branch checks in again', () => {
+  forgetAll();
+  const saved = new Date(1_000_000).toISOString();
+  const branches = [{ id: 'sabah', nameEn: 'Sabah', nameAr: 'صباح', screenSeenAt: saved, screenAddress: '2.2.2.2', printerSeenAt: saved }];
+  const [sabah] = statuses('t1', branches, 1_000_000 + 30_000);
+  assert.deepEqual([sabah.online, sabah.address, sabah.printer.online], [true, '2.2.2.2', true]);
+  // A newer check-in in memory wins over the saved time.
+  touch('t1', 'sabah', '3.3.3.3', 1_500_000);
+  const [later] = statuses('t1', branches, 1_500_000);
+  assert.deepEqual([later.lastSeenAt, later.address], [new Date(1_500_000).toISOString(), '3.3.3.3']);
 });

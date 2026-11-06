@@ -490,6 +490,11 @@ model PickupLocation {
   /// Starts this branch's order numbers (SAB20261006-0001), so each branch
   /// counts its own orders. Null derives one from the name.
   orderCode       String?
+  /// When the branch's order screen and print station last checked in (services/presenceService.js), so the
+  /// owner's "connected" view survives a server restart. Written with plain SQL, never through updatedAt.
+  screenSeenAt    DateTime?
+  screenAddress   String?
+  printerSeenAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   orders       Order[]  @relation("OrderPickupLocation")

@@ -7,9 +7,12 @@ import { localized } from '../lib/format';
 import { pickJobs, SILENT_PRINT_MS, testTicket } from '../lib/printQueue';
 import { thermalLogo } from '../lib/receiptLogo';
 import { forgetSunmiStation, hasSunmi, printOnSunmi, sunmiStatus } from '../lib/sunmi';
+import { useScreenAwake } from '../lib/useScreenAwake';
 import { cachedPath, refresh } from '../lib/storefrontApi';
 
 const POLL_MS = 3000;
+// One failed check is usually a network blip; the station only says "offline" after this many in a row.
+const OFFLINE_AFTER_FAILURES = 3;
 // The page reloads itself now and then while idle: it runs for days, and this also picks up new versions.
 const RELOAD_AFTER_MS = 6 * 60 * 60 * 1000;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,6 +53,7 @@ export default function PrintStation() {
   const done = useRef(new Set());
   const failedAt = useRef(new Map());
   const unreported = useRef([]);
+  const failures = useRef(0);
 
   useEffect(() => {
     refresh('/tenants/current').then(setRestaurant).catch(() => {});
@@ -70,24 +74,8 @@ export default function PrintStation() {
     document.title = `${t('admin.printing.station.title')}${branchName ? ` · ${branchName}` : ''}`;
   }, [t, branchName]);
 
-  // A computer that goes to sleep stops printing, so ask the screen to stay on where the browser allows it.
-  useEffect(() => {
-    let lock = null;
-    const hold = async () => {
-      try {
-        lock = (await navigator.wakeLock?.request('screen')) || null;
-      } catch {
-        lock = null;
-      }
-    };
-    hold();
-    const again = () => document.visibilityState === 'visible' && hold();
-    document.addEventListener('visibilitychange', again);
-    return () => {
-      document.removeEventListener('visibilitychange', again);
-      lock?.release?.().catch(() => {});
-    };
-  }, []);
+  // A computer that goes to sleep stops printing.
+  useScreenAwake();
 
   const headers = { 'X-Print-Key': key };
   const params = { branch: branchId };
@@ -131,6 +119,7 @@ export default function PrintStation() {
       try {
         for (const job of unreported.current.splice(0)) await report(job);
         const { data } = await api.get('/print/jobs', { params, headers });
+        failures.current = 0;
         setLastCheck(new Date());
         setStatus('ready');
         if (sunmi) setPrinterState(sunmiStatus());
@@ -150,7 +139,9 @@ export default function PrintStation() {
           await pause(800);
         }
       } catch (error) {
-        setStatus(error.response?.status === 401 ? 'badlink' : 'offline');
+        failures.current += 1;
+        if (error.response?.status === 401) setStatus('badlink');
+        else if (failures.current >= OFFLINE_AFTER_FAILURES) setStatus('offline');
       } finally {
         busy.current = false;
       }

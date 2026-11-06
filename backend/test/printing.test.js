@@ -192,3 +192,17 @@ test('the stations list counts what is waiting', { skip }, async () => {
   assert.ok(ardiya.lastPrinted?.orderNumber, 'remembers the last ticket it printed');
   await call('POST', `/print/jobs/${placed.body.id}/printed`, { key: ids.keys[ids.jahra], query: `?branch=${ids.jahra}` });
 });
+
+test('a print station checking in shows the owner that branch\'s printer as connected, and survives a restart', { skip }, async () => {
+  await jobsFor(ids.jahra, ids.keys[ids.jahra]);
+  const presence = await call('GET', '/branches/presence', { token: ids.owner });
+  const jahra = presence.body.find((b) => b.id === ids.jahra);
+  assert.equal(jahra.printer.online, true, JSON.stringify(jahra));
+  // Saved on the branch for after a restart, without touching the branch's own "last changed" time.
+  const before = await prisma.pickupLocation.findUnique({ where: { id: ids.ardiya }, select: { updatedAt: true } });
+  await jobsFor(ids.ardiya, ids.keys[ids.ardiya]);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const row = await prisma.pickupLocation.findUnique({ where: { id: ids.ardiya }, select: { printerSeenAt: true, updatedAt: true } });
+  assert.ok(row.printerSeenAt, 'saved');
+  assert.equal(row.updatedAt.getTime(), before.updatedAt.getTime());
+});

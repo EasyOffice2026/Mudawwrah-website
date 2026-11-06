@@ -5,6 +5,7 @@ import { api, API_BASE, readDevice, tokenKey } from '../lib/api';
 import { playChime, unlockAudio, watchAudio } from '../lib/chime';
 import { dateTime, kwd, localized } from '../lib/format';
 import { createSseParser, isSilent, POLL_MS, reconnectDelay, shouldPoll } from '../lib/liveStream';
+import { useScreenAwake } from '../lib/useScreenAwake';
 import { shouldChimeAgain, waitingAlarm } from '../lib/waiting';
 
 
@@ -190,6 +191,9 @@ export function OrderFeedProvider({ slug, user, children }) {
     }, 2000);
     return () => clearInterval(id);
   }, []);
+
+  // A branch's order screen stays on, so it keeps checking in and the owner sees it connected.
+  useScreenAwake(user.role === 'BRANCH');
 
   // Sound only works after the page has been touched; every tap, click or key tries, so it comes back on by
   // itself whenever the browser stopped it (a reload, a tablet waking up).
