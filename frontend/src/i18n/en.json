@@ -604,6 +604,8 @@
       "open": "Open",
       "reprint": "Send to printer",
       "sent": "Sent to the printer",
+      "copies_one": "{{count}} copy waiting",
+      "copies_other": "{{count}} copies waiting",
       "station": {
         "title": "Print station",
         "starting": "Starting…",
@@ -642,11 +644,14 @@
       "urgent": "URGENT"
     },
     "presence": {
-      "title": "Branch screens",
-      "hint": "A branch counts as connected while its order screen is open and checking for orders.",
+      "title": "Branches connected",
+      "hint": "Connected while the branch's order screen or printer has checked in within the last 3 minutes.",
+      "screen": "Order screen",
+      "printer": "Printer",
       "connected": "Connected",
       "lastSeen": "Last seen {{when}}",
-      "never": "Not seen since the server last restarted",
+      "never": "Not seen yet",
+      "noPrinter": "No print station yet",
       "when": {
         "now": "just now",
         "minutes": "{{count}} min ago",

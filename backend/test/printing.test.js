@@ -182,6 +182,48 @@ test('the order desk can print a ticket again; a branch can only do its own', { 
   await call('POST', `/print/jobs/${ids.first}/printed`, { key: ids.keys[ids.ardiya], query: `?branch=${ids.ardiya}` });
 });
 
+test('a ticket can be sent again and again: each press is another copy, even while one is printing', { skip }, async () => {
+  const station = { key: ids.keys[ids.ardiya], query: `?branch=${ids.ardiya}` };
+  const waitingJob = async () => (await jobsFor(ids.ardiya, ids.keys[ids.ardiya])).body.jobs.find((j) => j.id === ids.first);
+  const printed = (job, copies) => call('POST', `/print/jobs/${job.id}/printed`, { ...station, body: { queuedAt: job.printQueuedAt, copies } });
+  const before = (await prisma.order.findUnique({ where: { id: ids.first } })).printCount;
+
+  // Sent once, printed: done.
+  await call('POST', `/orders/${ids.first}/reprint`, { token: ids.owner });
+  let job = await waitingJob();
+  assert.equal(job.printCopies, 1);
+  await printed(job, 1);
+  assert.equal(await waitingJob(), undefined);
+
+  // Sent again later: it comes back, as a new request the station has not printed.
+  await call('POST', `/orders/${ids.first}/reprint`, { token: ids.owner });
+  const second = await waitingJob();
+  assert.ok(second && second.printQueuedAt !== job.printQueuedAt);
+
+  // Pressed twice more before it comes out: three copies waiting.
+  await call('POST', `/orders/${ids.first}/reprint`, { token: ids.owner });
+  const three = await call('POST', `/orders/${ids.first}/reprint`, { token: ids.owner });
+  assert.equal(three.body.printCopies, 3);
+  job = await waitingJob();
+  assert.equal(job.printCopies, 3);
+
+  // The station prints those three; someone presses once more while they come out. That copy is still owed.
+  await call('POST', `/orders/${ids.first}/reprint`, { token: ids.owner });
+  await printed(job, 3);
+  const owed = await waitingJob();
+  assert.ok(owed, 'the copy asked for while printing is still waiting');
+  assert.equal(owed.printCopies, 1);
+  await printed(owed, 1);
+  assert.equal(await waitingJob(), undefined);
+  assert.equal((await prisma.order.findUnique({ where: { id: ids.first } })).printCount, before + 1 + 3 + 1);
+
+  // Never more than five copies at once, however often it is pressed.
+  for (let i = 0; i < 8; i += 1) await call('POST', `/orders/${ids.first}/reprint`, { token: ids.owner });
+  job = await waitingJob();
+  assert.equal(job.printCopies, 5);
+  await printed(job, 5);
+});
+
 test('the stations list counts what is waiting', { skip }, async () => {
   const placed = await call('POST', '/orders', { body: order({ orderType: 'DELIVERY', area: 'Jahra', address: 'j' }) });
   const stations = await call('GET', '/print/stations', { token: ids.owner });
@@ -191,4 +233,18 @@ test('the stations list counts what is waiting', { skip }, async () => {
   assert.equal(ardiya.waiting, 0);
   assert.ok(ardiya.lastPrinted?.orderNumber, 'remembers the last ticket it printed');
   await call('POST', `/print/jobs/${placed.body.id}/printed`, { key: ids.keys[ids.jahra], query: `?branch=${ids.jahra}` });
+});
+
+test('a print station checking in shows the owner that branch\'s printer as connected, and survives a restart', { skip }, async () => {
+  await jobsFor(ids.jahra, ids.keys[ids.jahra]);
+  const presence = await call('GET', '/branches/presence', { token: ids.owner });
+  const jahra = presence.body.find((b) => b.id === ids.jahra);
+  assert.equal(jahra.printer.online, true, JSON.stringify(jahra));
+  // Saved on the branch for after a restart, without touching the branch's own "last changed" time.
+  const before = await prisma.pickupLocation.findUnique({ where: { id: ids.ardiya }, select: { updatedAt: true } });
+  await jobsFor(ids.ardiya, ids.keys[ids.ardiya]);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const row = await prisma.pickupLocation.findUnique({ where: { id: ids.ardiya }, select: { printerSeenAt: true, updatedAt: true } });
+  assert.ok(row.printerSeenAt, 'saved');
+  assert.equal(row.updatedAt.getTime(), before.updatedAt.getTime());
 });

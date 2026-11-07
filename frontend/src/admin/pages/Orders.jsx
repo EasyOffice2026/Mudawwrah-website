@@ -102,13 +102,16 @@ export default function Orders() {
   }, [feed?.version, live]);
 
   const [cancelling, setCancelling] = useState(null);
-  // The order whose ticket was just sent to the branch printer again (shown on its button for a moment).
-  const [sentId, setSentId] = useState(null);
+  // The order whose ticket was just sent to the branch printer again, and how many copies are now waiting there
+  // (shown on its button for a moment). Pressing it again before the ticket comes out adds a copy.
+  const [sent, setSent] = useState(null);
+  const sentTimer = useRef(null);
   const reprint = async (order) => {
     try {
-      await api.post(`/orders/${order.id}/reprint`);
-      setSentId(order.id);
-      setTimeout(() => setSentId(null), 3000);
+      const { data } = await api.post(`/orders/${order.id}/reprint`);
+      setSent({ id: order.id, copies: data?.printCopies || 1 });
+      clearTimeout(sentTimer.current);
+      sentTimer.current = setTimeout(() => setSent(null), 3000);
     } catch (err) {
       setError(apiError(err));
     }
@@ -451,7 +454,9 @@ export default function Orders() {
               ))}
               <span className="ms-auto flex flex-wrap gap-2">
                 <button type="button" className="btn-ghost" onClick={() => reprint(detail)}>
-                  {sentId === detail.id ? t('admin.printing.sent') : `🖨️ ${t('admin.printing.reprint')}`}
+                  {sent?.id === detail.id
+                    ? `${t('admin.printing.sent')}${sent.copies > 1 ? ` · ${t('admin.printing.copies', { count: sent.copies })}` : ''}`
+                    : `🖨️ ${t('admin.printing.reprint')}`}
                 </button>
                 <button type="button" className="btn-ghost" onClick={() => window.print()}>
                   🖨️ {t('admin.printTicket')}
