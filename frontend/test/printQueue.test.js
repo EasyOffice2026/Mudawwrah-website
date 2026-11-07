@@ -2,15 +2,19 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   chromeShortcut,
+  copiesOf,
   pickJobs,
   RETRY_AFTER_MS,
   SILENT_PRINT_MS,
   RECEIPT_PRINT_CSS,
   stationUrl,
   testTicket,
+  ticketKey,
 } from '../src/lib/printQueue.js';
 
-const jobs = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+const at = '2026-11-08T10:00:00.000Z';
+const jobs = [{ id: 'a', printQueuedAt: at }, { id: 'b', printQueuedAt: at }, { id: 'c', printQueuedAt: at }];
+const key = (id) => ticketKey({ id, printQueuedAt: at });
 
 test('every waiting ticket is picked when nothing has been printed yet', () => {
   assert.deepEqual(pickJobs(jobs).map((j) => j.id), ['a', 'b', 'c']);
@@ -18,11 +22,25 @@ test('every waiting ticket is picked when nothing has been printed yet', () => {
 });
 
 test('a ticket this page already printed is never printed twice, even if the server still lists it', () => {
-  assert.deepEqual(pickJobs(jobs, { done: new Set(['a', 'c']) }).map((j) => j.id), ['b']);
+  assert.deepEqual(pickJobs(jobs, { done: new Set([key('a'), key('c')]) }).map((j) => j.id), ['b']);
+});
+
+test('a ticket sent to the printer again prints again, though this page printed it before', () => {
+  const done = new Set([key('a')]);
+  const again = { id: 'a', printQueuedAt: '2026-11-08T10:05:00.000Z' };
+  assert.deepEqual(pickJobs([again], { done }).map((j) => j.id), ['a']);
+  assert.deepEqual(pickJobs([{ id: 'a', printQueuedAt: at }], { done }), []);
+});
+
+test('a ticket asks for its copies, one to five', () => {
+  assert.equal(copiesOf({}), 1);
+  assert.equal(copiesOf({ printCopies: 3 }), 3);
+  assert.equal(copiesOf({ printCopies: 40 }), 5);
+  assert.equal(copiesOf({ printCopies: 0 }), 1);
 });
 
 test('a ticket that failed is left alone for 30 seconds, then tried again', () => {
-  const failedAt = new Map([['b', 1000]]);
+  const failedAt = new Map([[key('b'), 1000]]);
   assert.deepEqual(pickJobs(jobs, { failedAt, now: 1000 + RETRY_AFTER_MS - 1 }).map((j) => j.id), ['a', 'c']);
   assert.deepEqual(pickJobs(jobs, { failedAt, now: 1000 + RETRY_AFTER_MS }).map((j) => j.id), ['a', 'b', 'c']);
 });

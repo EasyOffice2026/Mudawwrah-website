@@ -10,7 +10,8 @@ export const jobs = async (req, res) => {
   res.json({ jobs: await printService.jobs(req.printBranch), now: new Date() });
 };
 
-export const printed = async (req, res) => res.json(await printService.markPrinted(req.printBranch, req.params.id));
+export const printed = async (req, res) =>
+  res.json(await printService.markPrinted(req.printBranch, req.params.id, { queuedAt: req.body?.queuedAt, copies: req.body?.copies }));
 
 // For the Printing page: every branch for the owner and staff, its own for a branch account.
 export const stations = async (req, res) => res.json(await printService.stations(req.user));

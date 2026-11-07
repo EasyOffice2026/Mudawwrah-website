@@ -9,9 +9,21 @@ export const RETRY_AFTER_MS = 30_000;
 // took longer than this, a print dialog was probably waiting for someone, which defeats automatic printing.
 export const SILENT_PRINT_MS = 1500;
 
+/**
+ * One print request: the order and when it was sent to the printer. "Send to printer" gives the same order a new
+ * time, so a ticket sent again is a new request and prints again, while one already printed is never repeated.
+ */
+export const ticketKey = (job) => `${job.id}:${job.printQueuedAt || ''}`;
+
+/** How many copies of this ticket to print now ("Send to printer" pressed again before it came out adds one). */
+export const copiesOf = (job) => Math.min(5, Math.max(1, Math.trunc(Number(job?.printCopies)) || 1));
+
 /** The waiting tickets this page still has to print: not already printed here, not failed a moment ago. */
 export const pickJobs = (jobs, { done = new Set(), failedAt = new Map(), now = Date.now() } = {}) =>
-  (jobs || []).filter((job) => !done.has(job.id) && !(failedAt.has(job.id) && now - failedAt.get(job.id) < RETRY_AFTER_MS));
+  (jobs || []).filter((job) => {
+    const key = ticketKey(job);
+    return !done.has(key) && !(failedAt.has(key) && now - failedAt.get(key) < RETRY_AFTER_MS);
+  });
 
 /** The private page a branch computer keeps open. The key sits after the # so it is never sent to a server. */
 export const stationUrl = (origin, slug, branchId, key) => `${origin}/r/${slug}/print/${branchId}#${key}`;

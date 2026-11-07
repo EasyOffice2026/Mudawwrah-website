@@ -604,6 +604,8 @@
       "open": "Open",
       "reprint": "Send to printer",
       "sent": "Sent to the printer",
+      "copies_one": "{{count}} copy waiting",
+      "copies_other": "{{count}} copies waiting",
       "station": {
         "title": "Print station",
         "starting": "Starting…",

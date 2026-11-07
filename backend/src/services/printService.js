@@ -47,25 +47,51 @@ export const jobs = (branchId) =>
     },
   });
 
-/** A station reports a ticket printed. Only an order of that station's own branch can be reported. */
-export const markPrinted = async (branchId, orderId) => {
-  const order = await prisma.order.findFirst({ where: { id: orderId, ...forBranch(branchId) }, select: { id: true, printCount: true } });
+// The most copies one ticket can be waiting for, so a button pressed over and over does not empty the paper roll.
+export const MAX_COPIES = 5;
+const copiesOf = (value) => Math.min(MAX_COPIES, Math.max(1, Math.trunc(Number(value)) || 1));
+
+/**
+ * A station reports a ticket printed. Only an order of that station's own branch can be reported.
+ *
+ * The station says which request it printed (`queuedAt`, the ticket's print time when it fetched it) and how many
+ * copies. If "Send to printer" was pressed again meanwhile, the print time has moved on: the ticket stays waiting,
+ * owing only the copies not yet printed, so that copy still comes out. Older station pages send neither, and the
+ * ticket is simply done.
+ */
+export const markPrinted = async (branchId, orderId, { queuedAt, copies } = {}) => {
+  const order = await prisma.order.findFirst({ where: { id: orderId, ...forBranch(branchId) }, select: { id: true } });
   if (!order) throw new HttpError(404, 'That order does not belong to this printer');
-  return prisma.order.update({
-    where: { id: order.id },
-    data: { printedAt: new Date(), printCount: order.printCount + 1 },
-    select: { id: true, printedAt: true, printCount: true },
+  const count = copiesOf(copies);
+  const asked = queuedAt ? new Date(queuedAt) : null;
+  const sameRequest = asked && !Number.isNaN(asked.getTime()) ? { printQueuedAt: asked } : {};
+  const finished = await prisma.order.updateMany({
+    where: { id: order.id, ...sameRequest },
+    data: { printedAt: new Date(), printCopies: 1, printCount: { increment: count } },
   });
+  if (!finished.count) {
+    await prisma.$executeRaw`UPDATE "Order" SET "printCount" = "printCount" + ${count}, "printCopies" = GREATEST(1, "printCopies" - ${count}) WHERE "id" = ${order.id}`;
+  }
+  return prisma.order.findUnique({ where: { id: order.id }, select: { id: true, printedAt: true, printCount: true } });
 };
 
-/** Sends a ticket to the station again (paper jam, lost ticket). Branch accounts can only do their own. */
+/**
+ * Sends a ticket to the station again (paper jam, lost ticket, a second copy). Branch accounts can only do their
+ * own. Pressed again while the ticket is still waiting (or printing), it adds a copy rather than being lost.
+ */
 export const reprint = async (orderId, viewer = null) => {
   const order = await orderService.getById(orderId, viewer);
-  return prisma.order.update({
-    where: { id: order.id },
-    data: { printQueuedAt: new Date(), printedAt: null },
-    select: { id: true, orderNumber: true, printQueuedAt: true },
-  });
+  const select = { id: true, orderNumber: true, printQueuedAt: true, printCopies: true };
+  const now = new Date();
+  if (order.printQueuedAt && !order.printedAt) {
+    if (order.printCopies >= MAX_COPIES) return prisma.order.findUnique({ where: { id: order.id }, select });
+    const added = await prisma.order.updateMany({
+      where: { id: order.id, printedAt: null },
+      data: { printQueuedAt: now, printCopies: { increment: 1 } },
+    });
+    if (added.count) return prisma.order.findUnique({ where: { id: order.id }, select });
+  }
+  return prisma.order.update({ where: { id: order.id }, data: { printQueuedAt: now, printedAt: null, printCopies: 1 }, select });
 };
 
 /**

@@ -314,6 +314,8 @@ model Order {
   printQueuedAt   DateTime?
   printedAt       DateTime?
   printCount      Int           @default(0)
+  /// Copies of the waiting ticket still to print: "Send to printer" pressed again before it came out adds one.
+  printCopies     Int           @default(1)
   /// Structured address parts, collected step by step by the WhatsApp flow.
   area          String?
   block         String?

@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import OrderReceipt from '../admin/components/OrderReceipt.jsx';
 import { api } from '../lib/api';
 import { localized } from '../lib/format';
-import { pickJobs, SILENT_PRINT_MS, testTicket } from '../lib/printQueue';
+import { copiesOf, pickJobs, SILENT_PRINT_MS, testTicket, ticketKey } from '../lib/printQueue';
 import { thermalLogo } from '../lib/receiptLogo';
 import { forgetSunmiStation, hasSunmi, printOnSunmi, sunmiStatus } from '../lib/sunmi';
 import { useScreenAwake } from '../lib/useScreenAwake';
@@ -16,6 +16,11 @@ const OFFLINE_AFTER_FAILURES = 3;
 // The page reloads itself now and then while idle: it runs for days, and this also picks up new versions.
 const RELOAD_AFTER_MS = 6 * 60 * 60 * 1000;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// What this page printed, as print requests; only the latest few hundred are kept, plenty to never print one twice.
+const remember = (set, key) => {
+  set.add(key);
+  if (set.size > 300) set.delete(set.values().next().value);
+};
 // Two frames, so the ticket is in the page before the browser is asked to print it.
 const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
@@ -80,7 +85,7 @@ export default function PrintStation() {
   const headers = { 'X-Print-Key': key };
   const params = { branch: branchId };
 
-  const printTicket = async (order) => {
+  const printTicket = async (order, copies = 1) => {
     // A few seconds at most for the logo the first time; a ticket is never held up for it.
     await Promise.race([logoReady.current, pause(3000)]);
     setPrinting(order);
@@ -89,19 +94,24 @@ export default function PrintStation() {
     await Promise.all(
       [...document.querySelectorAll('.print-receipt img')].map((img) => (img.decode ? img.decode().catch(() => {}) : null)),
     );
-    if (sunmi) {
-      await printOnSunmi(document.querySelector('.print-receipt'), order.id);
-      return order;
+    for (let copy = 0; copy < copies; copy += 1) {
+      if (copy) await pause(500);
+      if (sunmi) {
+        await printOnSunmi(document.querySelector('.print-receipt'), order.id);
+        continue;
+      }
+      const began = Date.now();
+      window.print();
+      if (Date.now() - began > SILENT_PRINT_MS) setDialogSeen(true);
     }
-    const began = Date.now();
-    window.print();
-    if (Date.now() - began > SILENT_PRINT_MS) setDialogSeen(true);
     return order;
   };
 
+  // The server is told which request was printed (its print time) and how many copies, so a "Send to printer"
+  // pressed while this ticket was coming out is still printed afterwards.
   const report = async (job) => {
     try {
-      await api.post(`/print/jobs/${job.id}/printed`, null, { params, headers });
+      await api.post(`/print/jobs/${job.id}/printed`, { queuedAt: job.printQueuedAt, copies: copiesOf(job) }, { params, headers });
     } catch (error) {
       // Printed but the server did not hear: remember it, so the ticket is not printed a second time.
       if (error.response?.status !== 404) unreported.current.push(job);
@@ -126,13 +136,16 @@ export default function PrintStation() {
         for (const job of pickJobs(data.jobs, { done: done.current, failedAt: failedAt.current })) {
           if (stopped) break;
           setBranchName(localized(job.branch || {}, 'name', lang) || '');
+          const ticket = ticketKey(job);
           try {
-            await printTicket(job);
-            done.current.add(job.id);
-            setRecent((list) => [{ id: job.id, number: job.orderNumber, at: new Date() }, ...list].slice(0, 8));
+            await printTicket(job, copiesOf(job));
+            remember(done.current, ticket);
+            setRecent((list) =>
+              [{ id: ticket, number: job.orderNumber, copies: copiesOf(job), at: new Date() }, ...list].slice(0, 8),
+            );
             await report(job);
           } catch {
-            failedAt.current.set(job.id, Date.now());
+            failedAt.current.set(ticket, Date.now());
           } finally {
             setPrinting(null);
           }
@@ -241,7 +254,10 @@ export default function PrintStation() {
             {recent.length ? (
               recent.map((row) => (
                 <li key={row.id} className="flex justify-between gap-3">
-                  <span className="font-semibold">{row.number}</span>
+                  <span className="font-semibold">
+                    {row.number}
+                    {row.copies > 1 ? ` ×${row.copies}` : ''}
+                  </span>
                   <span className="text-ink-soft">{row.at.toLocaleTimeString()}</span>
                 </li>
               ))

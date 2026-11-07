@@ -611,6 +611,12 @@
       "open": "فتح",
       "reprint": "إرسال إلى الطابعة",
       "sent": "أُرسل إلى الطابعة",
+      "copies_zero": "{{count}} نسخة بالانتظار",
+      "copies_one": "نسخة واحدة بالانتظار",
+      "copies_two": "نسختان بالانتظار",
+      "copies_few": "{{count}} نسخ بالانتظار",
+      "copies_many": "{{count}} نسخة بالانتظار",
+      "copies_other": "{{count}} نسخة بالانتظار",
       "station": {
         "title": "محطة الطباعة",
         "starting": "جارٍ البدء…",
