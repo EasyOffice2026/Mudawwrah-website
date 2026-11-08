@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { blockKey } from './services/pricing.js';
 import { CANCEL_REASONS } from './services/statusTimes.js';
 
 const price = z.coerce.number().min(0);
@@ -191,6 +192,17 @@ export const deliveryZoneSchema = z.object({
   branchId: z.string().uuid(),
   deliveryFee: z.coerce.number().min(0).max(100).nullable().optional(),
   minimumOrder: z.coerce.number().min(0).max(1000).nullable().optional(),
+  // Blocks with a fee of their own; the same block twice ("2" and "B2") is refused rather than guessed between.
+  blockFees: z
+    .array(z.object({ block: z.string().trim().min(1).max(20), fee: z.coerce.number().min(0).max(100) }))
+    .max(80)
+    .nullable()
+    .optional()
+    .transform((rows) => (rows === null ? [] : rows?.map((row) => ({ block: row.block, fee: Number(row.fee.toFixed(3)) }))))
+    .refine((rows) => !rows || rows.every((row) => blockKey(row.block)), { message: 'Each block needs a number or name' })
+    .refine((rows) => !rows || new Set(rows.map((row) => blockKey(row.block))).size === rows.length, {
+      message: 'A block is listed twice',
+    }),
   etaMinutes: z.coerce.number().int().min(0).max(600).nullable().optional(),
   isActive: z.coerce.boolean().optional(),
   displayOrder: z.coerce.number().int().min(0).optional(),

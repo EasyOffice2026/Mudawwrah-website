@@ -39,8 +39,33 @@ export const priceLines = (chosen, menuItems, options) =>
 
 export const subtotalOf = (lines) => round3(lines.reduce((sum, l) => sum + l.lineTotal, 0));
 
-/** The delivery fee before any voucher: none for collection; the area's own fee, else the restaurant's. */
-export const deliveryFeeFor = (orderType, zone, settings) => (orderType === 'PICKUP' ? 0 : round3(zone?.deliveryFee ?? settings.deliveryFee));
+/**
+ * A block as typed by a customer, reduced to what identifies it: "Block 2", "B2", "b-2", "02", "قطعة ٢" and "ق2"
+ * are all block "2". Arabic digits count as digits; the word for block in front is dropped.
+ */
+export const blockKey = (text) =>
+  String(text ?? '')
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .toLowerCase()
+    .replace(/[^a-z0-9؀-ۿ]+/g, '')
+    .replace(/^(block|blk|b|قطعة|قطعه|ق)(?=[0-9])/, '')
+    .replace(/^0+(?=[0-9])/, '');
+
+/** The fee the area charges for this block, if it lists one ("Fee per block" on the area); otherwise undefined. */
+export const blockFeeFor = (zone, block) => {
+  const key = blockKey(block);
+  if (!key) return undefined;
+  const match = (zone?.blockFees || []).find((row) => blockKey(row.block) === key);
+  return match ? Number(match.fee) : undefined;
+};
+
+/**
+ * The delivery fee before any voucher: none for collection; the block's own fee if the area lists one, else the
+ * area's fee, else the restaurant's.
+ */
+export const deliveryFeeFor = (orderType, zone, settings, block) =>
+  orderType === 'PICKUP' ? 0 : round3(blockFeeFor(zone, block) ?? zone?.deliveryFee ?? settings.deliveryFee);
 
 /**
  * The order's totals. The voucher's discount comes off the items; the service charge is on the discounted items;

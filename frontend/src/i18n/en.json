@@ -542,6 +542,10 @@
       "minutes": "{{minutes}} min",
       "default": "Default (from Settings)",
       "blankHint": "Leave empty to use the value from Settings.",
+      "blockFees": "Fee per block",
+      "blockFeesHint": "Optional. A block listed here pays its own fee; every other block in this area pays the delivery fee above.",
+      "block": "Block",
+      "addBlock": "Add a block",
       "displayOrder": "Display order",
       "needBranch": "Add a branch under Settings → Pickup locations before creating delivery zones."
     },

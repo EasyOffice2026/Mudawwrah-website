@@ -30,10 +30,25 @@ const normalise = (text) =>
 
 const zoneOrder = (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0) || new Date(a.createdAt) - new Date(b.createdAt);
 const money = (value) => (value === null || value === undefined ? null : Number(value));
-const present = (zone) => ({ ...zone, deliveryFee: money(zone.deliveryFee), minimumOrder: money(zone.minimumOrder) });
+const blockFeesOf = (zone) =>
+  (Array.isArray(zone.blockFees) ? zone.blockFees : []).map((row) => ({ block: String(row.block), fee: Number(row.fee) }));
+const present = (zone) => ({
+  ...zone,
+  deliveryFee: money(zone.deliveryFee),
+  minimumOrder: money(zone.minimumOrder),
+  blockFees: blockFeesOf(zone),
+});
 
-/** Admin: every zone with its branch. */
-export const listAll = async () => (await prisma.deliveryZone.findMany({ orderBy, include: { branch: { select: branchSelect } } })).map(present);
+/**
+ * Admin: every zone with its branch. An entry of an area listed under two branches shows the area's block fees even
+ * if it was added before they were set, so saving it never empties the list for the other entry.
+ */
+export const listAll = async () => {
+  const zones = await prisma.deliveryZone.findMany({ orderBy, include: { branch: { select: branchSelect } } });
+  const areaBlocks = (zone) =>
+    blockFeesOf(zone).length ? zone.blockFees : zones.find((z) => normalise(z.nameEn) === normalise(zone.nameEn) && blockFeesOf(z).length)?.blockFees;
+  return zones.map((zone) => present({ ...zone, blockFees: areaBlocks(zone) || [] }));
+};
 
 /**
  * Active zones of active branches with their branch's open status, and for an
@@ -53,7 +68,11 @@ const servingZones = async (now = new Date()) => {
   const serving = new Map();
   for (const [key, group] of groups) {
     const ranked = [...group].sort(zoneOrder);
-    serving.set(key, ranked.find((z) => z.branch.openNow) || ranked[0]);
+    const chosen = ranked.find((z) => z.branch.openNow) || ranked[0];
+    // Block fees belong to the area, whichever branch serves it now: an older entry that has none takes the list
+    // from one that does.
+    const withBlocks = ranked.find((z) => blockFeesOf(z).length);
+    serving.set(key, blockFeesOf(chosen).length || !withBlocks ? chosen : { ...chosen, blockFees: withBlocks.blockFees });
   }
   // Keep the list order (display order, then name), one entry per area.
   return live.filter((z) => serving.get(normalise(z.nameEn)).id === z.id).map((z) => serving.get(normalise(z.nameEn)));
@@ -75,15 +94,29 @@ export const getById = async (id) => {
   return present(zone);
 };
 
+/**
+ * An area listed under two branches (see above) is one area to the customer, so its "Fee per block" list is kept
+ * the same on every entry with that name: saving it on one saves it on the others.
+ */
+const shareBlockFees = async (zone) => {
+  const all = await prisma.deliveryZone.findMany({ select: { id: true, nameEn: true } });
+  const ids = all.filter((z) => z.id !== zone.id && normalise(z.nameEn) === normalise(zone.nameEn)).map((z) => z.id);
+  if (ids.length) await prisma.deliveryZone.updateMany({ where: { id: { in: ids } }, data: { blockFees: zone.blockFees } });
+};
+
 export const create = async (data) => {
   await ensureBranch(data.branchId);
-  return present(await prisma.deliveryZone.create({ data }));
+  const zone = await prisma.deliveryZone.create({ data });
+  if (data.blockFees?.length) await shareBlockFees(zone);
+  return present(zone);
 };
 
 export const update = async (id, data) => {
   await getById(id);
   if (data.branchId) await ensureBranch(data.branchId);
-  return present(await prisma.deliveryZone.update({ where: { id }, data }));
+  const zone = await prisma.deliveryZone.update({ where: { id }, data });
+  if (data.blockFees !== undefined) await shareBlockFees(zone);
+  return present(zone);
 };
 
 export const remove = async (id) => {

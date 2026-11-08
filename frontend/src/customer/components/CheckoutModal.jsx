@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { api, apiError } from '../../lib/api';
+import { blockFeeFor } from '../../lib/blockFees';
 import { kwd, localized } from '../../lib/format';
 import { reverseGeocode } from '../../lib/geocode';
 import { canUseApplePay, methodOfChoice, offeredPayments, paymentChoices } from '../../lib/paymentMethods';
@@ -204,8 +205,8 @@ export default function CheckoutModal({ open, onClose, settings, tenant, lang })
   const hasZones = zones.length > 0;
   const zone = hasZones ? zones.find((z) => z.id === zoneId) || null : null;
   const zoneName = (z) => localized(z, 'name', lang);
-  // A zone with no fee or minimum of its own uses the restaurant-wide one.
-  const zoneFee = zone?.deliveryFee ?? Number(settings?.deliveryFee || 0);
+  // A block the area lists pays its own fee; a zone with no fee or minimum of its own uses the restaurant-wide one.
+  const zoneFee = blockFeeFor(zone, form.block) ?? zone?.deliveryFee ?? Number(settings?.deliveryFee || 0);
   const minimumOrder = !isPickup && zone ? Number(zone.minimumOrder ?? settings?.minimumOrder ?? 0) : 0;
   const zoneClosed = !isPickup && zone?.branch?.openNow === false;
   const pickupBranch = isPickup ? pickupLocations.find((b) => b.id === pickupLocationId) : null;

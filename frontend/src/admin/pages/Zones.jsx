@@ -10,6 +10,7 @@ const empty = {
   branchId: '',
   deliveryFee: '',
   minimumOrder: '',
+  blockFees: [],
   etaMinutes: '',
   isActive: true,
   displayOrder: 0,
@@ -65,6 +66,9 @@ export default function Zones() {
         deliveryFee: orNull(rest.deliveryFee),
         minimumOrder: orNull(rest.minimumOrder),
         etaMinutes: orNull(rest.etaMinutes),
+        blockFees: (rest.blockFees || [])
+          .filter((row) => row.block.trim() && row.fee !== '')
+          .map((row) => ({ block: row.block.trim(), fee: Number(row.fee) })),
         displayOrder: Number(rest.displayOrder || 0),
       };
       if (id) await api.put(`/zones/${id}`, payload);
@@ -151,7 +155,14 @@ export default function Zones() {
                     {zone.nameAr || '—'}
                   </td>
                   <td className="py-2">{branchName(zone)}</td>
-                  <td className="py-2">{money(zone.deliveryFee, 'deliveryFee')}</td>
+                  <td className="py-2">
+                    {money(zone.deliveryFee, 'deliveryFee')}
+                    {zone.blockFees?.length ? (
+                      <span className="block text-xs text-gray-500">
+                        {zone.blockFees.map((row) => `${t('admin.zone.block')} ${row.block}: ${kwd(row.fee)}`).join(' · ')}
+                      </span>
+                    ) : null}
+                  </td>
                   <td className="py-2">{money(zone.minimumOrder, 'minimumOrder')}</td>
                   <td className="py-2">{zone.etaMinutes != null ? t('admin.zone.minutes', { minutes: zone.etaMinutes }) : '—'}</td>
                   <td className="py-2">{zone.isActive ? t('common.yes') : t('common.no')}</td>
@@ -166,6 +177,7 @@ export default function Zones() {
                             nameAr: zone.nameAr || '',
                             deliveryFee: toInput(zone.deliveryFee),
                             minimumOrder: toInput(zone.minimumOrder),
+                            blockFees: (zone.blockFees || []).map((row) => ({ block: row.block, fee: toInput(row.fee) })),
                             etaMinutes: toInput(zone.etaMinutes),
                           })
                         }
@@ -257,6 +269,45 @@ export default function Zones() {
               </div>
             </div>
             <p className="-mt-1 text-xs text-gray-500">{t('admin.zone.blankHint')}</p>
+
+            <div data-testid="zone-block-fees">
+              <label className="label">{t('admin.zone.blockFees')}</label>
+              <p className="text-xs text-gray-500">{t('admin.zone.blockFeesHint')}</p>
+              {form.blockFees.map((row, index) => {
+                const change = (field) => (e) =>
+                  setForm({ ...form, blockFees: form.blockFees.map((r, i) => (i === index ? { ...r, [field]: e.target.value } : r)) });
+                return (
+                  <div key={index} className="mt-2 flex items-center gap-2">
+                    <input className="input" required placeholder={t('admin.zone.block')} aria-label={t('admin.zone.block')} value={row.block} onChange={change('block')} />
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      required
+                      className="input"
+                      placeholder={t('admin.zone.fee')}
+                      aria-label={t('admin.zone.fee')}
+                      value={row.fee}
+                      onChange={change('fee')}
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 text-xs text-brand underline"
+                      onClick={() => setForm({ ...form, blockFees: form.blockFees.filter((_, i) => i !== index) })}
+                    >
+                      {t('common.delete')}
+                    </button>
+                  </div>
+                );
+              })}
+              <button
+                type="button"
+                className="mt-2 text-sm font-semibold underline"
+                onClick={() => setForm({ ...form, blockFees: [...form.blockFees, { block: '', fee: '' }] })}
+              >
+                + {t('admin.zone.addBlock')}
+              </button>
+            </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>

@@ -119,7 +119,7 @@ export const create = async (payload) => {
   }
 
   // Collecting in person is never charged for delivery, and carries no address.
-  const baseDeliveryFee = deliveryFeeFor(orderType, zone, settings);
+  const baseDeliveryFee = deliveryFeeFor(orderType, zone, settings, payload.block);
 
   // The sold-out check and the voucher (re-resolved from the database; the client only sends a code) are read
   // together, but still judged in the order the customer is told about them: sold out, minimum, then the code.
