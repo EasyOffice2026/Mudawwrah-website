@@ -166,6 +166,32 @@ test('an area listed under two branches goes to the first open one, and customer
   assert.equal(riggae.body.branchId, ids.jahra);
 });
 
+test('a block of an area can have its own delivery fee, shared by every branch listing that area', async () => {
+  // Set on the Sabah Al-Ahmad entry whose branch is closed now; the other entry (serving now) gets the same list.
+  const set = await call('PUT', `/zones/${ids.zSabahOwn}`, { token: ids.owner, body: { deliveryFee: 0.5, blockFees: [{ block: 'B2', fee: 0.25 }] } });
+  assert.equal(set.status, 200, JSON.stringify(set.body));
+  assert.deepEqual(set.body.blockFees, [{ block: 'B2', fee: 0.25 }]);
+  await call('PUT', `/zones/${ids.zSabahBackup}`, { token: ids.owner, body: { deliveryFee: 0.5 } });
+  const all = (await call('GET', '/zones/all', { token: ids.owner })).body.filter((z) => z.nameEn === 'Sabah Al-Ahmad');
+  assert.deepEqual(all.map((z) => z.blockFees), [[{ block: 'B2', fee: 0.25 }], [{ block: 'B2', fee: 0.25 }]]);
+  const shown = (await call('GET', '/zones')).body.find((z) => z.nameEn === 'Sabah Al-Ahmad');
+  assert.deepEqual(shown.blockFees, [{ block: 'B2', fee: 0.25 }], 'checkout knows the block fees');
+
+  const block2 = await call('POST', '/orders', { body: order({ orderType: 'DELIVERY', area: 'Sabah Al-Ahmad', block: 'Block 2', street: '1', building: '1' }) });
+  assert.equal(block2.status, 201, JSON.stringify(block2.body));
+  assert.equal(Number(block2.body.deliveryFee), 0.25);
+  const block7 = await call('POST', '/orders', { body: order({ orderType: 'DELIVERY', area: 'Sabah Al-Ahmad', block: '7', street: '1', building: '1' }) });
+  assert.equal(Number(block7.body.deliveryFee), 0.5);
+
+  // The same block twice is refused rather than guessed between.
+  const twice = await call('PUT', `/zones/${ids.zSabahOwn}`, { token: ids.owner, body: { blockFees: [{ block: '2', fee: 0.25 }, { block: 'B2', fee: 0.3 }] } });
+  assert.ok(twice.status >= 400 && twice.status < 500, String(twice.status));
+  // Emptied on one entry, emptied on both: back to one fee for the whole area.
+  await call('PUT', `/zones/${ids.zSabahBackup}`, { token: ids.owner, body: { blockFees: [] } });
+  const again = await call('POST', '/orders', { body: order({ orderType: 'DELIVERY', area: 'Sabah Al-Ahmad', block: '2', street: '1', building: '1' }) });
+  assert.equal(Number(again.body.deliveryFee), 0.5);
+});
+
 test('pickup needs a branch when branches exist, and a closed branch cannot take it', async () => {
   assert.equal((await call('POST', '/orders', { body: order({ orderType: 'PICKUP' }) })).status, 422);
   assert.equal((await call('POST', '/orders', { body: order({ orderType: 'PICKUP', pickupLocationId: ids.closed }) })).status, 409);

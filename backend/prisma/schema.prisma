@@ -523,6 +523,9 @@ model DeliveryZone {
   /// Null falls back to the restaurant-wide delivery fee / minimum order in Settings.
   deliveryFee  Decimal?       @db.Decimal(10, 3)
   minimumOrder Decimal?       @db.Decimal(10, 3)
+  /// Blocks of this area with a fee of their own, as [{ block: "2", fee: 0.25 }]; every other block pays
+  /// deliveryFee. An area listed under two branches keeps the same list on both (services/zoneService.js).
+  blockFees    Json           @default("[]")
   /// Typical minutes from order to door, shown at checkout.
   etaMinutes   Int?
   isActive     Boolean        @default(true)

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { acceptedMethods, deliveryFeeFor, orderTotals, priceLines, round3, subtotalOf } from '../src/services/pricing.js';
+import { acceptedMethods, blockKey, deliveryFeeFor, orderTotals, priceLines, round3, subtotalOf } from '../src/services/pricing.js';
 
 const menu = [
   { id: 'shawarma', nameEn: 'Shawarma', nameAr: 'شاورما', price: '0.750', isAvailable: true, isOutOfStock: false },
@@ -78,4 +78,24 @@ test("the restaurant's accepted payment methods, in its own order; KNET and card
   assert.deepEqual(acceptedMethods(settings), ['KNET', 'APPLE_PAY']);
   assert.deepEqual(acceptedMethods({}), ['KNET', 'CARD']);
   assert.deepEqual(acceptedMethods({ paymentMethods: ' KNET , ' }), ['KNET']);
+});
+
+test('a block is the same block however the customer types it', () => {
+  for (const typed of ['2', 'B2', 'b-2', 'Block 2', 'block2', ' 02 ', 'قطعة ٢', 'ق2', '٢']) assert.equal(blockKey(typed), '2', typed);
+  assert.equal(blockKey('12'), '12');
+  assert.equal(blockKey(''), '');
+  assert.equal(blockKey(null), '');
+});
+
+test('a block with its own fee pays it; every other block pays the area fee', () => {
+  const sabah = { deliveryFee: 0.5, blockFees: [{ block: 'B2', fee: 0.25 }] };
+  assert.equal(deliveryFeeFor('DELIVERY', sabah, settings, 'Block 2'), 0.25);
+  assert.equal(deliveryFeeFor('DELIVERY', sabah, settings, '2'), 0.25);
+  assert.equal(deliveryFeeFor('DELIVERY', sabah, settings, '12'), 0.5);
+  assert.equal(deliveryFeeFor('DELIVERY', sabah, settings, ''), 0.5);
+  assert.equal(deliveryFeeFor('PICKUP', sabah, settings, '2'), 0);
+  // An area with no fee of its own still falls back to the restaurant's, except for its listed blocks.
+  const plain = { deliveryFee: null, blockFees: [{ block: '4', fee: 0 }] };
+  assert.equal(deliveryFeeFor('DELIVERY', plain, settings, '4'), 0);
+  assert.equal(deliveryFeeFor('DELIVERY', plain, settings, '5'), 1);
 });
