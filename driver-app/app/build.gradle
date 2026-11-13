@@ -1,0 +1,32 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.madawarah.driver'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.madawarah.driver'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// No libraries: the phone's own location service (GPS and network) and its own HTTP are all the app uses, so it
+// runs on every Android phone, with or without Google Play services.
+dependencies {
+}

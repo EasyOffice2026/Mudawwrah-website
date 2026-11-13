@@ -26,6 +26,8 @@ const include = {
   // The branch handling the order (pickup or delivery) and the delivery zone it matched.
   branch: { select: { id: true, nameEn: true, nameAr: true } },
   zone: { select: { id: true, nameEn: true, nameAr: true } },
+  // The driver given the delivery, for the order desk.
+  driver: { select: { id: true, name: true, phone: true } },
 };
 
 /** Branch staff only ever see their own branch's orders; a branch account without a branch sees none. */

@@ -154,7 +154,8 @@
     "applePayHint": "Pay with Apple Pay",
     "selectPayment": "Select payment method",
     "amex": "American Express",
-    "amexHint": "AMEX Card"
+    "amexHint": "AMEX Card",
+    "trackOnMap": "Track your order"
   },
   "admin": {
     "login": "Admin login",
@@ -508,7 +509,8 @@
       "ADMIN": "Owner (admin)",
       "STAFF": "Staff",
       "BRANCH": "Branch staff",
-      "CUSTOMER": "Customer"
+      "CUSTOMER": "Customer",
+      "DRIVER": "Driver"
     },
     "days": {
       "0": "Sun",
@@ -769,6 +771,25 @@
       "import_other": "Import {{count}} changes",
       "importing": "Importing…",
       "done": "Done: {{create}} added, {{update}} updated."
+    },
+    "driver": {
+      "label": "Driver",
+      "none": "No driver yet",
+      "choose": "Choose a driver",
+      "inHand_one": "{{count}} delivery in hand",
+      "inHand_other": "{{count}} deliveries in hand",
+      "free": "free",
+      "noDrivers": "No drivers yet. The owner adds them under Users, with the role \"Driver\".",
+      "follow": "Follow on the map",
+      "phoneHint": "The driver signs in with this phone number and the password.",
+      "branchHint": "Optional. Leave empty if this driver delivers for every branch.",
+      "allBranches": "All branches",
+      "pageTitle": "Driver page",
+      "pageHint": "Drivers open this address on their phone and sign in with their phone number and password.",
+      "appDownload": "Download the Android driver app",
+      "appHint": "On Android, the app keeps sending the location when the phone is locked. In a browser the page must stay open with the screen on.",
+      "copy": "Copy",
+      "copied": "Copied"
     }
   },
   "store": {
@@ -804,5 +825,55 @@
   "install": {
     "button": "Install the app",
     "ios": "To install this as an app: tap Share, then \"Add to Home Screen\"."
+  },
+  "driver": {
+    "title": "My deliveries",
+    "signIn": "Sign in",
+    "signInTitle": "Driver sign in",
+    "phone": "Phone number",
+    "password": "Password",
+    "signOut": "Sign out",
+    "hello": "Hi {{name}}",
+    "none": "No deliveries right now.",
+    "noneHint": "New ones appear here by themselves.",
+    "deliveredToday": "Delivered today: {{count}}",
+    "start": "Start delivery",
+    "delivered": "Delivered",
+    "confirmDelivered": "Mark order {{number}} as delivered?",
+    "navigate": "Open in maps",
+    "call": "Call customer",
+    "collect": "Collect {{amount}}",
+    "paid": "Paid online · nothing to collect",
+    "stage_waiting": "Being prepared",
+    "stage_ready": "Ready to collect",
+    "stage_out": "On the way",
+    "note": "Note",
+    "newOrder": "New delivery",
+    "sharing": "The customer can see where you are until you press Delivered.",
+    "sharingApp": "Your location keeps sending with the screen locked.",
+    "sharingBrowser": "Keep this page open with the screen on while you deliver.",
+    "locationOff": "Location is off. Allow location for this page so the customer can follow the delivery.",
+    "locationOffApp": "Location is off. Allow location for the app and turn on GPS, then come back.",
+    "allow": "Allow location",
+    "offline": "No internet. Retrying…",
+    "updated": "Updated {{time}}"
+  },
+  "track": {
+    "title": "Track your order",
+    "order": "Order {{number}}",
+    "onTheWay": "{{name}} is on the way",
+    "onTheWayNoName": "Your order is on the way",
+    "eta_one": "About {{count}} minute away",
+    "eta_other": "About {{count}} minutes away",
+    "etaHint": "Estimated from the distance left.",
+    "waitingLocation": "Waiting for the driver's location…",
+    "lastSeen": "The driver's location was last updated at {{time}}.",
+    "you": "Delivery location",
+    "driver": "Driver",
+    "notFound": "We could not find this order.",
+    "delivered": "Delivered. Enjoy your meal!",
+    "cancelled": "This order was cancelled.",
+    "backToMenu": "Back to the menu",
+    "mapStarts": "The live map appears here when your order leaves the restaurant."
   }
 }

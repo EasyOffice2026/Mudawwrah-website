@@ -49,6 +49,19 @@ export default function RootRoute() {
  * On the platform's own host this resolves to no tenant, same as RootRoute;
  * there is no sensible page to show at a bare /admin there, so it goes home.
  */
+/**
+ * The same again for the driver page and a customer's tracking link: yourdomain.com/driver and
+ * yourdomain.com/track/<order> are what people type and what a message can carry, and they land on that
+ * restaurant's own page.
+ */
+export function RootTenantPath({ prefix }) {
+  const { checked, slug } = useDomainTenant();
+  const { '*': rest } = useParams();
+  if (!checked) return null;
+  if (slug) return <Navigate to={`/r/${slug}/${prefix}${rest ? `/${rest}` : ''}`} replace />;
+  return <Navigate to="/" replace />;
+}
+
 export function RootAdminRoute() {
   const { checked, slug } = useDomainTenant();
   const { '*': rest } = useParams();
