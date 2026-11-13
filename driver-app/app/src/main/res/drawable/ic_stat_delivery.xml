@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The notification's small icon: a map pin in one colour, as Android asks. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2a7,7 0,0 1,7 7c0,5.2 -7,13 -7,13s-7,-7.8 -7,-13a7,7 0,0 1,7 -7z M12,6.5a2.5,2.5 0,1 0,0.01 0z" />
+</vector>

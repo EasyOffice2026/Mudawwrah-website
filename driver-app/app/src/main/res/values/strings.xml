@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Madawarah Driver</string>
+    <string name="channel_name">Delivery in progress</string>
+    <string name="notification_title">Delivery in progress · جاري التوصيل</string>
+    <string name="notification_text">The customer can see where you are until you press Delivered.\nالعميل يشوف موقعك لين تضغط «تم التوصيل».</string>
+    <string name="notification_open">Open</string>
+</resources>

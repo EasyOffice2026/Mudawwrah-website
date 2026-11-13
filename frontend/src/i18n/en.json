@@ -853,7 +853,7 @@
     "sharingApp": "Your location keeps sending with the screen locked.",
     "sharingBrowser": "Keep this page open with the screen on while you deliver.",
     "locationOff": "Location is off. Allow location for this page so the customer can follow the delivery.",
-    "locationOffApp": "Location is off. Allow \"Location\" for the app (choose \"Allow all the time\") and turn on GPS.",
+    "locationOffApp": "Location is off. Allow location for the app and turn on GPS, then come back.",
     "allow": "Allow location",
     "offline": "No internet. Retrying…",
     "updated": "Updated {{time}}"

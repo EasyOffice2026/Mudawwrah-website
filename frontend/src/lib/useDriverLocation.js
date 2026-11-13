@@ -54,7 +54,7 @@ export function useDriverLocation(active, onStopped) {
           return;
         }
         const status = appStatus();
-        setState(status === 'tracking' || status === 'starting' ? 'on' : status === 'error' ? 'unavailable' : 'denied');
+        setState(status === 'tracking' || status === 'starting' ? 'on' : status === 'error' || status === 'idle' ? 'unavailable' : 'denied');
       };
       hand();
       const timer = setInterval(hand, 15_000);
