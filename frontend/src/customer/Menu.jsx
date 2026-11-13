@@ -369,7 +369,7 @@ export default function Menu() {
         </section>
       ))}
 
-      <StoreFooter slug={slug} settings={settings} />
+      <StoreFooter slug={slug} tenant={tenant} settings={settings} />
 
       <CartBar count={count()} subtotal={subtotal()} onOpen={() => { setCartOpen(true); loadSuggestions(); }} />
 
