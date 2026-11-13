@@ -9,11 +9,19 @@ import { getAll as getSettings } from '../services/settingService.js';
 import { pushIfDue as pushToFoodics } from '../services/foodicsService.js';
 import { notifyNewOrder, notifyPaymentResult } from '../services/whatsapp/notifications.js';
 
-// The storefront page the customer lands on after paying: the menu, with the result in the address.
+/**
+ * The storefront page the customer lands on after paying: the menu, with the result in the address. The order's id
+ * goes along so the "Payment received" screen can link to the order's own tracking page.
+ */
+export const storefrontAddress = (storefrontUrl, slug, order) => {
+  const state = order.paymentStatus === 'PAID' ? 'paid' : order.paymentStatus === 'FAILED' ? 'failed' : 'pending';
+  const query = new URLSearchParams({ payment: state, order: order.orderNumber, id: order.id });
+  return `${storefrontUrl}/r/${slug ?? ''}?${query}`;
+};
+
 const storefrontLink = async (order) => {
   const tenant = await prisma.tenant.findUnique({ where: { id: order.tenantId } });
-  const state = order.paymentStatus === 'PAID' ? 'paid' : order.paymentStatus === 'FAILED' ? 'failed' : 'pending';
-  return `${config.storefrontUrl}/r/${tenant?.slug ?? ''}?payment=${state}&order=${encodeURIComponent(order.orderNumber)}`;
+  return storefrontAddress(config.storefrontUrl, tenant?.slug, order);
 };
 
 // A website order that waited for its payment reaches the staff once it is paid.

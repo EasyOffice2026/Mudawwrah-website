@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import { currentTenantSlug, tenantPath } from '../../lib/tenant';
 import SheetShell from './SheetShell.jsx';
 
 const LOOKS = {
@@ -9,11 +11,13 @@ const LOOKS = {
 
 /**
  * What the customer sees when the payment page sends them back: paid, refused, or still being
- * confirmed by the bank. A refused payment keeps the basket, so one tap tries again.
+ * confirmed by the bank. A refused payment keeps the basket, so one tap tries again. A paid order
+ * links to its own tracking page, where the live map shows once the driver has left.
  */
-export default function PaymentResult({ state, orderNumber, onClose, onRetry }) {
+export default function PaymentResult({ state, orderNumber, orderId, onClose, onRetry }) {
   const { t } = useTranslation();
   const look = LOOKS[state] || LOOKS.pending;
+  const canTrack = state === 'paid' && Boolean(orderId);
 
   return (
     <SheetShell label={t(`payment.${state}Title`)}>
@@ -34,9 +38,18 @@ export default function PaymentResult({ state, orderNumber, onClose, onRetry }) 
               {t('payment.retry')}
             </button>
           ) : null}
+          {canTrack ? (
+            <Link
+              className="btn-primary w-full py-3.5"
+              data-testid="payment-track"
+              to={tenantPath(currentTenantSlug(), `/track/${encodeURIComponent(orderId)}`)}
+            >
+              📍 {t('checkout.trackOnMap')}
+            </Link>
+          ) : null}
           <button
             type="button"
-            className={state === 'failed' ? 'btn-ghost w-full py-3.5' : 'btn-primary w-full py-3.5'}
+            className={state === 'failed' || canTrack ? 'btn-ghost w-full py-3.5' : 'btn-primary w-full py-3.5'}
             onClick={onClose}
           >
             {t('payment.close')}
