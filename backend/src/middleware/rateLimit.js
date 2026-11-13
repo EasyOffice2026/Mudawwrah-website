@@ -42,5 +42,7 @@ export const refreshLimit = createRateLimit({ name: 'refresh', windowMs: 15 * 60
 export const orderLimit = createRateLimit({ name: 'orders', windowMs: 10 * 60_000, max: 60 });
 // Browsers reporting what the website's Content-Security-Policy would block.
 export const cspLimit = createRateLimit({ name: 'csp', windowMs: 60_000, max: 30 });
+// A driver's phone reporting where it is: every few seconds, and several drivers can share one mobile address.
+export const locationLimit = createRateLimit({ name: 'location', windowMs: 60_000, max: 600 });
 // Trying promo codes.
 export const promoLimit = createRateLimit({ name: 'promo', windowMs: 10 * 60_000, max: 30 });

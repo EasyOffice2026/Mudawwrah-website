@@ -4,6 +4,7 @@ import Modal from '../../components/Modal.jsx';
 import { api, apiError } from '../../lib/api';
 import { dateTime, kwd, localized } from '../../lib/format';
 import { useAuth } from '../../store/auth';
+import DriverPicker from '../components/DriverPicker.jsx';
 import OrderReceipt from '../components/OrderReceipt.jsx';
 import { thermalLogo } from '../../lib/receiptLogo';
 import { useOrderFeed } from '../OrderFeed.jsx';
@@ -26,6 +27,8 @@ export default function Orders() {
   const [filters, setFilters] = useState({ status: '', channel: '', branchId: '', from: '', to: '', search: '' });
   const [result, setResult] = useState({ data: [], total: 0, page: 1, pageSize: 20 });
   const [detail, setDetail] = useState(null);
+  // The drivers this desk may give a delivery to; read again each time an order is opened, so "in hand" is current.
+  const [drivers, setDrivers] = useState(null);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [live, setLive] = useState(true);
@@ -53,6 +56,17 @@ export default function Orders() {
       .then(({ data }) => setBranches(data))
       .catch(() => setBranches([]));
   }, [canPickBranch]);
+
+  const detailId = detail?.id;
+  const detailIsDelivery = detail?.orderType === 'DELIVERY';
+  const loadDrivers = () =>
+    api
+      .get('/drivers')
+      .then(({ data }) => setDrivers(data))
+      .catch(() => setDrivers([]));
+  useEffect(() => {
+    if (detailId && detailIsDelivery) loadDrivers();
+  }, [detailId, detailIsDelivery]);
 
   const lang = i18n.language;
   const statusLabel = (status) => t(`admin.statuses.${status}`, status);
@@ -254,6 +268,7 @@ export default function Orders() {
                 </td>
                 <td className="py-2">
                   {order.orderType === 'PICKUP' ? <span className="text-gray-500">{t('checkout.pickup')}</span> : areaOf(order)}
+                  {order.driver ? <span className="block text-xs text-gray-500">🛵 {order.driver.name}</span> : null}
                 </td>
                 <td className="py-2">{branchOf(order)}</td>
                 <td className="py-2 text-gray-500">{dateTime(order.createdAt, lang)}</td>
@@ -410,6 +425,17 @@ export default function Orders() {
                 <p>
                   <span className="text-gray-500">{t('checkout.notes')}:</span> {detail.notes}
                 </p>
+              ) : null}
+              {detail.orderType === 'DELIVERY' ? (
+                <DriverPicker
+                  order={detail}
+                  drivers={drivers}
+                  onChanged={(data) => {
+                    setDetail((current) => (current?.id === data.id ? data : current));
+                    load();
+                    loadDrivers();
+                  }}
+                />
               ) : null}
             </div>
             <ul className="divide-y divide-gray-100">

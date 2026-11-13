@@ -4,8 +4,10 @@ import Modal from '../../components/Modal.jsx';
 import { api, apiError } from '../../lib/api';
 import { dateTime, kwd, localized } from '../../lib/format';
 import BranchDevices from '../components/BranchDevices.jsx';
+import DriverSetup from '../components/DriverSetup.jsx';
 
-const ROLES = ['ADMIN', 'STAFF', 'BRANCH', 'CUSTOMER'];
+const ROLES = ['ADMIN', 'STAFF', 'BRANCH', 'DRIVER', 'CUSTOMER'];
+// A driver may be tied to a branch (optional); a branch account must be.
 const empty = { email: '', password: '', name: '', phone: '', role: 'STAFF', branchId: '', isActive: true };
 
 export default function Users() {
@@ -50,8 +52,10 @@ export default function Users() {
     setSaving(true);
     try {
       const { id, _count, createdAt, orders, branch, ...rest } = form;
-      // Only a branch account carries a branch; changing someone's role away from BRANCH clears it.
-      rest.branchId = rest.role === 'BRANCH' ? rest.branchId || null : null;
+      // A branch account must carry a branch and a driver may; changing someone's role away from those clears it.
+      rest.branchId = ['BRANCH', 'DRIVER'].includes(rest.role) ? rest.branchId || null : null;
+      // A driver signs in with the phone number: no email is asked (the server keeps a stand-in of its own).
+      if (rest.role === 'DRIVER' && (!rest.email || /.drivers.local$/.test(rest.email))) delete rest.email;
       if (id) {
         const payload = { ...rest };
         if (!payload.password) delete payload.password;
@@ -144,7 +148,7 @@ export default function Users() {
             {users.map((user) => (
               <tr key={user.id} className="border-t border-gray-100">
                 <td className="py-2 font-semibold">{user.name}</td>
-                <td className="py-2 text-gray-500">{user.email}</td>
+                <td className="py-2 text-gray-500">{user.role === 'DRIVER' ? <span dir="ltr">{user.phone}</span> : user.email}</td>
                 <td className="py-2">{roleLabel(user.role)}</td>
                 <td className="py-2">{user.branch ? localized(user.branch, 'name', lang) : '—'}</td>
                 <td className="py-2">{user.isActive ? t('common.yes') : t('common.no')}</td>
@@ -196,10 +200,12 @@ export default function Users() {
               <label className="label">{t('admin.name')}</label>
               <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
-            <div>
-              <label className="label">{t('admin.email')}</label>
-              <input type="email" className="input" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </div>
+            {form.role === 'DRIVER' ? null : (
+              <div>
+                <label className="label">{t('admin.email')}</label>
+                <input type="email" className="input" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </div>
+            )}
             <div>
               <label className="label">
                 {t('admin.password')} {form.id ? t('admin.passwordKeep') : ''}
@@ -214,7 +220,15 @@ export default function Users() {
             </div>
             <div>
               <label className="label">{t('admin.phone')}</label>
-              <input className="input" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <input
+                className="input"
+                type="tel"
+                dir="ltr"
+                required={form.role === 'DRIVER'}
+                value={form.phone || ''}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+              {form.role === 'DRIVER' ? <p className="mt-1 text-xs text-gray-500">{t('admin.driver.phoneHint')}</p> : null}
             </div>
             <div>
               <label className="label">{t('admin.role')}</label>
@@ -226,23 +240,23 @@ export default function Users() {
                 ))}
               </select>
             </div>
-            {form.role === 'BRANCH' ? (
+            {form.role === 'BRANCH' || form.role === 'DRIVER' ? (
               <div>
                 <label className="label">{t('admin.branch')}</label>
                 <select
                   className="input"
-                  required
+                  required={form.role === 'BRANCH'}
                   value={form.branchId || ''}
                   onChange={(e) => setForm({ ...form, branchId: e.target.value })}
                 >
-                  <option value="">{t('admin.chooseBranch')}</option>
+                  <option value="">{form.role === 'DRIVER' ? t('admin.driver.allBranches') : t('admin.chooseBranch')}</option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {localized(branch, 'name', lang)}
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-gray-500">{t('admin.branchRequired')}</p>
+                <p className="mt-1 text-xs text-gray-500">{form.role === 'DRIVER' ? t('admin.driver.branchHint') : t('admin.branchRequired')}</p>
               </div>
             ) : null}
             <label className="flex items-center gap-2 text-sm">
@@ -262,7 +276,7 @@ export default function Users() {
         {detail ? (
           <div className="space-y-3 text-sm">
             <p className="text-gray-500">
-              {detail.email} · {roleLabel(detail.role)}
+              {detail.role === 'DRIVER' ? detail.phone : detail.email} · {roleLabel(detail.role)}
               {detail.branch ? ` · ${localized(detail.branch, 'name', lang)}` : ''}
             </p>
             <h4 className="font-bold">{t('admin.orders')}</h4>
@@ -285,6 +299,7 @@ export default function Users() {
         ) : null}
       </Modal>
 
+      <DriverSetup />
       {branches.length ? <BranchDevices branches={branches} /> : null}
     </div>
   );

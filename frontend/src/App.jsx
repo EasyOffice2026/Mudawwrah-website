@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminOnly from './admin/AdminOnly.jsx';
 import StaffOnly from './admin/StaffOnly.jsx';
 import Menu from './customer/Menu.jsx';
-import RootRoute, { RootAdminRoute } from './platform/RootRoute.jsx';
+import RootRoute, { RootAdminRoute, RootTenantPath } from './platform/RootRoute.jsx';
 
 // The admin panel (and its charting library) is loaded on demand, so a
 // customer opening the menu on mobile data never downloads it.
@@ -27,6 +27,9 @@ const Zones = lazy(() => import('./admin/pages/Zones.jsx'));
 const PrintStation = lazy(() => import('./printing/PrintStation.jsx'));
 const Printing = lazy(() => import('./admin/pages/Printing.jsx'));
 const Closing = lazy(() => import('./admin/pages/Closing.jsx'));
+// A driver's own page (their phone, or the Android app showing it) and a customer's live tracking page.
+const DriverPage = lazy(() => import('./driver/DriverPage.jsx'));
+const TrackOrder = lazy(() => import('./customer/TrackOrder.jsx'));
 const PlatformConsole = lazy(() => import('./platform/PlatformConsole.jsx'));
 const PlatformLogin = lazy(() => import('./platform/PlatformLogin.jsx'));
 
@@ -39,6 +42,8 @@ export default function App() {
           resolve to that restaurant instead; see RootRoute. */}
       <Route path="/" element={<RootRoute />} />
       <Route path="/admin/*" element={<RootAdminRoute />} />
+      <Route path="/driver/*" element={<RootTenantPath prefix="driver" />} />
+      <Route path="/track/*" element={<RootTenantPath prefix="track" />} />
       <Route path="/platform/login" element={<PlatformLogin />} />
       <Route path="/platform" element={<PlatformConsole />} />
 
@@ -50,6 +55,8 @@ export default function App() {
       <Route path="/r/:slug/terms" element={<LegalPage page="terms" />} />
       <Route path="/r/:slug/refund-policy" element={<LegalPage page="refund" />} />
       <Route path="/r/:slug/print/:branchId" element={<PrintStation />} />
+      <Route path="/r/:slug/driver" element={<DriverPage />} />
+      <Route path="/r/:slug/track/:id" element={<TrackOrder />} />
       <Route path="/r/:slug/admin/login" element={<Login />} />
       <Route path="/r/:slug/admin" element={<AdminLayout />}>
         {/* The order desk: the only pages a branch account can open. */}

@@ -259,17 +259,27 @@ export const bannerSchema = z.object({
 export const bannerUpdateSchema = bannerSchema.partial();
 
 export const userSchema = z.object({
-  email: z.string().email(),
+  /// Not asked of a DRIVER, who signs in with their phone number (userService gives the account a stand-in).
+  email: z.string().email().optional(),
   password: z.string().min(6),
   name: z.string().trim().min(1),
   phone: optionalString,
-  role: z.enum(['ADMIN', 'STAFF', 'BRANCH', 'CUSTOMER']).optional(),
+  role: z.enum(['ADMIN', 'STAFF', 'BRANCH', 'DRIVER', 'CUSTOMER']).optional(),
   isActive: z.coerce.boolean().optional(),
-  /// Required for BRANCH accounts: the branch whose orders they handle.
+  /// Required for BRANCH accounts: the branch whose orders they handle. Optional for a DRIVER.
   branchId: z.string().uuid().nullable().optional(),
 });
 
 export const userUpdateSchema = userSchema.partial();
+
+/** A driver signing in on the driver page. */
+export const driverLoginSchema = z.object({
+  phone: z.string().trim().min(4).max(30),
+  password: z.string().min(1).max(200),
+});
+
+/** The order desk giving a delivery to a driver; null takes it back. */
+export const assignDriverSchema = z.object({ driverId: z.string().uuid().nullable() });
 
 /**
  * Secrets accept `null` to clear and '' to leave as they are, so the dashboard

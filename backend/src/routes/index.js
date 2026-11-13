@@ -7,6 +7,7 @@ import * as categories from '../controllers/categoryController.js';
 import * as dashboard from '../controllers/dashboardController.js';
 import * as csp from '../controllers/cspController.js';
 import * as devices from '../controllers/deviceController.js';
+import * as drivers from '../controllers/driverController.js';
 import * as feedback from '../controllers/feedbackController.js';
 import * as menuImport from '../controllers/menuImportController.js';
 import * as foodics from '../controllers/foodicsController.js';
@@ -32,13 +33,14 @@ import {
   optionalAuth,
   requireAdmin,
   requireCustomer,
+  requireDriver,
   requireOrderDesk,
   requirePlatformAdmin,
   requireStaff,
 } from '../middleware/auth.js';
 import { asyncHandler as h } from '../middleware/error.js';
 import { publicCache } from '../middleware/publicCache.js';
-import { cspLimit, loginLimit, orderLimit, promoLimit, refreshLimit } from '../middleware/rateLimit.js';
+import { cspLimit, locationLimit, loginLimit, orderLimit, promoLimit, refreshLimit } from '../middleware/rateLimit.js';
 import { requirePrintKey } from '../middleware/printKey.js';
 import { reattachTenant, requireTenant } from '../middleware/tenant.js';
 import { upload } from '../middleware/upload.js';
@@ -158,6 +160,16 @@ scoped.get('/print/stations', requireOrderDesk, h(printing.stations));
 scoped.post('/orders/:id/reprint', requireOrderDesk, h(printing.reprint));
 scoped.get('/orders/:id', requireOrderDesk, h(orders.getById));
 scoped.patch('/orders/:id/status', requireOrderDesk, h(orders.updateStatus));
+
+// Delivery drivers. The order desk gives a delivery to a driver; the driver's page (and the Android app showing it)
+// signs in with a phone number, lists that driver's own orders, and reports where the phone is while one is out.
+scoped.get('/drivers', requireOrderDesk, h(drivers.list));
+scoped.patch('/orders/:id/driver', requireOrderDesk, h(drivers.assign));
+scoped.post('/driver/login', loginLimit, h(drivers.login));
+scoped.get('/driver/orders', requireDriver, h(drivers.orders));
+scoped.post('/driver/orders/:id/start', requireDriver, h(drivers.start));
+scoped.post('/driver/orders/:id/delivered', requireDriver, h(drivers.delivered));
+scoped.post('/driver/location', locationLimit, requireDriver, h(drivers.location));
 
 // Items sold out at one branch only. Branch accounts manage their own branch.
 scoped.get('/branch-sold-out', requireOrderDesk, h(soldOut.list));

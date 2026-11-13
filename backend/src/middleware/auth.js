@@ -115,6 +115,8 @@ export const requireBranchAccess = async (req, res, next) => {
 export const clearBranchAccessCache = () => branchChecks.clear();
 
 export const requireStaff = [authenticate, requireRole('ADMIN', 'STAFF'), requireTenantAccess];
+/** A delivery driver, for the driver page: their own deliveries and nothing else of the restaurant's. */
+export const requireDriver = [authenticate, requireRole('DRIVER'), requireTenantAccess];
 export const requireAdmin = [authenticate, requireRole('ADMIN'), requireTenantAccess];
 /**
  * Order handling and per-branch sold-out flags: the owner, staff and branch

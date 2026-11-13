@@ -34,6 +34,13 @@ const sign = (user, expiresIn, typ = 'access') =>
  * from. Edge headers come first because the edge overwrites them; the first entry of X-Forwarded-For is
  * only a fallback, since a client can write that part itself.
  */
+/** A new sign-in for an account already checked: the short token, its 30-day renewal token, and who it is. */
+export const issueSession = (user) => ({
+  token: sign(user, config.jwtExpiresIn),
+  refreshToken: sign(user, config.refreshExpiresIn, 'refresh'),
+  user: publicUser(user),
+});
+
 export const clientIpInfo = (req) => {
   const candidates = [
     ['cf-connecting-ip', req.headers['cf-connecting-ip']],
@@ -126,6 +133,9 @@ export const refresh = async (refreshToken, { ip = '', deviceKey } = {}) => {
   // Sessions ended since this token was made (password changed, signed out everywhere) cannot be renewed.
   if ((payload.tv ?? 0) !== user.tokenVersion) throw new HttpError(401, 'Your session has ended. Please sign in again.');
   await assertBranchAccess(user, ip, deviceKey);
+  // A driver's phone stays signed in for as long as it is used: each renewal hands it a new 30-day token, so a
+  // driver is not asked for a password in the middle of a shift. Ending the account's sessions still ends it at once.
+  if (user.role === 'DRIVER') return issueSession(user);
   return { token: sign(user, config.jwtExpiresIn), user: publicUser(user) };
 };
 

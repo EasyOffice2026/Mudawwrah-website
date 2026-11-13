@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { kwd } from '../../../lib/format';
+import { currentTenantSlug, tenantPath } from '../../../lib/tenant';
 
-const TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+export const TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 // A collection order is never "on the way".
-const PICKUP_TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'];
+export const PICKUP_TRACK_STAGES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'];
 
 /**
  * After the order is placed: its number, what happens next, the total, and progress the customer can watch without
@@ -45,7 +47,12 @@ export default function OrderPlaced({ placed, tracked, pickupWaitMinutes, onNewO
           })}
         </ol>
       </div>
-      <button type="button" className="btn-primary mt-8 w-full max-w-xs py-3.5" onClick={onNewOrder}>
+      {/* The order's own page: the same progress, kept after this screen is closed, and the live map once the
+          driver has left. */}
+      <Link className="btn-ghost mt-8 w-full max-w-xs py-3.5" to={tenantPath(currentTenantSlug(), `/track/${placed.id}`)}>
+        📍 {t('checkout.trackOnMap')}
+      </Link>
+      <button type="button" className="btn-primary mt-3 w-full max-w-xs py-3.5" onClick={onNewOrder}>
         {t('checkout.newOrder')}
       </button>
     </div>

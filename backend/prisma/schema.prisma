@@ -19,6 +19,8 @@ enum Role {
   STAFF
   /// Staff of one branch: that branch's orders and sold-out list only, and only from the branch's own IPs.
   BRANCH
+  /// A delivery driver: their own assigned orders only, from the driver page or app (services/driverService.js).
+  DRIVER
   CUSTOMER
 }
 
@@ -182,11 +184,14 @@ model User {
   /// a token carries the version it was issued with, and one with an older version is refused.
   tokenVersion Int    @default(0)
   /// The branch a BRANCH user works at. SetNull: removing a branch locks its accounts out rather than deleting them.
+  /// A DRIVER may carry one too (the branch they deliver for); without one they deliver for every branch.
   branchId  String?
   branch    PickupLocation? @relation("BranchStaff", fields: [branchId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]
+  /// Orders this driver was given to deliver.
+  deliveries Order[] @relation("OrderDriver")
 
   @@index([tenantId])
   @@index([branchId])
@@ -349,6 +354,12 @@ model Order {
   /// The delivery zone the address matched; its fee and minimum order were applied.
   zoneId           String?
   zone             DeliveryZone?   @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  /// The driver given this delivery, and when. SetNull: removing a driver's account never deletes what they delivered.
+  /// Where the driver is right now is never stored here or anywhere: it lives in the server's memory only while the
+  /// order is out for delivery (services/driverLocations.js).
+  driverId         String?
+  driver           User?           @relation("OrderDriver", fields: [driverId], references: [id], onDelete: SetNull)
+  driverAssignedAt DateTime?
   /// Where the customer came from, read off the link they arrived on. Recorded
   /// per order so a restaurant can tell which campaign actually sold food,
   /// rather than only which one drove traffic.
@@ -370,6 +381,7 @@ model Order {
   @@index([tenantId])
   @@index([branchId])
   @@index([branchId, printedAt])
+  @@index([driverId, status])
   // What the order list, reports and date filters, the waiting alarm, the daily closing and customer history ask
   // for: without these every one of them reads all of the restaurant's orders, which grows every day.
   @@index([tenantId, createdAt])

@@ -1,5 +1,6 @@
 import { HttpError } from '../middleware/error.js';
 import { clientIp } from '../services/authService.js';
+import { trackingOf } from '../services/driverService.js';
 import * as events from '../services/orderEvents.js';
 import * as presence from '../services/presenceService.js';
 import * as service from '../services/orderService.js';
@@ -92,8 +93,17 @@ export const updateStatus = async (req, res) => {
   res.json(await service.updateStatus(req.params.id, status, req.user, { cancelReason, cancelNote }));
 };
 
-/** Public status lookup for the tracking link handed out at checkout. */
-export const track = async (req, res) => res.json(await service.track(req.params.id));
+/**
+ * Public status lookup for the tracking link handed out at checkout. While the order is on its way it also carries
+ * the delivery: the driver's first name, where they are, where it is going and about how long is left.
+ */
+export const track = async (req, res) => {
+  const order = await service.track(req.params.id);
+  const live = order.orderType === 'DELIVERY' && !['DELIVERED', 'CANCELLED'].includes(order.status);
+  const tracking = live ? await trackingOf(order.id) : { driverAssigned: false, delivery: null };
+  res.set('Cache-Control', 'no-store');
+  res.json({ ...order, ...tracking });
+};
 
 /** The signed-in customer's own order history. */
 export const mine = async (req, res) =>
