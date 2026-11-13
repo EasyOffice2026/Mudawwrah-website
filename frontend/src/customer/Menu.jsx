@@ -93,7 +93,7 @@ export default function Menu() {
   const [paymentResult, setPaymentResult] = useState(() => {
     const state = searchParams.get('payment');
     return ['paid', 'failed', 'pending'].includes(state)
-      ? { state, orderNumber: searchParams.get('order') || '' }
+      ? { state, orderNumber: searchParams.get('order') || '', orderId: searchParams.get('id') || '' }
       : null;
   });
   useEffect(() => {
@@ -369,7 +369,7 @@ export default function Menu() {
         </section>
       ))}
 
-      <StoreFooter slug={slug} settings={settings} />
+      <StoreFooter slug={slug} tenant={tenant} settings={settings} />
 
       <CartBar count={count()} subtotal={subtotal()} onOpen={() => { setCartOpen(true); loadSuggestions(); }} />
 
@@ -423,6 +423,7 @@ export default function Menu() {
         <PaymentResult
           state={paymentResult.state}
           orderNumber={paymentResult.orderNumber}
+          orderId={paymentResult.orderId}
           onClose={() => setPaymentResult(null)}
           onRetry={() => {
             setPaymentResult(null);

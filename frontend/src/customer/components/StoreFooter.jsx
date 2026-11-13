@@ -1,25 +1,30 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { localized } from '../../lib/format';
 import { tenantPath } from '../../lib/tenant';
 import { legalFor, PAGE_ORDER, PAGE_PATH, pageIn } from '../legal/index.js';
 import InstallApp from './InstallApp.jsx';
 
 /**
- * Contact details at the bottom of the menu, and links to the restaurant's own pages.
+ * The restaurant's registered name and contact details at the bottom of the menu, and links to its own pages.
+ * The name is the one on the restaurant's record (the company name, in the reader's language).
  *
  * There is deliberately no link to the admin panel: this is the customer's page.
  * Staff sign in at /r/<slug>/admin/login, or at /admin on the restaurant's own
  * domain (see RootAdminRoute), and bookmark it.
  */
-export default function StoreFooter({ slug, settings }) {
+export default function StoreFooter({ slug, tenant, settings }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'ar' ? 'ar' : 'en';
   // Only a restaurant that has supplied its own pages gets links to them.
   const legal = legalFor(slug);
+  const company = localized(tenant, 'name', lang);
 
   return (
     <footer className="mt-8 border-t border-hairline px-4 py-6 text-center text-sm text-ink-soft">
-      <p className="font-bold text-ink">{t('footer.contactUs')}</p>
+      <p className="font-bold text-ink" data-testid="footer-company">
+        {company || t('footer.contactUs')}
+      </p>
       {settings?.address ? <p className="mt-1">{settings.address}</p> : null}
       {settings?.contactPhone ? (
         <p className="mt-1">
